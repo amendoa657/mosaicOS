@@ -24,8 +24,10 @@ Item {
     property real offset: current
     Behavior on offset { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.3 } }
 
-    readonly property real ringRadius: Math.max(0, height - 34)
-    readonly property real stepAngle: 17 // degrees between two workspaces
+    // the tiles ride an oval arc that follows the half-oval island
+    readonly property real ringRadiusX: Math.max(0, width / 2 - 34)
+    readonly property real ringRadiusY: Math.max(0, height - 28)
+    readonly property real stepAngle: 16 // degrees between two workspaces
 
     // tiles pop out in a cascade once the island has opened up
     property real reveal: open ? 1 : 0
@@ -43,7 +45,7 @@ Item {
     // the current workspace's number, under the mark (the mark is the needle, in Island)
     StyledText {
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 44
+        y: 36
         text: root.current
         font.family: "Space Grotesk"
         font.pixelSize: 26
@@ -65,7 +67,7 @@ Item {
             readonly property bool isCurrent: wsId === root.current
             readonly property var windows: HyprlandData.windowList.filter(w => w.workspace.id === tile.wsId)
             readonly property var biggest: tile.valid ? HyprlandData.biggestWindowForWorkspace(tile.wsId) : null
-            readonly property real size: isCurrent ? 42 : tile.windows.length > 0 ? 32 : 22
+            readonly property real size: isCurrent ? 38 : tile.windows.length > 0 ? 30 : 20
             readonly property color tone: root.toneFor(Math.max(1, wsId))
             // cascade: the middle tile first, then outwards
             readonly property real myReveal: Math.max(0, Math.min(1, root.reveal * 2.2 - Math.abs(delta) * 0.22))
@@ -75,8 +77,8 @@ Item {
             scale: 0.4 + 0.6 * myReveal
             width: size
             height: size
-            x: root.width / 2 + Math.cos(angle) * root.ringRadius * (0.55 + 0.45 * myReveal) - width / 2
-            y: Math.sin(angle) * root.ringRadius * (0.55 + 0.45 * myReveal) - height / 2
+            x: root.width / 2 + Math.cos(angle) * root.ringRadiusX * (0.55 + 0.45 * myReveal) - width / 2
+            y: Math.sin(angle) * root.ringRadiusY * (0.55 + 0.45 * myReveal) - height / 2
             Behavior on width { NumberAnimation { duration: 280; easing.type: Easing.OutBack } }
             Behavior on height { NumberAnimation { duration: 280; easing.type: Easing.OutBack } }
 

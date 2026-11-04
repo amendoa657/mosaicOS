@@ -14,7 +14,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 7 | Mascote | **A marca viva:** os 4 blocos da Mosaic com olhinhos, que se rearranjam, pulam e viram outras formas. **Mora na ilha.** |
 | 8 | Dock × ilha | **Ilha em cima** (o que está vivo), **dock completo embaixo**. |
 | 9 | Áreas de trabalho | Na ilha (a ilha vira a bússola, ver abaixo). Mouse numa parte da ilha → surge um **meio círculo tipo bússola** com um ponto por área (com os símbolos dos apps); o **scroll gira a bússola** suavemente e troca de área. |
-| 10 | Gatilho da bússola | Só com **Super segurado + mouse na ilha**. |
+| 10 | Gatilho da bússola | **Super segurado**, com o mouse na ilha (abre na hora) ou em qualquer lugar (abre depois de ~0,26 s com o Super sozinho, para não piscar nos atalhos Super+tecla, no monitor em foco). Com o painel da ilha aberto, o Super também a transforma na bússola. |
 | 11 | Pontos da bússola | **Ícone principal** do app de cada área, com contador (+2) quando tem mais. |
 | 12 | Dock | **Iniciar/lançador** (a marca), **apps fixos e abertos**, **status e relógio** (abrem a lateral direita). Sem pastas/lixeira. |
 | 13 | Ilha parada | **Mascote + nome do app em foco.** |
@@ -71,6 +71,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 
 ## Bússola: 2ª versão (04/11/2026)
 A **própria ilha vira a bússola**, com animação: ela estica com mola e os cantos de baixo arredondam até ser um meio círculo, a superfície ganha um banho suave dos tons do Matugen, e a marca Mosaic cresce e vira o **ponteiro** (gira um quarto a cada área). As áreas são **blocos Mosaic** coloridos (cada número sempre no mesmo tom), com o ícone da maior janela e "+N"; a atual é maior e mais viva; elas saem em cascata do centro para fora. Scroll gira e troca (1 a 50, ~10 à vista); clique num bloco vai até ele. Super + mouse na ilha; `ipc call island compass` sem o Super.
+- (v3) Forma de **meio oval** (138 px de altura em vez de um meio círculo de 190): um círculo achatado por escala, para manter a borda lisa. Os blocos seguem um arco oval. Super segurado abre em qualquer lugar (decisão 10).
 
 ## Próximo
 - Dock completo (lançador, apps, status, relógio) para a barra do ii sair.

@@ -84,20 +84,33 @@ Scope {
             }
 
             // ---------- compass: Super held + mouse on the island ----------
+            // Holding Super opens it: right away with the mouse on the island,
+            // otherwise after a short hold of Super alone on the focused screen (so
+            // shortcuts like Super+Q don't flash it). With the panel open, Super turns
+            // the island into the compass too. Letting go brings back what was there.
             property bool compassOpen: false
+            readonly property bool isFocusedScreen: Hyprland.focusedMonitor?.name === win.screen.name
             function updateCompass() {
                 if (!GlobalStates.superDown)
                     win.compassOpen = false;
-                else if (notchHover.hovered && !win.panelOpen && !root.hasNotifs)
+                else if (notchHover.hovered)
                     win.compassOpen = true;
-                else if (!notchHover.hovered)
-                    win.compassOpen = false;
+            }
+            Timer {
+                id: superHold
+                interval: 260
+                // another key pressed with Super clears superReleaseMightTrigger: that's a shortcut
+                onTriggered: if (GlobalStates.superDown && GlobalStates.superReleaseMightTrigger && win.isFocusedScreen) win.compassOpen = true
             }
             // While the compass is up, letting go of Super must not open the search
             onCompassOpenChanged: if (compassOpen) GlobalStates.superReleaseMightTrigger = false
             Connections {
                 target: GlobalStates
-                function onSuperDownChanged() { win.updateCompass(); }
+                function onSuperDownChanged() {
+                    win.updateCompass();
+                    if (GlobalStates.superDown)
+                        superHold.restart();
+                }
             }
 
             readonly property bool panelOpen: root.openScreen === win.screen.name
@@ -145,8 +158,9 @@ Scope {
 
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: mode === "" ? restWidth : mode === "compass" ? 380 : 460
-                // as a compass it is a half circle: as tall as half its width
-                height: mode === "" ? restHeight : mode === "compass" ? 190 : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
+                // as a compass it is a half oval, flatter than a half circle
+                readonly property real compassHeight: 138
+                height: mode === "" ? restHeight : mode === "compass" ? compassHeight : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
                 Behavior on width { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
                 Behavior on height { NumberAnimation { duration: 460; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
@@ -167,11 +181,17 @@ Scope {
                 // Turning into the compass, the bottom corners round up until the
                 // island is a half circle, and the surface takes a soft wash of the
                 // four tones.
+                // (a circle squashed from the top edge: a half oval)
                 Rectangle {
                     id: surface
-                    readonly property real cornerRadius: notch.radius + (notch.width / 2 - notch.radius) * Math.max(0, Math.min(1, notch.morph))
-                    anchors.fill: parent
-                    anchors.topMargin: -cornerRadius
+                    readonly property real m: Math.max(0, Math.min(1, notch.morph))
+                    readonly property real cornerRadius: notch.radius + (notch.width / 2 - notch.radius) * m
+                    readonly property real squash: 1 + (2 * notch.compassHeight / 380 - 1) * m
+                    x: 0
+                    y: -cornerRadius * squash
+                    width: notch.width
+                    height: notch.height / squash + cornerRadius
+                    transform: Scale { yScale: surface.squash }
                     radius: cornerRadius
                     border.width: 1
                     border.color: Appearance.colors.colLayer0Border
