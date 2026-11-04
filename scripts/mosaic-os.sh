@@ -15,6 +15,8 @@ case "${1:-}" in
 esac
 
 hyprctl eval "hl.env(\"qsConfig\", \"$alvo\")" >/dev/null
+# O vidro em mosaico (hypr/mosaic.lua) entra ou sai com a config recarregada
+hyprctl reload config-only >/dev/null
 pkill -x qs || true
 sleep 0.5
 hyprctl dispatch "hl.dsp.exec_cmd(\"qs -c $alvo\")" >/dev/null
