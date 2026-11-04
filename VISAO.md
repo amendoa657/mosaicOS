@@ -34,6 +34,8 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 32 | Rosto do mascote | **Um par de olhos no meio dos 4 blocos:** a marca inteira é a cara. |
 | 33 | Clique na ilha | ~~chat~~ → abre o **painel**: música (se houver), **relógio e data**, e as **ferramentas rápidas que saíram da barra de baixo** (Print, conta-gotas, Não perturbe, fita LED, bateria do celular). Com notificação na tela, abre a central. |
 | 34 | Ilha em repouso | **Só o mosaico** (sem olhos, sem nome de app), **reta** (sem as curvas nas pontas), **cor e borda da barra de baixo**, sem serrilhado, e **não empurra as janelas**. |
+| 36 | Painel da ilha | Relógio e data à esquerda, **clima (temperatura e cidade) no canto de cima à direita**; embaixo, as ferramentas alinhadas e, à direita, um **quadrado 2×2 de círculos de desempenho** (CPU, RAM, GPU, swap). |
+| 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |
 | 19 | Lateral direita | **Lateral de vidro** (botões rápidos, notificações, calendário...), redesenhada. |

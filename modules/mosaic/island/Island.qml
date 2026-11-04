@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Widgets
 import qs
@@ -21,7 +22,9 @@ import qs.modules.ii.bar as Bar
 Scope {
     id: root
 
-    property bool panelOpen: false
+    // The panel opens on one screen at a time (the one clicked, or the focused
+    // one for IPC); each window keeps its own state
+    property string openScreen: ""
     readonly property bool hasNotifs: Notifications.popupList.length > 0
     // a player with something loaded (browsers keep idle players around)
     readonly property bool hasPlayer: (MprisController.activePlayer?.trackTitle ?? "") !== ""
@@ -40,8 +43,11 @@ Scope {
     // qs -c mosaic ipc call island <toggle|close|poke>
     IpcHandler {
         target: "island"
-        function toggle(): void { root.panelOpen = !root.panelOpen; }
-        function close(): void { root.panelOpen = false; }
+        function toggle(): void {
+            const focused = Hyprland.focusedMonitor?.name ?? "";
+            root.openScreen = root.openScreen === focused ? "" : focused;
+        }
+        function close(): void { root.openScreen = ""; }
         function poke(): void { root.jumpRequested(); }
     }
 
@@ -61,11 +67,25 @@ Scope {
             mask: Region {
                 item: notch
             }
+            readonly property bool panelOpen: root.openScreen === win.screen.name
+            function setOpen(open) {
+                root.openScreen = open ? win.screen.name : (root.openScreen === win.screen.name ? "" : root.openScreen);
+            }
+
+            // While open it takes the keyboard (Esc closes), like the ii sidebars
+            WlrLayershell.keyboardFocus: win.panelOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+            // Click outside closes it (but not while the LED menu, opened from here, is up)
+            HyprlandFocusGrab {
+                active: win.panelOpen && !ledPopup.open
+                windows: [win]
+                onCleared: win.setOpen(false)
+            }
 
             Item {
                 id: notch
                 // what is open: notifications win over the panel
-                readonly property string mode: root.hasNotifs ? "notifs" : root.panelOpen ? "panel" : ""
+                readonly property string mode: root.hasNotifs ? "notifs" : win.panelOpen ? "panel" : ""
                 readonly property real restWidth: 64
                 readonly property real restHeight: 32
                 readonly property real radius: Appearance.rounding.windowRounding
@@ -89,13 +109,16 @@ Scope {
                     antialiasing: true
                 }
 
+                focus: win.panelOpen
+                Keys.onEscapePressed: win.setOpen(false)
+
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
                         if (notch.mode === "notifs")
                             GlobalStates.sidebarRightOpen = true;
                         else
-                            root.panelOpen = !root.panelOpen;
+                            win.setOpen(!win.panelOpen);
                     }
                 }
 
@@ -110,9 +133,11 @@ Scope {
                         target: root
                         function onJumpRequested() { mascot.jump(); }
                     }
+                    // only a toy while the island is open; closed, a click opens it
                     MouseArea {
                         anchors.fill: parent
                         anchors.margins: -4
+                        enabled: notch.mode === "panel"
                         onClicked: mascot.poke()
                     }
                 }
@@ -212,7 +237,7 @@ Scope {
                         }
                     }
 
-                    // time
+                    // time + weather (top right)
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 12
@@ -224,26 +249,50 @@ Scope {
                             color: Appearance.colors.colOnLayer0
                         }
                         StyledText {
-                            Layout.fillWidth: true
                             Layout.alignment: Qt.AlignBottom
                             Layout.bottomMargin: 6
-                            text: DateTime.longDate ?? DateTime.date
+                            text: DateTime.longDate
                             font.family: "Space Grotesk"
                             font.pixelSize: 13
                             color: Appearance.colors.colSubtext
-                            elide: Text.ElideRight
+                        }
+                        Item { Layout.fillWidth: true }
+                        RowLayout {
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: 6
+                            MaterialSymbol {
+                                text: Icons.getWeatherIcon(Weather.data.wCode) ?? "cloud"
+                                iconSize: 26
+                                color: Appearance.colors.colOnLayer0
+                            }
+                            ColumnLayout {
+                                spacing: 0
+                                StyledText {
+                                    text: Weather.data?.temp ?? "--°"
+                                    font.family: "Space Grotesk"
+                                    font.pixelSize: 18
+                                    font.weight: Font.DemiBold
+                                    color: Appearance.colors.colOnLayer0
+                                }
+                                StyledText {
+                                    visible: (Weather.data?.city ?? "") !== ""
+                                    text: Weather.data?.city ?? ""
+                                    font.pixelSize: 10
+                                    color: Appearance.colors.colSubtext
+                                }
+                            }
                         }
                     }
 
-                    // quick tools (left the bottom bar)
+                    // quick tools (left the bottom bar) + performance circles
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        spacing: 0
                         QuickTool {
                             icon: "screenshot_region"
                             label: "Print"
                             onClicked: {
-                                root.panelOpen = false;
+                                win.setOpen(false);
                                 Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "region", "screenshot"]);
                             }
                         }
@@ -251,13 +300,13 @@ Scope {
                             icon: "colorize"
                             label: "Cor"
                             onClicked: {
-                                root.panelOpen = false;
+                                win.setOpen(false);
                                 Quickshell.execDetached(["bash", "-c", "sleep 0.3; hyprpicker -a"]);
                             }
                         }
                         QuickTool {
                             icon: Notifications.silent ? "notifications_paused" : "notifications_active"
-                            label: "Não perturbe"
+                            label: "Silêncio"
                             toggled: Notifications.silent
                             onClicked: Notifications.silent = !Notifications.silent
                         }
@@ -274,10 +323,38 @@ Scope {
                             visible: Battery.available
                             icon: Battery.isCharging ? "battery_charging_full" : "smartphone"
                             label: `${Math.round(Battery.percentage * 100)}%`
-                            onClicked: {}
+                        }
+                        Item { Layout.fillWidth: true }
+                        // CPU, RAM, GPU and swap, a square of circles
+                        GridLayout {
+                            columns: 2
+                            rowSpacing: 6
+                            columnSpacing: 6
+                            PerfCircle { icon: "memory"; value: ResourceUsage.cpuUsage; tip: "CPU" }
+                            PerfCircle { icon: "memory_alt"; value: ResourceUsage.memoryUsedPercentage; tip: "RAM" }
+                            PerfCircle { icon: "gamepad"; value: gpuBusy.value; tip: "GPU" }
+                            PerfCircle { icon: "swap_horiz"; value: ResourceUsage.swapUsedPercentage; tip: "Swap" }
                         }
                     }
                 }
+            }
+
+            // GPU load (amdgpu), read only while the panel is open
+            QtObject {
+                id: gpuBusy
+                property real value: 0
+            }
+            FileView {
+                id: gpuFile
+                path: "/sys/class/drm/card1/device/gpu_busy_percent"
+                onLoaded: gpuBusy.value = (parseInt(text()) || 0) / 100
+            }
+            Timer {
+                running: win.panelOpen
+                repeat: true
+                triggeredOnStart: true
+                interval: 2000
+                onTriggered: gpuFile.reload()
             }
 
             Bar.LedPopup {
@@ -288,37 +365,63 @@ Scope {
         }
     }
 
-    // A round quick tool with a caption under it
-    component QuickTool: ColumnLayout {
+    // A round quick tool with a caption under it: fixed cell, icon truly centered
+    component QuickTool: Item {
         id: tool
         required property string icon
         required property string label
         property bool toggled: false
         signal clicked()
-        Layout.fillWidth: true
-        Layout.preferredWidth: 1 // equal shares of the row
-        spacing: 4
+        implicitWidth: 58
+        implicitHeight: 70
         RippleButton {
-            Layout.alignment: Qt.AlignHCenter
-            implicitWidth: 52
-            implicitHeight: 52
-            buttonRadius: 26
+            id: toolButton
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: 0
+            width: 48
+            height: 48
+            padding: 0
+            buttonRadius: 24
             toggled: tool.toggled
             colBackground: Appearance.colors.colLayer1
             onClicked: tool.clicked()
-            contentItem: MaterialSymbol {
-                anchors.centerIn: parent
-                text: tool.icon
-                iconSize: 22
-                color: tool.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
+            contentItem: Item {
+                MaterialSymbol {
+                    anchors.centerIn: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    text: tool.icon
+                    iconSize: 22
+                    color: tool.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
+                }
             }
         }
         StyledText {
-            Layout.alignment: Qt.AlignHCenter
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: toolButton.bottom
+            anchors.topMargin: 5
             text: tool.label
             font.family: "Space Grotesk"
             font.pixelSize: 11
             color: Appearance.colors.colSubtext
+        }
+    }
+
+    // One performance reading as a filled ring with its icon in the middle
+    component PerfCircle: ClippedFilledCircularProgress {
+        id: perf
+        required property string icon
+        required property string tip
+        implicitSize: 32
+        lineWidth: Appearance.rounding.unsharpen
+        enableAnimation: false
+        colPrimary: perf.value > 0.9 ? Appearance.colors.colError : Appearance.colors.colOnSecondaryContainer
+        MaterialSymbol {
+            anchors.centerIn: parent
+            text: perf.icon
+            iconSize: 15
+            fill: 1
+            color: Appearance.colors.colOnSecondaryContainer
         }
     }
 }
