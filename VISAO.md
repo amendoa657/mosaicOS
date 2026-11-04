@@ -74,7 +74,7 @@ A **própria ilha vira a bússola**, com animação: ela estica com mola e os ca
 - (v3) Forma de **meio oval** (124 px de altura em vez de um meio círculo de 190): um círculo achatado por escala, para manter a borda lisa. Os blocos seguem um arco oval. Super segurado abre em qualquer lugar (decisão 10).
 
 ## Dock: 1ª versão (04/11/2026)
-`modules/mosaic/dock/MosaicDock.qml`, no lugar da barra e do dock do ii. Flutua centralizado embaixo **por cima das janelas** (não reserva espaço): aparece na área vazia; com janelas, some e só sobe quando o mouse desce até a borda de baixo (e fica enquanto ele estiver no dock), com a superfície e o contorno da ilha (e o liquid glass na camada `quickshell:dock`). Tem três blocos:
+`modules/mosaic/dock/MosaicDock.qml`, no lugar da barra e do dock do ii. Flutua centralizado embaixo **por cima das janelas** (não reserva espaço): aparece na área vazia; com janelas, some e só sobe quando o mouse desce até a borda de baixo (uma faixa larga de 10 px; fica enquanto ele estiver no dock ou entre ele e a borda), com a superfície e o contorno da ilha (e o liquid glass na camada `quickshell:dock`). Tem três blocos:
 - **Marca Mosaic** (degradê primária→secundária): o clique abre o lançador (por enquanto a visão geral com a busca do ii) e o mascote pula; o botão direito abre a lateral esquerda.
 - **Apps** fixos e abertos (lista do ii, `dock.pinnedApps`), com um separador entre eles:
   - o ícone sob o mouse cresce com um pulinho;

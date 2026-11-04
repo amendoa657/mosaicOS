@@ -60,16 +60,17 @@ Scope {
                 }
             }
             Timer { id: leaveTimer; interval: 400; onTriggered: win.hovering = false }
-            Item { // the bottom edge that brings the dock up
-                id: edgeSensor
+            // the area that catches the mouse: a wide strip at the bottom edge while
+            // hidden, and the whole dock down to the edge while shown (no gap to fall
+            // through, so it never flickers between the two)
+            Item {
+                id: hitArea
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: dock.width
-                height: 3
+                width: dock.width + (win.shown ? 24 : 160)
+                height: win.shown ? root.dockHeight + root.gap + 6 : 10
             }
-            color: "transparent"
-            WlrLayershell.namespace: "quickshell:dock"
-            mask: Region { item: win.shown ? dock : edgeSensor }
+            mask: Region { item: hitArea }
 
             Rectangle {
                 id: dock
