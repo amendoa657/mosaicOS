@@ -22,13 +22,16 @@ import qs.modules.ii.sidebarRight
 import qs.modules.ii.overlay
 import qs.modules.ii.verticalBar
 import qs.modules.ii.wallpaperSelector
+import qs.modules.mosaic.dock
 import qs.modules.mosaic.island
 
 Scope {
-    PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
+    // Mosaic OS: the ii bar left; the dock (modules/mosaic/dock) took its place
+    // PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
     PanelLoader { component: Background {} }
     PanelLoader { component: Cheatsheet {} }
-    PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
+    // PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
+    PanelLoader { component: MosaicDock {} }
     PanelLoader { component: Lock {} }
     PanelLoader { component: MediaControls {} }
     // Mosaic OS: notifications show up whole in the island
@@ -44,7 +47,7 @@ Scope {
     PanelLoader { component: SessionScreen {} }
     PanelLoader { component: SidebarLeft {} }
     PanelLoader { component: SidebarRight {} }
-    PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
+    // PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
     PanelLoader { component: WallpaperSelector {} }
     // Mosaic OS
     PanelLoader { component: Island {} }

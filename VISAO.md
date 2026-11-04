@@ -29,7 +29,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 27 | Mascote em movimento | **Só em eventos:** parado, só pisca de vez em quando; some em jogo em tela cheia. |
 | 28 | Áreas na bússola | **Por demanda, até ~50:** a bússola mostra umas 10 por vez e o scroll desliza para as próximas. |
 | 29 | Tela de bloqueio | **Depois** (fica a do ii/hyprlock por enquanto). |
-| 30 | Barra do ii (transição) | Desce para baixo até o dock existir; a ilha fica sozinha em cima. |
+| 30 | Barra do ii (transição) | ~~Desce para baixo até o dock existir~~ **saiu** (04/11): o dock tomou o lugar dela. |
 | 31 | Forma da ilha | **Entalhe na borda:** colada no topo, só os cantos de baixo arredondados. |
 | 32 | Rosto do mascote | **Um par de olhos no meio dos 4 blocos:** a marca inteira é a cara. |
 | 33 | Clique na ilha | ~~chat~~ → abre o **painel**: música (se houver), **relógio e data**, e as **ferramentas rápidas que saíram da barra de baixo** (Print, conta-gotas, Não perturbe, fita LED, bateria do celular). Com notificação na tela, abre a central. |
@@ -71,7 +71,19 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 
 ## Bússola: 2ª versão (04/11/2026)
 A **própria ilha vira a bússola**, com animação: ela estica com mola e os cantos de baixo arredondam até ser um meio círculo, a superfície ganha um banho suave dos tons do Matugen, e a marca Mosaic cresce e vira o **ponteiro** (gira um quarto a cada área). As áreas são **blocos Mosaic** coloridos (cada número sempre no mesmo tom), com o ícone da maior janela e "+N"; a atual é maior e mais viva; elas saem em cascata do centro para fora. Scroll gira e troca (1 a 50, ~10 à vista); clique num bloco vai até ele. Super + mouse na ilha; `ipc call island compass` sem o Super.
-- (v3) Forma de **meio oval** (138 px de altura em vez de um meio círculo de 190): um círculo achatado por escala, para manter a borda lisa. Os blocos seguem um arco oval. Super segurado abre em qualquer lugar (decisão 10).
+- (v3) Forma de **meio oval** (124 px de altura em vez de um meio círculo de 190): um círculo achatado por escala, para manter a borda lisa. Os blocos seguem um arco oval. Super segurado abre em qualquer lugar (decisão 10).
+
+## Dock: 1ª versão (04/11/2026)
+`modules/mosaic/dock/MosaicDock.qml`, no lugar da barra e do dock do ii. Flutua centralizado embaixo e reserva o espaço dele, com a superfície e o contorno da ilha (e o liquid glass na camada `quickshell:dock`). Tem três blocos:
+- **Marca Mosaic** (degradê primária→secundária): o clique abre o lançador (por enquanto a visão geral com a busca do ii) e o mascote pula; o botão direito abre a lateral esquerda.
+- **Apps** fixos e abertos (lista do ii, `dock.pinnedApps`), com um separador entre eles:
+  - o ícone cresce com mola perto do mouse, e os vizinhos também;
+  - o app ativo fica sobre um bloco no seu tom, e cada janela aberta é um pontinho;
+  - o ícone pula enquanto o app abre;
+  - clique abre ou alterna as janelas, o botão do meio abre outra, o direito fixa ou desafixa;
+  - o nome aparece no hover.
+- **Status** (degradê secundária→terciária): bandeja, Não perturbe (quando ligado), rede, Bluetooth, volume, hora e data. O clique abre a lateral direita e o scroll muda o volume.
 
 ## Próximo
-- Dock completo (lançador, apps, status, relógio) para a barra do ii sair.
+- Dock: prévia das janelas no hover? Esconder em tela cheia?
+- Lançador em tela cheia de vidro (o clique na marca).

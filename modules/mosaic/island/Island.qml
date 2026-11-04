@@ -159,7 +159,7 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: mode === "" ? restWidth : mode === "compass" ? 380 : 460
                 // as a compass it is a half oval, flatter than a half circle
-                readonly property real compassHeight: 138
+                readonly property real compassHeight: 124
                 height: mode === "" ? restHeight : mode === "compass" ? compassHeight : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
                 Behavior on width { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
                 Behavior on height { NumberAnimation { duration: 460; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
