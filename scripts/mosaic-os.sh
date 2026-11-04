@@ -6,12 +6,14 @@
 #
 #   mosaic-os.sh ligar      Mosaic OS
 #   mosaic-os.sh desligar   volta para o ii
+#   mosaic-os.sh alternar   um ou outro (Ctrl+Super+M)
 set -euo pipefail
 
 case "${1:-}" in
+  alternar) [ "${qsConfig:-ii}" = mosaic ] && alvo=ii || alvo=mosaic ;;
   ligar) alvo=mosaic ;;
   desligar) alvo=ii ;;
-  *) echo "uso: $0 ligar|desligar" >&2; exit 1 ;;
+  *) echo "uso: $0 ligar|desligar|alternar" >&2; exit 1 ;;
 esac
 
 hyprctl eval "hl.env(\"qsConfig\", \"$alvo\")" >/dev/null
