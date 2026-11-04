@@ -81,9 +81,6 @@ Scope {
                 Region {
                     item: edgeSensor
                 }
-                Region {
-                    item: (win.compassOpen || root.compassForced) ? compass : null
-                }
             }
 
             // ---------- compass: Super held + mouse on the island ----------
@@ -93,7 +90,7 @@ Scope {
                     win.compassOpen = false;
                 else if (notchHover.hovered && !win.panelOpen && !root.hasNotifs)
                     win.compassOpen = true;
-                else if (!notchHover.hovered && !compassHover.hovered)
+                else if (!notchHover.hovered)
                     win.compassOpen = false;
             }
             // While the compass is up, letting go of Super must not open the search
@@ -137,14 +134,19 @@ Scope {
             Item {
                 id: notch
                 // what is open: notifications win over the panel
-                readonly property string mode: root.hasNotifs ? "notifs" : win.panelOpen ? "panel" : ""
+                readonly property bool compassOn: win.compassOpen || root.compassForced
+                readonly property string mode: compassOn ? "compass" : root.hasNotifs ? "notifs" : win.panelOpen ? "panel" : ""
+                // 0 = island, 1 = compass: drives the morph (shape, colors, needle)
+                property real morph: compassOn ? 1 : 0
+                Behavior on morph { NumberAnimation { duration: 520; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
                 readonly property real restWidth: 64
                 readonly property real restHeight: 32
                 readonly property real radius: Appearance.rounding.windowRounding
 
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: mode === "" ? restWidth : 460
-                height: mode === "" ? restHeight : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
+                width: mode === "" ? restWidth : mode === "compass" ? 380 : 460
+                // as a compass it is a half circle: as tall as half its width
+                height: mode === "" ? restHeight : mode === "compass" ? 190 : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
                 Behavior on width { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
                 Behavior on height { NumberAnimation { duration: 460; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
@@ -162,13 +164,23 @@ Scope {
 
                 // The bottom bar's surface and outline. The top corners sit above the
                 // screen edge, so only the bottom ones show.
+                // Turning into the compass, the bottom corners round up until the
+                // island is a half circle, and the surface takes a soft wash of the
+                // four tones.
                 Rectangle {
+                    id: surface
+                    readonly property real cornerRadius: notch.radius + (notch.width / 2 - notch.radius) * Math.max(0, Math.min(1, notch.morph))
                     anchors.fill: parent
-                    anchors.topMargin: -notch.radius
-                    radius: notch.radius
-                    color: Appearance.colors.colLayer0
+                    anchors.topMargin: -cornerRadius
+                    radius: cornerRadius
                     border.width: 1
                     border.color: Appearance.colors.colLayer0Border
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer0, 0.32 * notch.morph) }
+                        GradientStop { position: 0.5; color: ColorUtils.mix(Appearance.colors.colSecondary, Appearance.colors.colLayer0, 0.2 * notch.morph) }
+                        GradientStop { position: 1.0; color: ColorUtils.mix(Appearance.colors.colTertiary, Appearance.colors.colLayer0, 0.32 * notch.morph) }
+                    }
                 }
 
                 MouseArea {
@@ -185,10 +197,13 @@ Scope {
 
                 Mascot {
                     id: mascot
-                    size: 18
+                    // in the compass it grows into the needle and turns a quarter per workspace
+                    size: 18 + 10 * notch.morph
                     showFace: false
                     anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round((notch.restHeight - height) / 2)
+                    y: Math.round((notch.restHeight - 18) / 2 + 2 * notch.morph)
+                    rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
+                    Behavior on rotation { enabled: notch.mode !== "compass"; NumberAnimation { duration: 300 } }
                     baseMood: root.playing ? "dance" : "idle"
                     Connections {
                         target: root
@@ -203,6 +218,13 @@ Scope {
                     }
                 }
 
+                Compass {
+                    id: compassContent
+                    anchors.fill: parent
+                    open: notch.mode === "compass" && notch.morph > 0.6
+                    visible: notch.mode === "compass" || reveal > 0
+                }
+
                 Item {
                     id: content
                     readonly property real implicitHeight: loader.item ? loader.item.implicitHeight : 0
@@ -211,25 +233,14 @@ Scope {
                     width: notch.width - 24
                     height: notch.height - notch.restHeight - 8
                     clip: true
-                    opacity: notch.mode !== "" ? 1 : 0
+                    opacity: (notch.mode === "panel" || notch.mode === "notifs") ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 180 } }
                     Loader {
                         id: loader
                         width: parent.width
-                        active: notch.mode !== ""
+                        active: notch.mode === "panel" || notch.mode === "notifs"
                         sourceComponent: notch.mode === "notifs" ? notifsView : panelView
                     }
-                }
-            }
-
-            Compass {
-                id: compass
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: notch.restHeight - 1
-                open: win.compassOpen || root.compassForced
-                HoverHandler {
-                    id: compassHover
-                    onHoveredChanged: win.updateCompass()
                 }
             }
 

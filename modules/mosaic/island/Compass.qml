@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Shapes
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Widgets
@@ -10,11 +9,12 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 
-// The workspace compass: a half circle hanging under the island, one point per
-// workspace with the icon of its biggest window (+N when it has more). The
-// current workspace sits at the bottom; scrolling turns the compass and moves to
-// the next or previous one (1 to 50), about ten points in view at a time.
-// Clicking a point goes there.
+// What the island shows when it turns into the workspace compass (it fills the
+// island, which has become a half circle). Each workspace is a Mosaic tile in one
+// of the four tones (same number, same tone, always) with the icon of its biggest
+// window and +N when there are more; the current one is bigger and brighter. The
+// tiles come out from the middle one after the other. Scrolling turns the compass
+// (1 to 50, about ten in view) and switches workspace; clicking a tile goes there.
 Item {
     id: root
     property bool open: false
@@ -22,20 +22,17 @@ Item {
     readonly property int current: HyprlandData.activeWorkspace?.id ?? 1
     // where the compass points, animated: turning is smooth and a little springy
     property real offset: current
-    Behavior on offset { NumberAnimation { duration: 380; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+    Behavior on offset { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.3 } }
 
-    readonly property real radius: 150
-    readonly property real ringRadius: 112
-    readonly property real stepAngle: 18 // degrees between two workspaces
+    readonly property real ringRadius: Math.max(0, height - 34)
+    readonly property real stepAngle: 17 // degrees between two workspaces
 
-    width: radius * 2
-    height: radius + 8
-    opacity: open ? 1 : 0
-    scale: open ? 1 : 0.85
-    transformOrigin: Item.Top
-    visible: opacity > 0
-    Behavior on opacity { NumberAnimation { duration: 180 } }
-    Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutBack } }
+    // tiles pop out in a cascade once the island has opened up
+    property real reveal: open ? 1 : 0
+    Behavior on reveal { NumberAnimation { duration: root.open ? 620 : 140; easing.type: Easing.OutCubic } }
+
+    readonly property var tones: [Appearance.colors.colPrimary, Appearance.colors.colSecondary, Appearance.colors.colTertiary, ColorUtils.mix(Appearance.colors.colSecondary, Appearance.colors.colTertiary, 0.5)]
+    function toneFor(id) { return root.tones[(id - 1) % 4]; }
 
     function go(id) {
         const target = Math.max(1, Math.min(root.maxWorkspace, id));
@@ -43,73 +40,22 @@ Item {
             Hyprland.dispatch(`hl.dsp.focus({ workspace = ${target} })`);
     }
 
-    // the half disc, in the bar's surface and outline
-    Shape {
-        anchors.fill: parent
-        preferredRendererType: Shape.CurveRenderer
-        ShapePath {
-            fillColor: Appearance.colors.colLayer0
-            strokeColor: Appearance.colors.colLayer0Border
-            strokeWidth: 1
-            startX: 0
-            startY: 0
-            PathArc {
-                x: root.radius * 2
-                y: 0
-                radiusX: root.radius
-                radiusY: root.radius
-                useLargeArc: false
-                direction: PathArc.Counterclockwise
-            }
-            PathLine { x: 0; y: 0 }
-        }
-    }
-
-    // soft tick ring
-    Shape {
-        anchors.fill: parent
-        preferredRendererType: Shape.CurveRenderer
-        ShapePath {
-            fillColor: "transparent"
-            strokeColor: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.88)
-            strokeWidth: 1
-            startX: root.radius - root.ringRadius
-            startY: 0
-            PathArc {
-                x: root.radius + root.ringRadius
-                y: 0
-                radiusX: root.ringRadius
-                radiusY: root.ringRadius
-                direction: PathArc.Counterclockwise
-            }
-        }
-    }
-
-    // the current workspace's number in the middle
+    // the current workspace's number, under the mark (the mark is the needle, in Island)
     StyledText {
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 26
+        y: 44
         text: root.current
         font.family: "Space Grotesk"
-        font.pixelSize: 30
-        font.weight: Font.DemiBold
+        font.pixelSize: 26
+        font.weight: Font.Bold
         color: Appearance.colors.colOnLayer0
-        opacity: 0.85
-    }
-    StyledText {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 64
-        text: "role para trocar"
-        font.family: "JetBrains Mono"
-        font.pixelSize: 9
-        color: Appearance.colors.colSubtext
+        opacity: root.reveal
     }
 
-    // the points: the current one and five on each side
     Repeater {
         model: 13
         delegate: Item {
-            id: point
+            id: tile
             required property int index
             readonly property int wsId: Math.round(root.offset) - 6 + index
             readonly property real delta: wsId - root.offset
@@ -117,64 +63,72 @@ Item {
             readonly property real angle: (90 - delta * root.stepAngle) * Math.PI / 180
             readonly property bool valid: wsId >= 1 && wsId <= root.maxWorkspace
             readonly property bool isCurrent: wsId === root.current
-            readonly property var windows: HyprlandData.windowList.filter(w => w.workspace.id === point.wsId)
-            readonly property var biggest: point.valid ? HyprlandData.biggestWindowForWorkspace(point.wsId) : null
-            readonly property real size: isCurrent ? 40 : point.windows.length > 0 ? 32 : 18
+            readonly property var windows: HyprlandData.windowList.filter(w => w.workspace.id === tile.wsId)
+            readonly property var biggest: tile.valid ? HyprlandData.biggestWindowForWorkspace(tile.wsId) : null
+            readonly property real size: isCurrent ? 42 : tile.windows.length > 0 ? 32 : 22
+            readonly property color tone: root.toneFor(Math.max(1, wsId))
+            // cascade: the middle tile first, then outwards
+            readonly property real myReveal: Math.max(0, Math.min(1, root.reveal * 2.2 - Math.abs(delta) * 0.22))
 
-            visible: valid && Math.abs(delta) <= 5.5
-            opacity: Math.max(0, 1 - Math.max(0, Math.abs(delta) - 3.5) / 2)
+            visible: valid && Math.abs(delta) <= 5.6 && myReveal > 0
+            opacity: myReveal * Math.max(0, 1 - Math.max(0, Math.abs(delta) - 3.6) / 2)
+            scale: 0.4 + 0.6 * myReveal
             width: size
             height: size
-            x: root.radius + Math.cos(angle) * root.ringRadius - width / 2
-            y: Math.sin(angle) * root.ringRadius - height / 2
-            Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
-            Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
+            x: root.width / 2 + Math.cos(angle) * root.ringRadius * (0.55 + 0.45 * myReveal) - width / 2
+            y: Math.sin(angle) * root.ringRadius * (0.55 + 0.45 * myReveal) - height / 2
+            Behavior on width { NumberAnimation { duration: 280; easing.type: Easing.OutBack } }
+            Behavior on height { NumberAnimation { duration: 280; easing.type: Easing.OutBack } }
 
+            // the tile: a Mosaic block in its tone (soft when away, vivid when current)
             Rectangle {
                 anchors.fill: parent
-                radius: width / 2
-                color: point.isCurrent ? ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer1, 0.45) : Appearance.colors.colLayer1
-                border.width: point.isCurrent ? 2 : 0
-                border.color: ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer1, 0.75)
+                radius: Math.round(tile.size * 0.28)
+                color: tile.isCurrent ? ColorUtils.mix(tile.tone, Appearance.colors.colLayer1, 0.95) : ColorUtils.mix(tile.tone, Appearance.colors.colLayer1, tile.windows.length > 0 ? 0.62 : 0.34)
+                border.width: tile.isCurrent ? 2 : 0
+                border.color: ColorUtils.mix(Appearance.colors.colOnLayer0, tile.tone, 0.5)
+                Behavior on color { ColorAnimation { duration: 220 } }
             }
             IconImage {
-                visible: point.biggest !== null
+                visible: tile.biggest !== null
                 anchors.centerIn: parent
-                implicitSize: Math.round(point.size * 0.62)
-                source: Quickshell.iconPath(AppSearch.guessIcon(point.biggest?.class), "image-missing")
+                implicitSize: Math.round(tile.size * 0.6)
+                source: Quickshell.iconPath(AppSearch.guessIcon(tile.biggest?.class), "image-missing")
             }
             StyledText {
-                visible: point.biggest === null
+                visible: tile.biggest === null
                 anchors.centerIn: parent
-                text: point.wsId
+                text: tile.wsId
                 font.family: "JetBrains Mono"
                 font.pixelSize: 9
-                color: Appearance.colors.colSubtext
+                font.weight: Font.Bold
+                color: Appearance.colors.colOnLayer0
+                opacity: 0.8
             }
             // +N when the workspace has more windows
             Rectangle {
-                visible: point.windows.length > 1
+                visible: tile.windows.length > 1
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.rightMargin: -4
-                anchors.bottomMargin: -3
+                anchors.rightMargin: -5
+                anchors.bottomMargin: -4
                 width: badge.implicitWidth + 8
                 height: 14
-                radius: 7
-                color: ColorUtils.mix(Appearance.colors.colSecondary, Appearance.colors.colLayer1, 0.6)
+                radius: 5
+                color: ColorUtils.mix(tile.tone, Appearance.colors.colLayer0, 0.9)
                 StyledText {
                     id: badge
                     anchors.centerIn: parent
-                    text: `+${point.windows.length - 1}`
+                    text: `+${tile.windows.length - 1}`
                     font.family: "JetBrains Mono"
                     font.pixelSize: 8
                     font.weight: Font.Bold
-                    color: Appearance.colors.colOnLayer0
+                    color: Appearance.colors.colLayer0
                 }
             }
             MouseArea {
                 anchors.fill: parent
-                onClicked: root.go(point.wsId)
+                onClicked: root.go(tile.wsId)
             }
         }
     }

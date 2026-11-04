@@ -13,7 +13,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 6 | Essenciais do ii | Áreas de trabalho, lateral esquerda (**sem a aba Anime**), lateral direita, widgets no fundo. |
 | 7 | Mascote | **A marca viva:** os 4 blocos da Mosaic com olhinhos, que se rearranjam, pulam e viram outras formas. **Mora na ilha.** |
 | 8 | Dock × ilha | **Ilha em cima** (o que está vivo), **dock completo embaixo**. |
-| 9 | Áreas de trabalho | Na ilha. Mouse numa parte da ilha → surge um **meio círculo tipo bússola** com um ponto por área (com os símbolos dos apps); o **scroll gira a bússola** suavemente e troca de área. |
+| 9 | Áreas de trabalho | Na ilha (a ilha vira a bússola, ver abaixo). Mouse numa parte da ilha → surge um **meio círculo tipo bússola** com um ponto por área (com os símbolos dos apps); o **scroll gira a bússola** suavemente e troca de área. |
 | 10 | Gatilho da bússola | Só com **Super segurado + mouse na ilha**. |
 | 11 | Pontos da bússola | **Ícone principal** do app de cada área, com contador (+2) quando tem mais. |
 | 12 | Dock | **Iniciar/lançador** (a marca), **apps fixos e abertos**, **status e relógio** (abrem a lateral direita). Sem pastas/lixeira. |
@@ -69,8 +69,8 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 - Cutucar o mascote 5 vezes: ele fica tonto.
 - `qs -c mosaic ipc call island chat|controls|close|poke`.
 
-## Bússola: 1ª versão (04/11/2026)
-`modules/mosaic/island/Compass.qml`. Super segurado + mouse na ilha: um meio círculo (superfície e contorno da barra) desce da ilha. A área atual fica embaixo, grande e destacada; as vizinhas seguem o arco (menores à esquerda, maiores à direita), cada uma com o ícone da maior janela e "+N" quando tem mais; vazias aparecem como número. O scroll gira a bússola com mola e troca de área (1 a 50, ~10 à vista); clicar num ponto vai até ele. Enquanto ela está aberta, soltar o Super não abre a busca. `qs -c mosaic ipc call island compass` mostra sem o Super.
+## Bússola: 2ª versão (04/11/2026)
+A **própria ilha vira a bússola**, com animação: ela estica com mola e os cantos de baixo arredondam até ser um meio círculo, a superfície ganha um banho suave dos tons do Matugen, e a marca Mosaic cresce e vira o **ponteiro** (gira um quarto a cada área). As áreas são **blocos Mosaic** coloridos (cada número sempre no mesmo tom), com o ícone da maior janela e "+N"; a atual é maior e mais viva; elas saem em cascata do centro para fora. Scroll gira e troca (1 a 50, ~10 à vista); clique num bloco vai até ele. Super + mouse na ilha; `ipc call island compass` sem o Super.
 
 ## Próximo
 - Dock completo (lançador, apps, status, relógio) para a barra do ii sair.
