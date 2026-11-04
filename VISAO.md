@@ -35,8 +35,8 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 33 | Clique na ilha | ~~chat~~ → abre o **painel**: música (se houver), **relógio e data**, e as **ferramentas rápidas que saíram da barra de baixo** (Print, conta-gotas, Não perturbe, fita LED, bateria do celular). Com notificação na tela, abre a central. |
 | 34 | Ilha em repouso | **Só o mosaico** (sem olhos, sem nome de app), **reta** (sem as curvas nas pontas), **cor e borda da barra de baixo**, sem serrilhado, e **não empurra as janelas**. |
 | 36 | Painel da ilha | Relógio e data à esquerda, **clima (temperatura e cidade) no canto de cima à direita**; embaixo, as ferramentas alinhadas e, à direita, um **quadrado 2×2 de círculos de desempenho** (CPU, RAM, GPU, swap). |
-| 38 | Estilo da ilha | Superfície e **contorno da barra de baixo**, com **blocos nos tons do Matugen** dentro: hora (primária), clima (terciária), música (secundária), ferramentas e desempenho (grupo da barra). |
-| 39 | Medidores | **Mosaico que enche:** quatro bloquinhos (CPU, RAM, GPU, swap) que se enchem de baixo para cima com o número dentro. |
+| 38 | Estilo da ilha | Superfície e **contorno da barra de baixo**; dentro, blocos em **cores suaves que se misturam**: degradês entre tons vizinhos do Matugen misturados à superfície (hora primária→secundária, clima secundária→terciária, música terciária→primária), texto neutro. |
+| 39 | Medidores | **Copos d'água:** quatro copinhos (CPU, RAM, GPU, swap) só com o ícone, sem texto nem número; a água sobe numa mola e a superfície balança (só com o painel aberto). |
 | 40 | Música | **Abaixo da hora e do clima.** |
 | 41 | Mouse no topo | Levar o mouse à borda de cima **abre**; aberta assim, **fecha quando o mouse sai**. Um clique fixa. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |

@@ -35,6 +35,10 @@ Scope {
 
     signal jumpRequested()
 
+    // Soft colors: the Matugen tones mixed into the bar surface, so neighbors blend
+    function softBlock(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.32); }
+    function softTone(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.72); }
+
     Connections {
         target: Notifications
         function onNotify(notification) {
@@ -214,7 +218,8 @@ Scope {
                         spacing: 6
                         Block {
                             Layout.fillWidth: true
-                            tint: Appearance.colors.colPrimaryContainer
+                            tint: root.softBlock(Appearance.colors.colPrimary)
+                            tint2: root.softBlock(Appearance.colors.colSecondary)
                             implicitHeight: 64
                             RowLayout {
                                 anchors.fill: parent
@@ -226,7 +231,7 @@ Scope {
                                     font.family: "Space Grotesk"
                                     font.pixelSize: 34
                                     font.weight: Font.DemiBold
-                                    color: Appearance.colors.colOnPrimaryContainer
+                                    color: Appearance.colors.colOnLayer0
                                 }
                                 StyledText {
                                     Layout.fillWidth: true
@@ -235,14 +240,15 @@ Scope {
                                     text: DateTime.longDate
                                     font.family: "Space Grotesk"
                                     font.pixelSize: 13
-                                    color: Appearance.colors.colOnPrimaryContainer
+                                    color: Appearance.colors.colOnLayer0
                                     opacity: 0.75
                                     elide: Text.ElideRight
                                 }
                             }
                         }
                         Block {
-                            tint: Appearance.colors.colTertiaryContainer
+                            tint: root.softBlock(Appearance.colors.colSecondary)
+                            tint2: root.softBlock(Appearance.colors.colTertiary)
                             implicitWidth: 124
                             implicitHeight: 64
                             RowLayout {
@@ -251,7 +257,7 @@ Scope {
                                 MaterialSymbol {
                                     text: Icons.getWeatherIcon(Weather.data.wCode) ?? "cloud"
                                     iconSize: 28
-                                    color: Appearance.m3colors.m3onTertiaryContainer
+                                    color: Appearance.colors.colOnLayer0
                                 }
                                 ColumnLayout {
                                     spacing: 0
@@ -260,14 +266,14 @@ Scope {
                                         font.family: "Space Grotesk"
                                         font.pixelSize: 18
                                         font.weight: Font.DemiBold
-                                        color: Appearance.m3colors.m3onTertiaryContainer
+                                        color: Appearance.colors.colOnLayer0
                                     }
                                     StyledText {
                                         visible: (Weather.data?.city ?? "") !== ""
                                         Layout.maximumWidth: 70
                                         text: Weather.data?.city ?? ""
                                         font.pixelSize: 10
-                                        color: Appearance.m3colors.m3onTertiaryContainer
+                                        color: Appearance.colors.colOnLayer0
                                         opacity: 0.75
                                         elide: Text.ElideRight
                                     }
@@ -280,7 +286,8 @@ Scope {
                     Block {
                         visible: root.hasPlayer
                         Layout.fillWidth: true
-                        tint: Appearance.colors.colSecondaryContainer
+                        tint: root.softBlock(Appearance.colors.colTertiary)
+                        tint2: root.softBlock(Appearance.colors.colPrimary)
                         implicitHeight: 60
                         RowLayout {
                             anchors.fill: parent
@@ -307,14 +314,14 @@ Scope {
                                     font.family: "Space Grotesk"
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
-                                    color: Appearance.colors.colOnSecondaryContainer
+                                    color: Appearance.colors.colOnLayer0
                                     elide: Text.ElideRight
                                 }
                                 StyledText {
                                     Layout.fillWidth: true
                                     text: MprisController.activePlayer?.trackArtist ?? ""
                                     font.pixelSize: 11
-                                    color: Appearance.colors.colOnSecondaryContainer
+                                    color: Appearance.colors.colOnLayer0
                                     opacity: 0.75
                                     elide: Text.ElideRight
                                 }
@@ -338,7 +345,7 @@ Scope {
                                             text: modelData.icon
                                             iconSize: 22
                                             fill: 1
-                                            color: Appearance.colors.colOnSecondaryContainer
+                                            color: Appearance.colors.colOnLayer0
                                         }
                                     }
                                 }
@@ -406,10 +413,10 @@ Scope {
                                 anchors.centerIn: parent
                                 columns: 2
                                 spacing: 4
-                                FillTile { value: ResourceUsage.cpuUsage; label: "CPU"; tone: Appearance.colors.colPrimary; onTone: Appearance.colors.colOnPrimary }
-                                FillTile { value: ResourceUsage.memoryUsedPercentage; label: "RAM"; tone: Appearance.colors.colSecondary; onTone: Appearance.colors.colOnSecondary }
-                                FillTile { value: gpuBusy.value; label: "GPU"; tone: Appearance.colors.colTertiary; onTone: Appearance.m3colors.m3onTertiary }
-                                FillTile { value: ResourceUsage.swapUsedPercentage; label: "SWP"; tone: Appearance.colors.colOnLayer0; onTone: Appearance.m3colors.m3background }
+                                FillTile { value: ResourceUsage.cpuUsage; icon: "memory"; tone: root.softTone(Appearance.colors.colPrimary) }
+                                FillTile { value: ResourceUsage.memoryUsedPercentage; icon: "memory_alt"; tone: root.softTone(Appearance.colors.colSecondary) }
+                                FillTile { value: gpuBusy.value; icon: "developer_board"; tone: root.softTone(Appearance.colors.colTertiary) }
+                                FillTile { value: ResourceUsage.swapUsedPercentage; icon: "swap_horiz"; tone: root.softTone(Appearance.colors.colOnLayer0) }
                             }
                         }
                     }
@@ -444,9 +451,15 @@ Scope {
 
     // A block inside the island, like a bar group, in one Matugen tone
     component Block: Rectangle {
+        id: block
         property color tint: Appearance.colors.colLayer1
-        color: tint
+        property color tint2: tint // the tone it flows into, left to right
         radius: Appearance.rounding.small
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0; color: block.tint }
+            GradientStop { position: 1; color: block.tint2 }
+        }
     }
 
     // A round quick tool with a caption under it: fixed cell, icon truly centered
@@ -490,47 +503,80 @@ Scope {
         }
     }
 
-    // One performance reading as a Mosaic block that fills from the bottom,
-    // with the number inside (dark on the filled part, light on the empty one)
+    // One performance reading as a little glass filling with water: just the
+    // icon and the water level. The level moves on a soft spring and the surface
+    // sloshes a bit (only while the panel is open, so it costs nothing closed).
     component FillTile: Item {
         id: tile
         required property real value
-        required property string label
+        required property string icon
         required property color tone
-        required property color onTone
-        readonly property real level: Math.max(0, Math.min(1, value))
+        readonly property real level: Math.max(0.04, Math.min(1, value))
+        property real shownLevel: level
+        Behavior on shownLevel { SpringAnimation { spring: 2.2; damping: 0.12; epsilon: 0.002 } }
+        property real phase: 0
         width: 32
         height: 32
-        Rectangle {
-            anchors.fill: parent
-            radius: 7
-            color: ColorUtils.transparentize(tile.tone, 0.8)
-            clip: true
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: Math.round(parent.height * tile.level)
-                color: tile.tone
-                Behavior on height { NumberAnimation { duration: 600; easing.type: Easing.OutBack } }
+
+        FrameAnimation {
+            running: tile.visible
+            onTriggered: {
+                tile.phase += frameTime * 3.2;
+                water.requestPaint();
             }
         }
-        StyledText {
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: -3
-            text: Math.round(tile.level * 100)
-            font.family: "JetBrains Mono"
-            font.pixelSize: 11
-            font.weight: Font.Bold
-            color: tile.level > 0.5 ? tile.onTone : Appearance.colors.colOnLayer0
+
+        // the glass
+        Rectangle {
+            id: glass
+            anchors.fill: parent
+            radius: 8
+            color: ColorUtils.transparentize(tile.tone, 0.85)
+            border.width: 1
+            border.color: ColorUtils.transparentize(tile.tone, 0.6)
         }
-        StyledText {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 2
-            text: tile.label
-            font.family: "JetBrains Mono"
-            font.pixelSize: 7
-            color: tile.level > 0.15 ? tile.onTone : Appearance.colors.colSubtext
+        // the water, clipped to the glass shape
+        Canvas {
+            id: water
+            anchors.fill: parent
+            anchors.margins: 1
+            property color fill: tile.tone
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.reset();
+                const w = width, h = height, r = 7;
+                // glass shape as the clip
+                ctx.beginPath();
+                ctx.roundedRect(0, 0, w, h, r, r);
+                ctx.clip();
+                const top = h * (1 - tile.shownLevel);
+                const amp = 1.6 + Math.abs(tile.level - tile.shownLevel) * 10; // sloshes more while moving
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                for (let x = 0; x <= w; x += 2)
+                    ctx.lineTo(x, top + Math.sin(tile.phase + x / w * Math.PI * 2) * amp);
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fillStyle = Qt.rgba(fill.r, fill.g, fill.b, 0.85);
+                ctx.fill();
+                // a lighter wave behind, for depth
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                for (let x = 0; x <= w; x += 2)
+                    ctx.lineTo(x, top - 1 + Math.sin(tile.phase * 0.8 + 1.7 + x / w * Math.PI * 2) * amp * 0.8);
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fillStyle = Qt.rgba(fill.r, fill.g, fill.b, 0.35);
+                ctx.fill();
+            }
+        }
+        MaterialSymbol {
+            anchors.centerIn: parent
+            text: tile.icon
+            iconSize: 17
+            fill: 1
+            color: Appearance.colors.colOnLayer0
+            opacity: 0.9
         }
     }
 }
