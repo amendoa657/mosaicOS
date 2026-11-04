@@ -32,7 +32,9 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 30 | Barra do ii (transição) | Desce para baixo até o dock existir; a ilha fica sozinha em cima. |
 | 31 | Forma da ilha | **Entalhe na borda:** colada no topo, só os cantos de baixo arredondados. |
 | 32 | Rosto do mascote | **Um par de olhos no meio dos 4 blocos:** a marca inteira é a cara. |
-| 33 | Clique na ilha | **Depende do momento:** com música abre os controles; com notificação abre ela; parada abre o chat. |
+| 33 | Clique na ilha | ~~chat~~ → abre o **painel**: música (se houver), **relógio e data**, e as **ferramentas rápidas que saíram da barra de baixo** (Print, conta-gotas, Não perturbe, fita LED, bateria do celular). Com notificação na tela, abre a central. |
+| 34 | Ilha em repouso | **Só o mosaico** (sem olhos, sem nome de app), **reta** (sem as curvas nas pontas), **cor e borda da barra de baixo**, sem serrilhado, e **não empurra as janelas**. |
+| 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |
 | 19 | Lateral direita | **Lateral de vidro** (botões rápidos, notificações, calendário...), redesenhada. |
 | 20 | Lançador | **Tela cheia de vidro**, grade de apps com páginas, integrando a **busca avançada do ii** (overview: apps, calculadora, comandos, emojis, área de transferência...). |
@@ -57,7 +59,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 - Repouso: marca viva (olhos que piscam a cada 3,5 a 7 s) + nome do app em foco (ou "Área N").
 - Música tocando: cresce para os lados com capa e título; o mascote dança.
 - Notificação: o mascote pula e a ilha desce num cartão por 4,5 s.
-- Clique: notificação → central; música → controles; parada → chat com a IA do ii (o mascote "pensa", com os blocos girando, enquanto ela responde).
+- (v2) Clique → painel com música, relógio e ferramentas rápidas; notificações inteiras; repouso só com o mosaico. O chat com a IA saiu do clique (a decisão 18 fica em aberto).
 - Cutucar o mascote 5 vezes: ele fica tonto.
 - `qs -c mosaic ipc call island chat|controls|close|poke`.
 

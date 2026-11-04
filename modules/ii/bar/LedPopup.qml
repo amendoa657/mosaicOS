@@ -13,6 +13,9 @@ LazyLoader {
     id: root
 
     property Item anchorItem
+    // Mosaic OS: opened from the island, the menu hangs from the top
+    property bool atTop: !Config.options.bar.bottom
+    property real edgeMargin: Appearance.sizes.barHeight
     property bool open: false
     readonly property string ledCommand: Quickshell.env("HOME") + "/ledstrip/led"
 
@@ -126,8 +129,8 @@ LazyLoader {
         id: popupWindow
         color: "transparent"
         anchors.left: true
-        anchors.top: !Config.options.bar.bottom
-        anchors.bottom: Config.options.bar.bottom
+        anchors.top: root.atTop
+        anchors.bottom: !root.atTop
         implicitWidth: background.implicitWidth + Appearance.sizes.elevationMargin * 2
         implicitHeight: background.implicitHeight + Appearance.sizes.elevationMargin * 2
         exclusionMode: ExclusionMode.Ignore
@@ -138,8 +141,8 @@ LazyLoader {
                 const x = root.QsWindow?.mapFromItem(root.anchorItem, (root.anchorItem.width - popupWindow.implicitWidth) / 2, 0).x ?? 0;
                 return Math.max(0, Math.min(x, (popupWindow.screen?.width ?? 1920) - popupWindow.implicitWidth));
             }
-            top: Appearance.sizes.barHeight
-            bottom: Appearance.sizes.barHeight
+            top: root.edgeMargin
+            bottom: root.edgeMargin
         }
         mask: Region { item: background }
         WlrLayershell.namespace: "quickshell:popup"

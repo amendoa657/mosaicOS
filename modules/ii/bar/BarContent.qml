@@ -174,15 +174,8 @@ Item { // Bar content region
                     Layout.fillWidth: true
                 }
 
-                UtilButtons {
-                    visible: (Config.options.bar.verbose && root.useShortenedForm === 0)
-                    Layout.alignment: Qt.AlignVCenter
-                }
-
-                BatteryIndicator {
-                    visible: (root.useShortenedForm < 2 && Battery.available)
-                    Layout.alignment: Qt.AlignVCenter
-                }
+                // Mosaic OS: the quick tools (UtilButtons) and the phone battery
+                // moved to the island panel (modules/mosaic/island)
             }
         }
     }

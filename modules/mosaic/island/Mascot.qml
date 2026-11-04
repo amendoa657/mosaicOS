@@ -11,6 +11,7 @@ Item {
     // What is going on: "idle" | "dance" | "think" (set from outside)
     property string baseMood: "idle"
     property bool dizzy: false
+    property bool showFace: true
     readonly property string mood: dizzy ? "dizzy" : baseMood
     readonly property real gap: size * 0.12
     readonly property real block: (size - gap) / 2
@@ -89,6 +90,7 @@ Item {
         // ---------- face ----------
         Row {
             id: eyes
+            visible: root.showFace
             anchors.centerIn: parent
             anchors.verticalCenterOffset: -root.size * 0.02
             spacing: root.size * 0.08

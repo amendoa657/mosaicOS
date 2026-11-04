@@ -9,73 +9,40 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
+import qs.modules.ii.bar as Bar
 
-// Mosaic OS island: a notch on the top edge with the living mark (Mascot) and
-// the app in focus. It grows sideways for quick things (music) and down into a
-// card for things with actions (notification, music controls, chat).
-// Click depends on the moment: music -> controls, notification -> the
-// notification center, nothing -> chat with the mascot (the AI).
+// Mosaic OS island: a notch on the top edge with the living Mosaic mark.
+// - Notifications show up whole inside it (the ii notification widget, actions
+//   included); the mark jumps.
+// - Click opens the panel: music (when there is a player), the time and the quick
+//   tools that left the bottom bar (screenshot, color picker, do not disturb,
+//   LED strip, phone battery).
+// It floats over windows (no exclusive zone) and uses the bottom bar's look.
 Scope {
     id: root
 
-    // ---------- state shared by every screen ----------
-    property string card: "" // "" | "notif" | "controls" | "chat"
-    property var notif: null
+    property bool panelOpen: false
+    readonly property bool hasNotifs: Notifications.popupList.length > 0
+    // a player with something loaded (browsers keep idle players around)
+    readonly property bool hasPlayer: (MprisController.activePlayer?.trackTitle ?? "") !== ""
     readonly property bool playing: MprisController.isPlaying
-    readonly property var lastAi: Ai.messageIDs.length > 0 ? Ai.messageByID[Ai.messageIDs[Ai.messageIDs.length - 1]] : null
-    readonly property bool aiBusy: (root.lastAi?.role === "assistant") && !(root.lastAi?.done ?? true)
 
-    readonly property string focusName: {
-        const top = ToplevelManager.activeToplevel;
-        if (!top || !top.activated)
-            return `Área ${HyprlandData.activeWorkspace?.id ?? 1}`;
-        const entry = DesktopEntries.heuristicLookup(top.appId);
-        return entry?.name || top.appId || top.title;
-    }
-
-    function openCard(name) {
-        root.card = root.card === name ? "" : name;
-    }
-    function clicked() {
-        if (root.card !== "")
-            root.card = "";
-        else if (root.notif)
-            GlobalStates.sidebarRightOpen = true;
-        else if (root.playing)
-            root.card = "controls";
-        else
-            root.card = "chat";
-    }
+    signal jumpRequested()
 
     Connections {
         target: Notifications
         function onNotify(notification) {
-            if (Notifications.silent || root.card === "chat")
-                return;
-            root.notif = notification;
-            root.card = "notif";
-            notifTimer.restart();
-            root.jumpRequested();
+            if (!Notifications.silent)
+                root.jumpRequested();
         }
     }
-    signal jumpRequested()
 
-    // qs -c mosaic ipc call island <chat|controls|close|poke>
+    // qs -c mosaic ipc call island <toggle|close|poke>
     IpcHandler {
         target: "island"
-        function chat(): void { root.openCard("chat"); }
-        function controls(): void { root.openCard("controls"); }
-        function close(): void { root.card = ""; }
+        function toggle(): void { root.panelOpen = !root.panelOpen; }
+        function close(): void { root.panelOpen = false; }
         function poke(): void { root.jumpRequested(); }
-    }
-    Timer {
-        id: notifTimer
-        interval: 4500
-        onTriggered: {
-            if (root.card === "notif")
-                root.card = "";
-            root.notif = null;
-        }
     }
 
     Variants {
@@ -86,213 +53,121 @@ Scope {
             screen: modelData
             WlrLayershell.namespace: "quickshell:island"
             WlrLayershell.layer: WlrLayer.Top
-            exclusiveZone: notch.restHeight
+            exclusionMode: ExclusionMode.Ignore
             anchors.top: true
             color: "transparent"
-            implicitWidth: 760
-            implicitHeight: 460
-            // Only the notch takes clicks; the rest of the window lets them through
+            implicitWidth: 520
+            implicitHeight: 640
             mask: Region {
                 item: notch
             }
 
             Item {
                 id: notch
-                readonly property real restHeight: 36
-                readonly property real flare: 12 // the concave curves where it meets the edge
-                readonly property bool open: root.card !== ""
-                readonly property bool wide: root.playing && !open
+                // what is open: notifications win over the panel
+                readonly property string mode: root.hasNotifs ? "notifs" : root.panelOpen ? "panel" : ""
+                readonly property real restWidth: 64
+                readonly property real restHeight: 32
+                readonly property real radius: Appearance.rounding.windowRounding
 
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: 0
-                width: (open ? 420 : wide ? Math.min(restRow.implicitWidth + musicRow.implicitWidth + 40, 520) : restRow.implicitWidth + 32) + flare * 2
-                height: open ? cardLoader.implicitHeight + restHeight + 14 : restHeight
+                width: mode === "" ? restWidth : 440
+                height: mode === "" ? restHeight : Math.min(content.implicitHeight + restHeight + 12, 620)
                 Behavior on width { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
-                Behavior on height { NumberAnimation { duration: 460; easing.type: Easing.OutBack; easing.overshoot: 1.3 } }
+                Behavior on height { NumberAnimation { duration: 460; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
-                // ---------- shape: notch body + concave flares ----------
-                readonly property color fill: Appearance.colors.colLayer0
+                // Same surface as the bottom bar. The top corners sit above the
+                // screen edge, so only the bottom ones show (plain rounded rect:
+                // smooth edges, no per-corner path).
                 Rectangle {
-                    x: notch.flare
-                    width: parent.width - notch.flare * 2
-                    height: parent.height
-                    color: notch.fill
-                    topLeftRadius: 0
-                    topRightRadius: 0
-                    bottomLeftRadius: notch.open ? 24 : 18
-                    bottomRightRadius: notch.open ? 24 : 18
-                }
-                Repeater {
-                    model: 2
-                    delegate: Canvas {
-                        required property int index
-                        width: notch.flare
-                        height: notch.flare
-                        x: index === 0 ? 0 : notch.width - notch.flare
-                        property color fill: notch.fill
-                        onFillChanged: requestPaint()
-                        onPaint: {
-                            const ctx = getContext("2d");
-                            ctx.reset();
-                            ctx.fillStyle = fill;
-                            ctx.beginPath();
-                            if (index === 0) {
-                                ctx.moveTo(0, 0);
-                                ctx.lineTo(width, 0);
-                                ctx.lineTo(width, height);
-                                ctx.arc(0, height, width, 0, -Math.PI / 2, true);
-                            } else {
-                                ctx.moveTo(width, 0);
-                                ctx.lineTo(0, 0);
-                                ctx.lineTo(0, height);
-                                ctx.arc(width, height, width, Math.PI, Math.PI * 1.5, false);
-                            }
-                            ctx.closePath();
-                            ctx.fill();
-                        }
-                    }
-                }
-
-                // ---------- rest line: mascot + app in focus (+ music when wide) ----------
-                RowLayout {
-                    id: topLine
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: (notch.restHeight - height) / 2
-                    spacing: 14
-                    RowLayout {
-                        id: restRow
-                        spacing: 9
-                        Mascot {
-                            id: mascot
-                            size: 24
-                            baseMood: root.aiBusy ? "think" : root.playing ? "dance" : "idle"
-                            Connections {
-                                target: root
-                                function onJumpRequested() { mascot.jump(); }
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                anchors.margins: -4
-                                onClicked: mascot.poke()
-                            }
-                        }
-                        StyledText {
-                            text: root.focusName
-                            font.family: "Space Grotesk"
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
-                            color: Appearance.colors.colOnLayer0
-                            elide: Text.ElideRight
-                            Layout.maximumWidth: 220
-                        }
-                    }
-                    RowLayout {
-                        id: musicRow
-                        visible: notch.wide
-                        opacity: notch.wide ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 220 } }
-                        spacing: 8
-                        ClippingRectangle {
-                            implicitWidth: 20
-                            implicitHeight: 20
-                            radius: 5
-                            color: Appearance.colors.colLayer1
-                            Image {
-                                anchors.fill: parent
-                                source: MprisController.activePlayer?.trackArtUrl ?? ""
-                                fillMode: Image.PreserveAspectCrop
-                                sourceSize: Qt.size(40, 40)
-                            }
-                        }
-                        StyledText {
-                            text: MprisController.activePlayer?.trackTitle ?? ""
-                            font.family: "Space Grotesk"
-                            font.pixelSize: 12
-                            color: Appearance.colors.colSubtext
-                            elide: Text.ElideRight
-                            Layout.maximumWidth: 180
-                        }
-                    }
+                    anchors.fill: parent
+                    anchors.topMargin: -notch.radius
+                    radius: notch.radius
+                    color: Config.options.bar.showBackground ? Appearance.colors.colLayer0 : "transparent"
+                    border.width: 1
+                    border.color: Appearance.colors.colLayer0Border
+                    antialiasing: true
                 }
 
                 MouseArea {
                     anchors.fill: parent
-                    z: -1
-                    onClicked: root.clicked()
+                    onClicked: {
+                        if (notch.mode === "notifs")
+                            GlobalStates.sidebarRightOpen = true;
+                        else
+                            root.panelOpen = !root.panelOpen;
+                    }
                 }
 
-                // ---------- card ----------
-                Loader {
-                    id: cardLoader
-                    active: notch.open
+                Mascot {
+                    id: mascot
+                    size: 18
+                    showFace: false
                     anchors.horizontalCenter: parent.horizontalCenter
-                    y: notch.restHeight + 4
-                    width: 420 - 36
-                    opacity: notch.open ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
-                    sourceComponent: root.card === "notif" ? notifCard : root.card === "controls" ? controlsCard : chatCard
-                }
-            }
-
-            // ---------- cards ----------
-            Component {
-                id: notifCard
-                RowLayout {
-                    spacing: 12
-                    Rectangle {
-                        implicitWidth: 40
-                        implicitHeight: 40
-                        radius: 11
-                        color: Appearance.colors.colSecondaryContainer
-                        StyledText {
-                            anchors.centerIn: parent
-                            text: (root.notif?.appName ?? "?").charAt(0).toUpperCase()
-                            font.family: "JetBrains Mono"
-                            font.weight: Font.Bold
-                            font.pixelSize: 16
-                            color: Appearance.colors.colOnSecondaryContainer
-                        }
+                    y: (notch.restHeight - height) / 2
+                    baseMood: root.playing ? "dance" : "idle"
+                    Connections {
+                        target: root
+                        function onJumpRequested() { mascot.jump(); }
                     }
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: root.notif?.summary ?? ""
-                            font.family: "Space Grotesk"
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            elide: Text.ElideRight
-                        }
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: root.notif?.body ?? ""
-                            font.pixelSize: 12
-                            color: Appearance.colors.colSubtext
-                            maximumLineCount: 2
-                            wrapMode: Text.Wrap
-                            elide: Text.ElideRight
-                        }
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        onClicked: mascot.poke()
+                    }
+                }
+
+                Item {
+                    id: content
+                    readonly property real implicitHeight: loader.item ? loader.item.implicitHeight : 0
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: notch.restHeight + 2
+                    width: notch.width - 24
+                    height: notch.height - notch.restHeight - 8
+                    clip: true
+                    opacity: notch.mode !== "" ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 180 } }
+                    Loader {
+                        id: loader
+                        width: parent.width
+                        active: notch.mode !== ""
+                        sourceComponent: notch.mode === "notifs" ? notifsView : panelView
                     }
                 }
             }
 
+            // ---------- notifications, whole ----------
             Component {
-                id: controlsCard
+                id: notifsView
+                NotificationListView {
+                    implicitHeight: contentHeight
+                    height: contentHeight
+                    popup: true
+                    expandAll: true
+                }
+            }
+
+            // ---------- panel: music + time + quick tools ----------
+            Component {
+                id: panelView
                 ColumnLayout {
-                    spacing: 10
+                    spacing: 14
+
+                    // music
                     RowLayout {
+                        visible: root.hasPlayer
+                        Layout.fillWidth: true
                         spacing: 12
                         ClippingRectangle {
-                            implicitWidth: 56
-                            implicitHeight: 56
-                            radius: 12
+                            implicitWidth: 52
+                            implicitHeight: 52
+                            radius: Appearance.rounding.small
                             color: Appearance.colors.colLayer1
                             Image {
                                 anchors.fill: parent
                                 source: MprisController.activePlayer?.trackArtUrl ?? ""
                                 fillMode: Image.PreserveAspectCrop
-                                sourceSize: Qt.size(112, 112)
+                                sourceSize: Qt.size(104, 104)
                             }
                         }
                         ColumnLayout {
@@ -302,7 +177,7 @@ Scope {
                                 Layout.fillWidth: true
                                 text: MprisController.activePlayer?.trackTitle ?? ""
                                 font.family: "Space Grotesk"
-                                font.pixelSize: 15
+                                font.pixelSize: 14
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
@@ -314,10 +189,6 @@ Scope {
                                 elide: Text.ElideRight
                             }
                         }
-                    }
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 18
                         Repeater {
                             model: [
                                 { icon: "skip_previous", act: () => MprisController.previous() },
@@ -326,82 +197,128 @@ Scope {
                             ]
                             delegate: RippleButton {
                                 required property var modelData
-                                implicitWidth: 40
-                                implicitHeight: 40
-                                buttonRadius: 20
+                                implicitWidth: 36
+                                implicitHeight: 36
+                                buttonRadius: 18
                                 onClicked: modelData.act()
                                 contentItem: MaterialSymbol {
                                     anchors.centerIn: parent
                                     text: modelData.icon
-                                    iconSize: 24
+                                    iconSize: 22
                                     fill: 1
                                     color: Appearance.colors.colOnLayer0
                                 }
                             }
                         }
                     }
-                }
-            }
 
-            Component {
-                id: chatCard
-                ColumnLayout {
-                    spacing: 10
-                    StyledText {
+                    // time
+                    RowLayout {
                         Layout.fillWidth: true
-                        Layout.maximumHeight: 200
-                        visible: text !== ""
-                        text: root.lastAi?.role === "assistant" ? root.lastAi.content : ""
-                        wrapMode: Text.Wrap
-                        elide: Text.ElideRight
-                        font.pixelSize: 13
-                        textFormat: Text.MarkdownText
-                    }
-                    StyledText {
-                        visible: root.lastAi?.role !== "assistant"
-                        text: "Oi! Pergunta alguma coisa pra mim."
-                        font.family: "Space Grotesk"
-                        font.pixelSize: 13
-                        color: Appearance.colors.colSubtext
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 38
-                        radius: 19
-                        color: Appearance.colors.colLayer1
-                        StyledTextInput {
-                            id: input
-                            anchors.fill: parent
-                            anchors.leftMargin: 16
-                            anchors.rightMargin: 16
-                            verticalAlignment: TextInput.AlignVCenter
-                            focus: true
+                        spacing: 12
+                        StyledText {
+                            text: DateTime.time
+                            font.family: "Space Grotesk"
+                            font.pixelSize: 38
+                            font.weight: Font.DemiBold
+                            color: Appearance.colors.colOnLayer0
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignBottom
+                            Layout.bottomMargin: 6
+                            text: DateTime.longDate ?? DateTime.date
                             font.family: "Space Grotesk"
                             font.pixelSize: 13
-                            color: Appearance.colors.colOnLayer0
-                            Component.onCompleted: forceActiveFocus()
-                            Keys.onEscapePressed: root.card = ""
-                            onAccepted: {
-                                if (text.trim() === "")
-                                    return;
-                                Ai.sendUserMessage(text.trim());
-                                text = "";
+                            color: Appearance.colors.colSubtext
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    // quick tools (left the bottom bar)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        QuickTool {
+                            icon: "screenshot_region"
+                            label: "Print"
+                            onClicked: {
+                                root.panelOpen = false;
+                                Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "region", "screenshot"]);
                             }
-                            StyledText {
-                                visible: input.text === ""
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: root.aiBusy ? "pensando…" : "Escreva e aperte Enter"
-                                font.family: "Space Grotesk"
-                                font.pixelSize: 13
-                                color: Appearance.colors.colSubtext
+                        }
+                        QuickTool {
+                            icon: "colorize"
+                            label: "Cor"
+                            onClicked: {
+                                root.panelOpen = false;
+                                Quickshell.execDetached(["bash", "-c", "sleep 0.3; hyprpicker -a"]);
                             }
+                        }
+                        QuickTool {
+                            icon: Notifications.silent ? "notifications_paused" : "notifications_active"
+                            label: "Não perturbe"
+                            toggled: Notifications.silent
+                            onClicked: Notifications.silent = !Notifications.silent
+                        }
+                        QuickTool {
+                            id: ledTool
+                            icon: "light_mode"
+                            label: "LED"
+                            onClicked: {
+                                ledPopup.anchorItem = ledTool;
+                                ledPopup.open = !ledPopup.open;
+                            }
+                        }
+                        QuickTool {
+                            visible: Battery.available
+                            icon: Battery.isCharging ? "battery_charging_full" : "smartphone"
+                            label: `${Math.round(Battery.percentage * 100)}%`
+                            onClicked: {}
                         }
                     }
                 }
             }
 
-            // Keyboard focus only while chatting
-            WlrLayershell.keyboardFocus: root.card === "chat" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            Bar.LedPopup {
+                id: ledPopup
+                atTop: true
+                edgeMargin: notch.height + 6
+            }
+        }
+    }
+
+    // A round quick tool with a caption under it
+    component QuickTool: ColumnLayout {
+        id: tool
+        required property string icon
+        required property string label
+        property bool toggled: false
+        signal clicked()
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1 // equal shares of the row
+        spacing: 4
+        RippleButton {
+            Layout.alignment: Qt.AlignHCenter
+            implicitWidth: 52
+            implicitHeight: 52
+            buttonRadius: 26
+            toggled: tool.toggled
+            colBackground: Appearance.colors.colLayer1
+            onClicked: tool.clicked()
+            contentItem: MaterialSymbol {
+                anchors.centerIn: parent
+                text: tool.icon
+                iconSize: 22
+                color: tool.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
+            }
+        }
+        StyledText {
+            Layout.alignment: Qt.AlignHCenter
+            text: tool.label
+            font.family: "Space Grotesk"
+            font.pixelSize: 11
+            color: Appearance.colors.colSubtext
         }
     }
 }
