@@ -87,3 +87,16 @@ A **própria ilha vira a bússola**, com animação: ela estica com mola e os ca
 ## Próximo
 - Dock: prévia das janelas no hover? Esconder em tela cheia?
 - Lançador em tela cheia de vidro (o clique na marca).
+
+## Desempenho: primeira geral (04/11/2026, só anotado, nada corrigido)
+Medido com o shell parado: **~830 MB de RAM (RSS)** e CPU entre 0 e 3,5% (média de 3 amostras). A CPU parada está boa. A RAM é o problema para PC fraco, e quase tudo vem do que foi herdado do ii. Itens marcados com ? são hipóteses a medir.
+- **Tudo do ii carrega no início e fica na memória**, em cada monitor: laterais (chat de IA, Anime, tradutor), visão geral, seletor de papel de parede, cheatsheet, teclado na tela, tradutor de tela, controles de mídia. Passar para `LazyLoader` ativo só quando abertos deve ser o maior ganho. Remover de vez a aba Anime e o chat de IA da lateral esquerda (decisão 22).
+- **Widgets do fundo** (fotos ×2, aniversário, calendário, relógio, mídia, clima) em dois monitores: as fotos são imagens decodificadas em tamanho cheio? Pôr `sourceSize` e criar só no monitor principal.
+- **Bússola:** é criada com a ilha e nunca é destruída (13 blocos com `IconImage`). Cada bloco refaz um `windowList.filter` a cada mudança de janela, ou seja 13 filtros × 2 monitores. Pôr num `Loader` ativo só no modo bússola e calcular um mapa área→janelas uma vez só.
+- **Copos d'água do painel:** um `Canvas` repintado a cada quadro por `FrameAnimation`, ×4, enquanto o painel está aberto. Está ok porque o Loader destrói tudo ao fechar, mas ainda pesa em GPU/CPU fraca. Trocar por `ShaderEffect` ou por uma onda em ~20 fps.
+- **Mascote:** o timer de piscar roda sempre que está visível, na ilha e no dock, por monitor. É barato, mas dá para pausar em tela cheia (decisão 27).
+- **Dock:** `TaskbarApps.apps` recria todos os objetos a cada evento de janela; `emptyWorkspace` faz um filtro na lista inteira de janelas.
+- **hyprglass "vivo":** refração, aberração cromática e fresnel em todas as camadas (ilha, dock, laterais) custam GPU a cada quadro do compositor. Para PC fraco, ter um preset "leve" (só blur) ou nenhum.
+- **Vazamentos a investigar?** `TaskbarApps` usa `appEntryComp.createObject(null, ...)` a cada mudança e nunca chama `destroy()`, então os objetos antigos podem acumular (a medir: RSS depois de abrir e fechar 200 janelas). Também a medir: o `FileView` da GPU (lido só com o painel aberto, ok) e os `Connections` dos ícones do dock.
+- **Ambiente:** o quickshell compilado para Qt 6.11 rodando no Qt 6.12 derruba o hot reload. Recompilar o pacote.
+- **Como medir depois:** `ps -o rss,pcpu -p $(pgrep -x qs)` antes e depois de cada mudança; comparar com `qs -c ii`; e o teste das 200 janelas para o vazamento.
