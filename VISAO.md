@@ -29,6 +29,10 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 27 | Mascote em movimento | **Só em eventos:** parado, só pisca de vez em quando; some em jogo em tela cheia. |
 | 28 | Áreas na bússola | **Por demanda, até ~50:** a bússola mostra umas 10 por vez e o scroll desliza para as próximas. |
 | 29 | Tela de bloqueio | **Depois** (fica a do ii/hyprlock por enquanto). |
+| 30 | Barra do ii (transição) | Desce para baixo até o dock existir; a ilha fica sozinha em cima. |
+| 31 | Forma da ilha | **Entalhe na borda:** colada no topo, só os cantos de baixo arredondados. |
+| 32 | Rosto do mascote | **Um par de olhos no meio dos 4 blocos:** a marca inteira é a cara. |
+| 33 | Clique na ilha | **Depende do momento:** com música abre os controles; com notificação abre ela; parada abre o chat. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |
 | 19 | Lateral direita | **Lateral de vidro** (botões rápidos, notificações, calendário...), redesenhada. |
 | 20 | Lançador | **Tela cheia de vidro**, grade de apps com páginas, integrando a **busca avançada do ii** (overview: apps, calculadora, comandos, emojis, área de transferência...). |
@@ -47,5 +51,15 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 - **Onda de quadradinhos de vidro:** provado no Hyprland aninhado (`~/hyprglass-mosaic/mosaic-os/teste`). O hyprglass recorta o vidro pela transparência da camada, então um painel que nasce em onda de pixels faz o vidro nascer em pixels. Entra em cada painel (ilha, dock...) quando eles forem construídos.
 - **Na sessão:** `execs.lua` carrega o fork; `rules.lua` ganhou uma linha; `variables.lua` mantém o `qsConfig` trocado ao recarregar. Cópias dos originais em `hypr/backup-*`; `hypr/desfazer-vidro.sh` volta tudo.
 
+## Ilha: 1ª versão (04/11/2026)
+`modules/mosaic/island/` (Island.qml, Mascot.qml), carregada na família ii do Mosaic OS; a barra do ii foi para baixo (`bar.bottom` no config do Mosaic OS).
+- Entalhe de vidro colado no topo, com curvas onde encontra a borda; cresce com mola (OutBack).
+- Repouso: marca viva (olhos que piscam a cada 3,5 a 7 s) + nome do app em foco (ou "Área N").
+- Música tocando: cresce para os lados com capa e título; o mascote dança.
+- Notificação: o mascote pula e a ilha desce num cartão por 4,5 s.
+- Clique: notificação → central; música → controles; parada → chat com a IA do ii (o mascote "pensa", com os blocos girando, enquanto ela responde).
+- Cutucar o mascote 5 vezes: ele fica tonto.
+- `qs -c mosaic ipc call island chat|controls|close|poke`.
+
 ## Próximo
-- Ilha + mascote (a marca viva).
+- Bússola das áreas (Super + mouse na ilha, scroll).

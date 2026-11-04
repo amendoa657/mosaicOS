@@ -24,7 +24,7 @@ hg.preset("vivo", {
 for _, ns in ipairs({
     "quickshell:bar", "quickshell:dock", "quickshell:sidebarRight", "quickshell:sidebarLeft",
     "quickshell:notificationPopup", "quickshell:cheatsheet", "quickshell:overview",
-    "quickshell:overlay", "quickshell:session",
+    "quickshell:overlay", "quickshell:session", "quickshell:island",
 }) do
     hg.layer(ns, { preset = "vivo", mask_threshold = 0.3 })
 end
