@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
+import Quickshell.Hyprland
 import qs
 import qs.services
 import qs.modules.common
@@ -45,16 +46,40 @@ Scope {
                 right: true
             }
             implicitHeight: root.dockHeight + root.gap + root.lift
-            exclusiveZone: root.dockHeight + root.gap
+            // floats over the windows: shown on an empty workspace, otherwise only
+            // when the mouse goes down to the bottom edge (and while it stays on it)
+            exclusiveZone: 0
+            readonly property int workspaceId: Hyprland.monitorFor(win.screen)?.activeWorkspace?.id ?? -1
+            readonly property bool emptyWorkspace: !HyprlandData.windowList.some(w => w.workspace.id === win.workspaceId)
+            property bool hovering: false
+            readonly property bool shown: emptyWorkspace || hovering
+            HoverHandler {
+                onHoveredChanged: {
+                    if (hovered) { leaveTimer.stop(); win.hovering = true; }
+                    else leaveTimer.restart();
+                }
+            }
+            Timer { id: leaveTimer; interval: 400; onTriggered: win.hovering = false }
+            Item { // the bottom edge that brings the dock up
+                id: edgeSensor
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: dock.width
+                height: 3
+            }
             color: "transparent"
             WlrLayershell.namespace: "quickshell:dock"
-            mask: Region { item: dock }
+            mask: Region { item: win.shown ? dock : edgeSensor }
 
             Rectangle {
                 id: dock
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: root.gap
+                transform: Translate {
+                    y: win.shown ? 0 : root.dockHeight + root.gap + 4
+                    Behavior on y { NumberAnimation { duration: 380; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
+                }
                 height: root.dockHeight
                 width: row.implicitWidth + 16
                 radius: Appearance.rounding.large
@@ -108,7 +133,6 @@ Scope {
                             id: apps
                             anchors.centerIn: parent
                             height: parent.height
-                            HoverHandler { id: appsHover }
                             Repeater {
                                 model: ScriptModel {
                                     objectProp: "appId"
@@ -125,8 +149,8 @@ Scope {
                                     readonly property bool isActive: toplevels.some(t => t.activated)
                                     readonly property color tone: root.toneFor(index) ?? "transparent"
                                     property var desktopEntry: DesktopEntries.heuristicLookup(modelData.appId)
-                                    // 0..1, how close the mouse is (the neighbours grow a little too)
-                                    readonly property real magnify: appsHover.hovered && !isSeparator ? Math.max(0, 1 - Math.abs(appsHover.point.position.x - (x + width / 2)) / 100) : 0
+                                    // 1 while the mouse is on it: the icon pops up with a little overshoot
+                                    readonly property real magnify: mouse.containsMouse ? 1 : 0
 
                                     width: isSeparator ? 10 : 46
                                     height: apps.height
@@ -168,8 +192,8 @@ Scope {
                                             implicitSize: 30
                                             source: Quickshell.iconPath(AppSearch.guessIcon(app.modelData.appId), "image-missing")
                                             transformOrigin: Item.Bottom
-                                            scale: 1 + 0.38 * app.magnify
-                                            Behavior on scale { SpringAnimation { spring: 5; damping: 0.32; epsilon: 0.005 } }
+                                            scale: 1 + 0.22 * app.magnify
+                                            Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutBack; easing.overshoot: 2 } }
                                         }
                                         Row { // one dot per window
                                             anchors.horizontalCenter: parent.horizontalCenter
