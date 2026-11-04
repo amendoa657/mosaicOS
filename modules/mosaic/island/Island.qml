@@ -69,7 +69,7 @@ Scope {
             required property var modelData
             screen: modelData
             WlrLayershell.namespace: "quickshell:island"
-            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.layer: WlrLayer.Overlay // above full-screen windows, so the top edge still works
             exclusionMode: ExclusionMode.Ignore
             anchors.top: true
             color: "transparent"
@@ -152,6 +152,14 @@ Scope {
                 // 0 = island, 1 = compass: drives the morph (shape, colors, needle)
                 property real morph: compassOn ? 1 : 0
                 Behavior on morph { NumberAnimation { duration: 520; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
+                // full screen on this monitor: the resting island hides above the edge
+                // (the top edge sensor still opens the panel)
+                readonly property int workspaceId: Hyprland.monitorFor(win.screen)?.activeWorkspace?.id ?? -1
+                readonly property bool fullscreenHere: HyprlandData.windowList.some(w => w.workspace.id === notch.workspaceId && w.fullscreen > 0)
+                transform: Translate {
+                    y: notch.fullscreenHere && notch.mode === "" ? -notch.height - 4 : 0
+                    Behavior on y { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                }
                 readonly property real restWidth: 64
                 readonly property real restHeight: 32
                 readonly property real radius: Appearance.rounding.windowRounding

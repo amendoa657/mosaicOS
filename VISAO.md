@@ -39,6 +39,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 39 | Medidores | **Copos d'água:** quatro copinhos (CPU, RAM, GPU, swap) só com o ícone, sem texto nem número; a água sobe numa mola e a superfície balança (só com o painel aberto). |
 | 40 | Música | **Abaixo da hora e do clima.** |
 | 41 | Mouse no topo | Levar o mouse à borda de cima **abre**; aberta assim, **fecha quando o mouse sai**. Um clique fixa. |
+| 42 | Tela cheia | A ilha **some em tela cheia** (sobe para fora da borda) e só volta com o mouse no topo, que abre o painel. Notificações e bússola continuam aparecendo. A ilha passou para a camada Overlay, para ficar acima da janela em tela cheia. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |
@@ -97,6 +98,6 @@ Medido com o shell parado: **~830 MB de RAM (RSS)** e CPU entre 0 e 3,5% (média
 - **Mascote:** o timer de piscar roda sempre que está visível, na ilha e no dock, por monitor. É barato, mas dá para pausar em tela cheia (decisão 27).
 - **Dock:** `TaskbarApps.apps` recria todos os objetos a cada evento de janela; `emptyWorkspace` faz um filtro na lista inteira de janelas.
 - **hyprglass "vivo":** refração, aberração cromática e fresnel em todas as camadas (ilha, dock, laterais) custam GPU a cada quadro do compositor. Para PC fraco, ter um preset "leve" (só blur) ou nenhum.
-- **Vazamentos a investigar?** `TaskbarApps` usa `appEntryComp.createObject(null, ...)` a cada mudança e nunca chama `destroy()`, então os objetos antigos podem acumular (a medir: RSS depois de abrir e fechar 200 janelas). Também a medir: o `FileView` da GPU (lido só com o painel aberto, ok) e os `Connections` dos ícones do dock.
+- **Vazamento do dock: medido, não há.** `TaskbarApps` cria objetos com `createObject(null, ...)` sem `destroy()`, mas o coletor de lixo do JS recolhe os antigos. No Hyprland aninhado, abrindo e fechando 150 janelas (kitty), o RSS ficou em 619→618 MB e chegou a cair. Continua sendo trabalho jogado fora a cada evento (recria a lista inteira), mas não acumula. Também a medir: o `FileView` da GPU (lido só com o painel aberto, ok) e os `Connections` dos ícones do dock.
 - **Ambiente:** o quickshell compilado para Qt 6.11 rodando no Qt 6.12 derruba o hot reload. Recompilar o pacote.
 - **Como medir depois:** `ps -o rss,pcpu -p $(pgrep -x qs)` antes e depois de cada mudança; comparar com `qs -c ii`; e o teste das 200 janelas para o vazamento.
