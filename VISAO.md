@@ -42,10 +42,10 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 - Vidro pixelado: viável no hyprglass (refração em blocos) ou como shader no Quickshell?
 - Detalhes de cada peça conforme for construindo.
 
-## Próximo passo: vidro pixelado (proposta, falta o OK)
-O liquid glass é desenhado pelo hyprglass, dentro do Hyprland (`~/hyprglass`, shader em `src/Shaders.hpp`). O Quickshell não enxerga o que está atrás dele, então as duas metades do vidro pixelado ficam em lugares diferentes:
+## Vidro pixelado: feito (04/11/2026)
+- **Refração em blocos:** fork do hyprglass em `~/hyprglass-mosaic` (branch `mosaic`), com a opção `mosaic_size` só de preset (padrão 0, idêntico ao original). Preset `mosaico` (14 px) e camadas em `hypr/mosaic.lua`, lido pelo `rules.lua` só com `qsConfig = mosaic`.
+- **Onda de quadradinhos de vidro:** provado no Hyprland aninhado (`~/hyprglass-mosaic/mosaic-os/teste`). O hyprglass recorta o vidro pela transparência da camada, então um painel que nasce em onda de pixels faz o vidro nascer em pixels. Entra em cada painel (ilha, dock...) quando eles forem construídos.
+- **Na sessão:** `execs.lua` carrega o fork; `rules.lua` ganhou uma linha; `variables.lua` mantém o `qsConfig` trocado ao recarregar. Cópias dos originais em `hypr/backup-*`; `hypr/desfazer-vidro.sh` volta tudo.
 
-1. **Refração em blocos** (no hyprglass): uma opção nova `mosaic_size` no shader, que quantiza o ponto de amostragem em quadradinhos (`floor(px / tamanho)`). Com o padrão `0`, nada muda no ii. O Mosaic OS liga a opção só nas camadas dele, em tempo real, ao entrar (`hg.preset` / `hg.layer` via `hyprctl eval`), e desliga ao sair.
-2. **Abrir e fechar em quadradinhos de vidro** (no Quickshell): o hyprglass recorta o vidro pela transparência da camada (`mask_threshold`). Se o painel nasce numa onda de quadradinhos (a cortina de pixels que já existe na waffleMosaic), **o vidro nasce em quadradinhos junto**, sem mexer no plugin.
-
-Risco: recompilar e recarregar o hyprglass pode derrubar o Hyprland se der errado. Fazer numa cópia (`~/hyprglass-mosaic`), testar num Hyprland aninhado antes de carregar na sessão de verdade, e manter o `hyprglass.so` original intocado para voltar.
+## Próximo
+- Ilha + mascote (a marca viva), com a onda de vidro ao abrir.
