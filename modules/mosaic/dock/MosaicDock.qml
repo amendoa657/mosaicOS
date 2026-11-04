@@ -70,6 +70,8 @@ Scope {
                 width: dock.width + (win.shown ? 24 : 160)
                 height: win.shown ? root.dockHeight + root.gap + 6 : 10
             }
+            color: "transparent"
+            WlrLayershell.namespace: "quickshell:dock"
             mask: Region { item: hitArea }
 
             Rectangle {
