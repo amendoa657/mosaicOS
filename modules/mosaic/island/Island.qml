@@ -57,7 +57,10 @@ Scope {
         }
         function close(): void { root.openScreen = ""; }
         function poke(): void { root.jumpRequested(); }
+        // shows the compass without holding Super (tests, or a keybind later)
+        function compass(): void { root.compassForced = !root.compassForced; }
     }
+    property bool compassForced: false
 
     Variants {
         model: Quickshell.screens
@@ -78,6 +81,26 @@ Scope {
                 Region {
                     item: edgeSensor
                 }
+                Region {
+                    item: (win.compassOpen || root.compassForced) ? compass : null
+                }
+            }
+
+            // ---------- compass: Super held + mouse on the island ----------
+            property bool compassOpen: false
+            function updateCompass() {
+                if (!GlobalStates.superDown)
+                    win.compassOpen = false;
+                else if (notchHover.hovered && !win.panelOpen && !root.hasNotifs)
+                    win.compassOpen = true;
+                else if (!notchHover.hovered && !compassHover.hovered)
+                    win.compassOpen = false;
+            }
+            // While the compass is up, letting go of Super must not open the search
+            onCompassOpenChanged: if (compassOpen) GlobalStates.superReleaseMightTrigger = false
+            Connections {
+                target: GlobalStates
+                function onSuperDownChanged() { win.updateCompass(); }
             }
 
             readonly property bool panelOpen: root.openScreen === win.screen.name
@@ -102,7 +125,7 @@ Scope {
                 width: 360
                 height: 2
                 HoverHandler {
-                    onHoveredChanged: if (hovered && !win.panelOpen && !root.hasNotifs) win.setOpen(true, true)
+                    onHoveredChanged: if (hovered && !win.panelOpen && !root.hasNotifs && !GlobalStates.superDown) win.setOpen(true, true)
                 }
             }
             Timer {
@@ -130,7 +153,11 @@ Scope {
 
                 HoverHandler {
                     id: notchHover
-                    onHoveredChanged: if (!hovered) leaveTimer.restart()
+                    onHoveredChanged: {
+                        if (!hovered)
+                            leaveTimer.restart();
+                        win.updateCompass();
+                    }
                 }
 
                 // The bottom bar's surface and outline. The top corners sit above the
@@ -192,6 +219,17 @@ Scope {
                         active: notch.mode !== ""
                         sourceComponent: notch.mode === "notifs" ? notifsView : panelView
                     }
+                }
+            }
+
+            Compass {
+                id: compass
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: notch.restHeight - 1
+                open: win.compassOpen || root.compassForced
+                HoverHandler {
+                    id: compassHover
+                    onHoveredChanged: win.updateCompass()
                 }
             }
 

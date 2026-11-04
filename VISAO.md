@@ -69,5 +69,8 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 - Cutucar o mascote 5 vezes: ele fica tonto.
 - `qs -c mosaic ipc call island chat|controls|close|poke`.
 
+## Bússola: 1ª versão (04/11/2026)
+`modules/mosaic/island/Compass.qml`. Super segurado + mouse na ilha: um meio círculo (superfície e contorno da barra) desce da ilha. A área atual fica embaixo, grande e destacada; as vizinhas seguem o arco (menores à esquerda, maiores à direita), cada uma com o ícone da maior janela e "+N" quando tem mais; vazias aparecem como número. O scroll gira a bússola com mola e troca de área (1 a 50, ~10 à vista); clicar num ponto vai até ele. Enquanto ela está aberta, soltar o Super não abre a busca. `qs -c mosaic ipc call island compass` mostra sem o Super.
+
 ## Próximo
-- Bússola das áreas (Super + mouse na ilha, scroll).
+- Dock completo (lançador, apps, status, relógio) para a barra do ii sair.
