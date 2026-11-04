@@ -8,7 +8,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 1 | Público | Primeiro, o próprio usuário. Depois, avaliar se vira a mosaic-ui de verdade para leigos. |
 | 2 | Sensação | Brincalhão, com bastante liquid glass, como a sessão atual (hyprglass). |
 | 3 | Brincalhão | Animações elásticas, sons, mascote/personagem (aprofundar) e surpresas escondidas. |
-| 4 | Vidro × Mosaic | **Vidro pixelado:** o vidro ganha a identidade Mosaic (refração em quadradinhos, campo de pontos dentro do vidro, borda em retícula). |
+| 4 | Vidro | ~~Vidro pixelado~~ **arquivado** (04/11, o usuário não gostou). Fica o **liquid glass**, com o preset **"vivo"** do Mosaic OS (mais lente, refração, arco-íris e brilho que o "clear" do ii). |
 | 5 | Layout | Junção de **dock protagonista completo** com **ilha flutuante**. |
 | 6 | Essenciais do ii | Áreas de trabalho, lateral esquerda (**sem a aba Anime**), lateral direita, widgets no fundo. |
 | 7 | Mascote | **A marca viva:** os 4 blocos da Mosaic com olhinhos, que se rearranjam, pulam e viram outras formas. **Mora na ilha.** |
@@ -42,10 +42,10 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 - Vidro pixelado: viável no hyprglass (refração em blocos) ou como shader no Quickshell?
 - Detalhes de cada peça conforme for construindo.
 
-## Vidro pixelado: feito (04/11/2026)
+## Vidro pixelado: feito e arquivado (04/11/2026)
 - **Refração em blocos:** fork do hyprglass em `~/hyprglass-mosaic` (branch `mosaic`), com a opção `mosaic_size` só de preset (padrão 0, idêntico ao original). Preset `mosaico` (14 px) e camadas em `hypr/mosaic.lua`, lido pelo `rules.lua` só com `qsConfig = mosaic`.
 - **Onda de quadradinhos de vidro:** provado no Hyprland aninhado (`~/hyprglass-mosaic/mosaic-os/teste`). O hyprglass recorta o vidro pela transparência da camada, então um painel que nasce em onda de pixels faz o vidro nascer em pixels. Entra em cada painel (ilha, dock...) quando eles forem construídos.
 - **Na sessão:** `execs.lua` carrega o fork; `rules.lua` ganhou uma linha; `variables.lua` mantém o `qsConfig` trocado ao recarregar. Cópias dos originais em `hypr/backup-*`; `hypr/desfazer-vidro.sh` volta tudo.
 
 ## Próximo
-- Ilha + mascote (a marca viva), com a onda de vidro ao abrir.
+- Ilha + mascote (a marca viva).
