@@ -140,11 +140,10 @@ Singleton {
         if (root.soundEnabled) Audio.playSystemSound("suspend-error");
     }
 
-    onIsSuspendingAndNotChargingChanged: {
-        if (root.available && isSuspendingAndNotCharging) {
-            Quickshell.execDetached(["bash", "-c", `systemctl suspend || loginctl suspend`]);
-        }
-    }
+    // Mosaic OS: this service reads the PHONE battery (KDE Connect), so the ii
+    // "suspend when the battery is almost empty" would put the PC to sleep when
+    // the phone hits 3%. Turned off.
+    onIsSuspendingAndNotChargingChanged: {}
 
     onIsFullAndChargingChanged: {
         if (!root.available || !isFullAndCharging) return;

@@ -49,6 +49,8 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 49 | Logo novo | O mascote usa o **logo do Mosaic OS** (quadrado grande, barra alta, barra larga e quadradinho) nas **cores do Matugen**. |
 | 50 | Shell lembrado | O último shell escolhido (ii ou Mosaic OS) fica salvo e volta ao reiniciar o PC; trocar papel de parede não reinicia mais o Quickshell. |
 | 51 | Dock v2 (05/11) | **Vidro claro** com os ícones pousados, **onda sutil tipo macOS** no hover, sem relógio (fica na ilha); a **bandeja foi para o painel da ilha**, no bloco da hora, do lado direito. |
+| 52 | Notificação unida (05/11) | A bolha cai e, depois, **se funde à ilha** numa forma só. |
+| 53 | Celular na ilha | Pelo **KDE Connect** (ouvindo o D-Bus): carregando (bateria d'água, bolhas, faíscas), ligação tocando/atendida/perdida (anéis, silenciar), conectou/saiu e bateria fraca. Animações portadas do hyprdots. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |

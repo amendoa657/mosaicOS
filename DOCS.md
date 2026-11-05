@@ -217,9 +217,31 @@ Coisas rápidas que a ilha mostra por um instante, ao lado da marca, só no moni
 | Brilho | `Connections` em `Brightness` (`onBrightnessChanged`) | igual ao volume |
 | Música nova | `onCurrentTrackChanged` (título do `MprisController` mudou e está tocando) | capa + título + artista |
 | Print | `Process` com `wl-paste --watch`: a cada mudança da área de transferência, confere se é imagem | "Print copiado" |
-| Celular fraco | `phoneLow`: `Battery` (KDE Connect) ≤ 20% e sem carregar | ícone vermelho + "Celular com N%" |
+| Celular fraco | `phoneLow`: celular ≤ 20% e fora da tomada (`PhoneLink`) | bateria d'água respirando em vermelho |
+| Celular carregando | `PhoneLink.chargingStarted` | bateria d'água com bolhas, brilho, raio pulsando, faíscas e a % contando |
+| Ligação tocando | `PhoneLink.call("ringing")` | inicial do contato num círculo que pulsa, dois anéis saindo, nome e número, botão de silenciar |
+| Atendida / perdida | `call("talking")` / `call("missedCall")` | o mesmo cartão, sem anéis (vermelho se perdida) |
+| Celular conectou / saiu | `PhoneLink.connected` / `disconnected` | ícone do celular com um anel saindo |
 
-O OSD do ii (o aviso de volume e brilho) foi desligado na família (seção 9), porque a ilha faz esse papel. O `wl-paste --watch` só roda o teste quando a área de transferência muda; parado, não gasta nada. Uma imagem copiada do navegador também conta como "print".
+Cada tipo tem seu tempo (`showEvent`): a ligação tocando fica até ser atendida ou perdida (no máximo 45 s). Para ver sem o celular: `qs -c mosaic ipc call island phoneTest charging|low|ringing|talking|missed|connected|disconnected`.
+
+O OSD do ii (o aviso de volume e brilho) foi desligado na família (seção 9), porque a ilha faz esse papel.
+
+### 5.9.1 O celular: `PhoneLink.qml`, `PhoneBattery.qml`, `Sparks.qml`
+- **`PhoneLink`** fala com o KDE Connect. Ao ligar, pergunta uma vez o nome, se está conectado e a bateria (`qdbus`). Depois só **escuta** os sinais que o KDE Connect já manda no D-Bus, com um `dbus-monitor`:
+  - `org.kde.kdeconnect.device.battery`: `refreshed(isCharging, charge)`;
+  - `org.kde.kdeconnect.device.telephony`: `callReceived(event, number, contactName)`, com `event` = `ringing`, `talking` ou `missedCall`;
+  - `org.kde.kdeconnect.device`: `reachableChanged(reachable)`.
+
+  Parado, não gasta nada (o serviço `Battery` do ii pergunta a cada 3 s). Os nomes dos sinais foram tirados do próprio plugin (`strings kdeconnect_telephony.so`).
+- **Lendo o `dbus-monitor`:** ele escreve uma linha de cabeçalho por sinal (`signal ... path=.../devices/ID/telephony; ... member=callReceived`) e depois uma linha por argumento (`string "ringing"`). O `SplitParser` guarda o `member` do cabeçalho, se for do nosso celular, junta os argumentos e, quando tem todos, chama `handle()`.
+- **Silenciar:** `sendMutePacket` no `telephony`. É a única ação de ligação que o KDE Connect oferece; atender ou recusar não dá.
+- **`PhoneBattery`** (port do `IslandBattery` do hyprdots):
+  - a água é um `Canvas`: enche da esquerda, com a borda direita numa senoide que anda (`FrameAnimation`, só enquanto aparece);
+  - carregando, 5 bolhas sobem uma depois da outra, um brilho inclinado varre a bateria a cada ~2 s e o raio pulsa;
+  - fraca, a bateria "respira" (opacidade).
+- **`Sparks`** (port do `IslandBurst`): 12 faíscas saem de um ponto, cada uma com ângulo e alcance um pouco embaralhados, e somem diminuindo.
+- **Processos que morrem com o shell:** o `dbus-monitor` e o `wl-paste --watch` rodam via `setpriv --pdeathsig TERM`. Sem isso, cada reinício do shell deixava um deles vivo; chegaram a ser 14 `wl-paste` esquecidos. O `wl-paste --watch` só roda o teste quando a área de transferência muda; parado, não gasta nada. Uma imagem copiada do navegador também conta como "print".
 
 ### 5.10 A bolha de notificação com "goo"
 Quando chega notificação, uma bolha **sai de baixo da ilha** e, enquanto está perto, um **pescoço líquido** liga as duas. Ideia do `IsleDrip` do hyprdots.
@@ -233,6 +255,7 @@ Quando chega notificação, uma bolha **sai de baixo da ilha** e, enquanto está
 - **O shader `shaders/goo.frag`** desenha três formas como SDF: a ilha (a pílula como está agora, com a escala), uma tirinha (`twin`) sob o meio da ilha e a bolha. Ele junta a tirinha e a bolha com `smin` de raio 22 (`fuse`). Como a distância entre elas (12 px) é menor que 22, forma-se o pescoço. Depois junta isso à ilha com um `smin` pequeno (10), que arredonda o encontro. O contorno de 1 px é desenhado no contorno da forma inteira, pescoço incluído.
 - **A conta do `smin` circular:** `max(k, min(a, b)) - length(max(vec2(k) - vec2(a, b), 0))`. Longe das duas formas é igual a `min(a, b)` (a união normal); só onde as duas estão a menos de `k` a borda vira um arco de círculo que encosta nas duas.
 - O conteúdo é o `NotificationListView` do ii, em largura cheia, dentro de um `Item` com `clip` do tamanho da bolha. A bolha "revela" as notificações enquanto cresce, sem refazer o layout a cada quadro. A opacidade é `g²` (aparece no fim).
+- **Depois de cair, ela se funde à ilha:** quando `life` passa de 0,9, a mola `merge` vai a 1. A bolha sobe 14 px até encostar, a tirinha (`twin`) alarga até a largura da ilha e o `fuse` cresce de 22 para 32. A ilha e o cartão viram **uma forma só**, com curvas suaves onde se encontram.
 - A bússola tem prioridade: ao abrir, `life.settle(0)` some com a bolha na hora.
 - A bolha fica **atrás** da ilha (`z: -1`). Por cima, o preenchimento dela apagava a marca e a hora.
 
@@ -346,6 +369,8 @@ Arquivos do sistema, fora do projeto:
 - `~/.config/hypr/hyprland/variables.lua`: só um comentário;
 - `~/.config/fish/functions/qsr.fish`: reinicia o shell salvo;
 - `~/.config/matugen/config.toml`: o hook não reinicia mais o Quickshell.
+
+Também no projeto: `services/Battery.qml` (o serviço do ii que foi adaptado para ler a bateria do **celular**) tinha a suspensão automática do ii ligada. Com o celular em 3% e fora da tomada, o **PC suspendia**. A suspensão foi desligada no Mosaic OS.
 - `modules/common/Directories.qml`: as configurações ficam em `~/.config/mosaic-os`.
 - `modules/common/widgets/NotificationListView.qml`: propriedade `expandAll`.
 - `modules/ii/bar/BarContent.qml`: sem `UtilButtons` e bateria, que foram para a ilha (a barra nem carrega mais).

@@ -73,6 +73,21 @@ Scope {
         function poke(): void { root.jumpRequested(); }
         // shows the compass without holding Super (tests, or a keybind later)
         function compass(): void { root.compassForced = !root.compassForced; }
+        // pretend a phone event, to see the animations without the phone:
+        // charging | low | ringing | talking | missed | connected | disconnected
+        function phoneTest(kind: string): void {
+            if (kind === "charging") {
+                if (phone.charge < 0)
+                    phone.charge = 64; // phone away: an example number
+                phone.chargingStarted();
+            }
+            else if (kind === "low") root.showEvent("battery", "battery_alert", `${phone.name} com 15%`, 0.15);
+            else if (kind === "ringing") phone.call("ringing", "+55 11 91234-5678", "Maria");
+            else if (kind === "talking") phone.call("talking", "+55 11 91234-5678", "Maria");
+            else if (kind === "missed") phone.call("missedCall", "+55 11 91234-5678", "Maria");
+            else if (kind === "connected") phone.connected();
+            else if (kind === "disconnected") phone.disconnected();
+        }
     }
     property bool compassForced: false
 
@@ -81,15 +96,18 @@ Scope {
     property string eventKind: ""
     property string eventIcon: ""
     property string eventText: ""
+    property string eventSub: "" // a second line (the number of a call...)
     property real eventValue: 0
     property int eventSerial: 0 // goes up on every event, so the island can do its little bump
-    function showEvent(kind, icon, text, value) {
+    function showEvent(kind, icon, text, value, sub) {
         root.eventKind = kind;
         root.eventIcon = icon;
         root.eventText = text;
+        root.eventSub = sub ?? "";
         root.eventValue = value ?? 0;
         root.eventSerial++;
-        eventTimer.interval = kind === "music" ? 3200 : 1800;
+        // how long each kind stays: a ringing call stays until it is answered or missed
+        eventTimer.interval = ({ music: 3200, charging: 3600, call: 45000, callTalking: 5000, callMissed: 6000, phone: 2600 })[kind] ?? 1800;
         eventTimer.restart();
     }
     Timer {
@@ -139,7 +157,8 @@ Scope {
     // wl-paste --watch runs the check only when the clipboard changes, so idle it costs nothing
     Process {
         running: true
-        command: ["wl-paste", "--watch", "sh", "-c", "wl-paste -l | grep -q '^image/' && echo image"]
+        // setpriv --pdeathsig: it dies together with the shell (otherwise every restart left one behind)
+        command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--watch", "sh", "-c", "wl-paste -l | grep -q '^image/' && echo image"]
         stdout: SplitParser {
             onRead: line => {
                 if (line === "image" && root.eventsReady)
@@ -147,9 +166,26 @@ Scope {
             }
         }
     }
-    // the phone (KDE Connect) going low
-    readonly property bool phoneLow: Battery.available && !Battery.isCharging && Battery.percentage > 0 && Battery.percentage <= 0.2
-    onPhoneLowChanged: if (root.phoneLow) root.showEvent("battery", "battery_alert", `Celular com ${Math.round(Battery.percentage * 100)}%`, Battery.percentage)
+    // ---------- the phone, through KDE Connect (PhoneLink.qml) ----------
+    PhoneLink { id: phone }
+    Connections {
+        target: phone
+        function onChargingStarted() { root.showEvent("charging", "bolt", "Carregando", phone.charge / 100, phone.name); }
+        function onConnected() { root.showEvent("phone", "smartphone", `${phone.name} conectado`, 0); }
+        function onDisconnected() { root.showEvent("phone", "mobile_off", `${phone.name} desconectado`, 0); }
+        function onCall(event, number, contactName) {
+            const who = contactName !== "" ? contactName : number;
+            if (event === "ringing")
+                root.showEvent("call", "call", who, 0, number !== who ? number : phone.name);
+            else if (event === "talking")
+                root.showEvent("callTalking", "call", who, 0, "Em ligação");
+            else if (event === "missedCall")
+                root.showEvent("callMissed", "phone_missed", who, 0, "Ligação perdida");
+        }
+    }
+    // going low (20%, off the charger)
+    readonly property bool phoneLow: phone.charge > 0 && phone.charge <= 20 && !phone.charging
+    onPhoneLowChanged: if (root.phoneLow) root.showEvent("battery", "battery_alert", `${phone.name} com ${phone.charge}%`, phone.charge / 100)
 
     Variants {
         model: Quickshell.screens
@@ -248,7 +284,9 @@ Scope {
                 readonly property real cornerRadius: Math.min(height / 2, 26)
                 readonly property real topGap: 6 // the space above it, under the screen edge
                 readonly property real compassHeight: 124 // as a compass it is a half oval
-                readonly property real bandHeight: mode === "event" ? (root.eventKind === "music" ? 48 : 38) : restHeight
+                readonly property real bandHeight: mode !== "event" ? restHeight
+                    : root.eventKind.startsWith("call") ? 58
+                    : root.eventKind === "music" || root.eventKind === "charging" || root.eventKind === "battery" ? 48 : 38
 
                 // ----- the springs (MosaicSpring: real physics, with speed) -----
                 readonly property real targetWidth: mode === "" ? restRow.fullWidth + 24
@@ -432,7 +470,10 @@ Scope {
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: 160 } }
                     sourceComponent: root.eventKind === "volume" || root.eventKind === "brightness" ? levelEvent
-                        : root.eventKind === "music" ? musicEvent : textEvent
+                        : root.eventKind === "music" ? musicEvent
+                        : root.eventKind === "charging" || root.eventKind === "battery" ? batteryEvent
+                        : root.eventKind.startsWith("call") ? callEvent
+                        : root.eventKind === "phone" ? phoneEvent : textEvent
                 }
 
                 Compass {
@@ -545,6 +586,206 @@ Scope {
                     }
                 }
             }
+            // charging started / phone going low: the water battery, the percentage counting up, sparks
+            Component {
+                id: batteryEvent
+                Row {
+                    spacing: 14
+                    Item {
+                        width: 60
+                        height: 28
+                        anchors.verticalCenter: parent.verticalCenter
+                        PhoneBattery {
+                            anchors.fill: parent
+                            value: root.eventValue
+                            charging: root.eventKind === "charging"
+                            tint: ColorUtils.mix("#1ed38a", Appearance.colors.colPrimary, 0.55) // the Mosaic green, tuned to the wallpaper
+                        }
+                        Sparks {
+                            visible: root.eventKind === "charging"
+                            x: 28
+                            y: 14
+                            tint: "#1ed38a"
+                            reach: 42
+                            delay: 380
+                        }
+                    }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        StyledText {
+                            text: root.eventText
+                            font.family: "Space Grotesk"
+                            font.pixelSize: 13
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colOnLayer0
+                        }
+                        StyledText {
+                            text: root.eventSub !== "" ? root.eventSub : phone.name
+                            font.pixelSize: 11
+                            color: Appearance.colors.colOnLayer0
+                            opacity: 0.7
+                        }
+                    }
+                    // the percentage counts up to the real number
+                    StyledText {
+                        id: pct
+                        anchors.verticalCenter: parent.verticalCenter
+                        property real counted: 0
+                        Component.onCompleted: counted = root.eventValue * 100
+                        Behavior on counted { NumberAnimation { duration: 1200; easing.type: Easing.OutCubic } }
+                        text: Math.round(counted) + "%"
+                        font.family: "Space Grotesk"
+                        font.pixelSize: 20
+                        font.weight: Font.Bold
+                        color: Appearance.colors.colOnLayer0
+                    }
+                }
+            }
+            // a call: the contact's initial in a pulsing circle with rings going out
+            // (ringing), the name and number, and a button to silence the phone
+            Component {
+                id: callEvent
+                Row {
+                    id: callRow
+                    spacing: 14
+                    readonly property bool ringing: root.eventKind === "call"
+                    readonly property color tone: root.eventKind === "callMissed" ? Appearance.colors.colError : ColorUtils.mix("#1ed38a", Appearance.colors.colPrimary, 0.55)
+                    Item {
+                        width: 40
+                        height: 40
+                        anchors.verticalCenter: parent.verticalCenter
+                        Repeater { // two rings, half a beat apart
+                            model: callRow.ringing ? 2 : 0
+                            delegate: Rectangle {
+                                id: ring
+                                required property int index
+                                anchors.centerIn: parent
+                                width: 40
+                                height: 40
+                                radius: 20
+                                color: "transparent"
+                                border.width: 2
+                                border.color: callRow.tone
+                                opacity: 0
+                                SequentialAnimation {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    PauseAnimation { duration: ring.index * 600 }
+                                    ParallelAnimation {
+                                        NumberAnimation { target: ring; property: "scale"; from: 1; to: 1.7; duration: 1800; easing.type: Easing.OutCubic }
+                                        NumberAnimation { target: ring; property: "opacity"; from: 0.9; to: 0; duration: 1800; easing.type: Easing.OutQuad }
+                                    }
+                                    PauseAnimation { duration: (1 - ring.index) * 600 }
+                                }
+                            }
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 20
+                            gradient: Gradient {
+                                GradientStop { position: 0; color: Qt.lighter(callRow.tone, 1.2) }
+                                GradientStop { position: 1; color: Qt.darker(callRow.tone, 1.5) }
+                            }
+                            SequentialAnimation on scale { // the heartbeat while it rings
+                                running: callRow.ringing
+                                loops: Animation.Infinite
+                                NumberAnimation { from: 1; to: 1.06; duration: 600; easing.type: Easing.InOutSine }
+                                NumberAnimation { from: 1.06; to: 1; duration: 600; easing.type: Easing.InOutSine }
+                            }
+                            StyledText {
+                                anchors.centerIn: parent
+                                text: (root.eventText.match(/[A-Za-zÀ-ÿ0-9]/)?.[0] ?? "?").toUpperCase()
+                                font.family: "Space Grotesk"
+                                font.pixelSize: 17
+                                font.weight: Font.Bold
+                                color: "white"
+                            }
+                        }
+                    }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(200, Math.max(callName.implicitWidth, callSub.implicitWidth))
+                        StyledText {
+                            id: callName
+                            width: parent.width
+                            text: root.eventText
+                            font.family: "Space Grotesk"
+                            font.pixelSize: 15
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colOnLayer0
+                            elide: Text.ElideRight
+                        }
+                        StyledText {
+                            id: callSub
+                            width: parent.width
+                            text: root.eventSub + (callRow.ringing ? " · ligação" : "")
+                            font.pixelSize: 11
+                            color: Appearance.colors.colOnLayer0
+                            opacity: 0.7
+                            elide: Text.ElideRight
+                        }
+                    }
+                    RippleButton { // silence the ringing phone
+                        visible: callRow.ringing
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: 38
+                        implicitHeight: 38
+                        buttonRadius: 19
+                        colBackground: Appearance.colors.colError
+                        onClicked: {
+                            phone.mute();
+                            root.eventKind = "";
+                        }
+                        contentItem: Item {
+                            MaterialSymbol {
+                                anchors.centerIn: parent
+                                text: "volume_off"
+                                fill: 1
+                                iconSize: 18
+                                color: Appearance.colors.colOnError
+                            }
+                        }
+                    }
+                }
+            }
+            // the phone connected or left: its icon with a ring going out
+            Component {
+                id: phoneEvent
+                Row {
+                    spacing: 10
+                    Item {
+                        width: 22
+                        height: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 22
+                            height: 22
+                            radius: 11
+                            color: "transparent"
+                            border.width: 1.5
+                            border.color: Appearance.colors.colPrimary
+                            NumberAnimation on scale { from: 0.6; to: 1.9; duration: 1100; easing.type: Easing.OutCubic }
+                            NumberAnimation on opacity { from: 0.9; to: 0; duration: 1100; easing.type: Easing.OutQuad }
+                        }
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: root.eventIcon
+                            iconSize: 18
+                            fill: 1
+                            color: Appearance.colors.colOnLayer0
+                        }
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.eventText
+                        font.family: "Space Grotesk"
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        color: Appearance.colors.colOnLayer0
+                    }
+                }
+            }
             Component {
                 id: textEvent
                 Row {
@@ -602,9 +843,13 @@ Scope {
                 readonly property real base: isleTop + isleH
                 readonly property real cx: width / 2
                 // the bubble grows from a thin strip under the island into the card
+                // then, once it is out, it melts into the island: it rises until it
+                // touches it and the neck widens, so the two become one shape
+                MosaicSpring { id: merge; response: 0.55; damping: 0.82; epsilon: 0.002; target: bubble.open && life.value > 0.9 ? 1 : 0 }
+                readonly property real mg: Math.max(0, merge.value)
                 readonly property real bw: bubble.mix(isleW * 0.42, cardW, g)
                 readonly property real bh: bubble.mix(18, shownH, g)
-                readonly property real by: bubble.mix(base - 16, base + 12, g)
+                readonly property real by: bubble.mix(base - 16, base + 12, g) - 14 * mg
                 readonly property real bx: cx - bw / 2
                 function mix(a, b, t) { return a + (b - a) * t; }
 
@@ -614,11 +859,11 @@ Scope {
                     fragmentShader: Qt.resolvedUrl("shaders/goo.frag.qsb")
                     property vector2d size: Qt.vector2d(width, height)
                     property vector4d island: Qt.vector4d(bubble.cx, bubble.isleTop + bubble.isleH / 2, bubble.isleW / 2, bubble.isleH / 2)
-                    property vector4d twin: Qt.vector4d(bubble.cx, bubble.base - 4, Math.max(12, Math.min(bubble.isleW - 44, 260) / 2), 4)
+                    property vector4d twin: Qt.vector4d(bubble.cx, bubble.base - 4, bubble.mix(Math.max(12, Math.min(bubble.isleW - 44, 260) / 2), bubble.isleW / 2, bubble.mg), 4 + 4 * bubble.mg)
                     property vector4d body: Qt.vector4d(bubble.cx, bubble.by + bubble.bh / 2, bubble.bw / 2, bubble.bh / 2)
                     property real islandRadius: notch.cornerRadius * notch.scaleY
                     property real bodyRadius: Math.min(22, bubble.bh / 2)
-                    property real fuse: 22
+                    property real fuse: 22 + 10 * bubble.mg
                     property real islandLeft: bubble.cx - bubble.isleW / 2
                     property real islandWidth: bubble.isleW
                     property color stop0: root.opaque(root.washStop(0, 0))
