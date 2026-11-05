@@ -6,6 +6,7 @@ import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Widgets
+import Quickshell.Services.SystemTray
 import qs
 import qs.services
 import qs.modules.common
@@ -206,6 +207,7 @@ Scope {
 
             readonly property bool panelOpen: root.openScreen === win.screen.name
             readonly property bool pinned: win.panelOpen && !root.openedByHover
+            property bool trayBusy: false // a tray menu is open (set by the tray in the panel)
             function setOpen(open, byHover) {
                 root.openedByHover = open && (byHover ?? false);
                 root.openScreen = open ? win.screen.name : (root.openScreen === win.screen.name ? "" : root.openScreen);
@@ -214,7 +216,7 @@ Scope {
             // Opened by click: keyboard (Esc) and click-outside close it, like the ii sidebars
             WlrLayershell.keyboardFocus: win.pinned ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             HyprlandFocusGrab {
-                active: win.pinned && !ledPopup.open
+                active: win.pinned && !ledPopup.open && !win.trayBusy
                 windows: [win]
                 onCleared: win.setOpen(false)
             }
@@ -232,7 +234,7 @@ Scope {
             Timer {
                 id: leaveTimer
                 interval: 350
-                onTriggered: if (root.openedByHover && win.panelOpen && !notchHover.hovered && !ledPopup.open) win.setOpen(false)
+                onTriggered: if (root.openedByHover && win.panelOpen && !notchHover.hovered && !ledPopup.open && !win.trayBusy) win.setOpen(false)
             }
 
             Item {
@@ -840,7 +842,8 @@ Scope {
                                     }
                                 }
                                 QuickTool {
-                                    visible: Battery.available
+                                    // KDE Connect gives no number while the phone is away
+                                    visible: Battery.available && !isNaN(Battery.percentage)
                                     icon: Battery.isCharging ? "battery_charging_full" : "smartphone"
                                     label: `${Math.round(Battery.percentage * 100)}%`
                                 }
@@ -860,6 +863,27 @@ Scope {
                                 FillTile { value: gpuBusy.value; icon: "developer_board"; tone: root.softTone(Appearance.colors.colTertiary) }
                                 FillTile { value: ResourceUsage.swapUsedPercentage; icon: "swap_horiz"; tone: root.softTone(Appearance.colors.colOnLayer0) }
                             }
+                        }
+                    }
+
+                    // the tray (it left the dock): its own block, only when an app has one
+                    Block {
+                        visible: SystemTray.items.values.length > 0
+                        Layout.fillWidth: true
+                        tint: Appearance.colors.colLayer1
+                        implicitHeight: 44
+                        Bar.SysTray {
+                            id: tray
+                            anchors.centerIn: parent
+                            height: 24
+                            invertSide: false // menus open downwards, under the island
+                            showSeparator: false
+                        }
+                        // while a tray menu is open, a click in it must not close the panel
+                        Binding {
+                            target: win
+                            property: "trayBusy"
+                            value: tray.activeMenu !== null || tray.trayOverflowOpen
                         }
                     }
                 }

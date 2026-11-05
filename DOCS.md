@@ -188,6 +188,8 @@ Em repouso e nos eventos a marca fica à esquerda; no painel e na bússola ela d
 
 ### 5.7 O conteúdo
 - **Linha de repouso (`restRow`):** hora (Space Grotesk 14, negrito) e clima (ícone + temperatura em JetBrains Mono). `fullWidth` soma o espaço da marca, e a ilha se ajusta em volta das três coisas. Some (opacidade) fora do repouso.
+- **Bandeja:** um bloco no fim do painel com o `SysTray` do ii (`invertSide: false`, menus para baixo). Só aparece se algum app tiver ícone de bandeja (`SystemTray.items`). Enquanto um menu dela está aberto (`trayBusy`), o clique-fora e a saída do mouse não fecham o painel; senão, clicar no menu fecharia tudo.
+- **Bateria do celular:** só aparece com um número de verdade (o KDE Connect dá `NaN` com o celular longe).
 - **Linha de evento (`eventLoader`):** um `Loader` que escolhe o conteúdo pelo tipo de evento (5.9).
 - **Painel:** um `Loader` só fica ativo no modo `panel`. Fechado, o conteúdo é **destruído** e não gasta nada.
 - **panelView** (`ColumnLayout`):
@@ -284,7 +286,7 @@ Arquivo: `modules/mosaic/island/Mascot.qml`. Os quatro blocos do **logo do Mosai
 ---
 
 ## 8. O dock
-Arquivo: `modules/mosaic/dock/MosaicDock.qml`. Substitui a barra e o dock do ii.
+Arquivo: `modules/mosaic/dock/MosaicDock.qml`. Uma placa de **vidro claro** flutuando embaixo, com os ícones "pousados" nela. Da esquerda para a direita: a marca, os apps e o status. O relógio fica na ilha, e a bandeja também (no painel, seção 5.7).
 
 ### 8.1 Mostrar e esconder
 ```qml
@@ -292,27 +294,39 @@ exclusiveZone: 0                                   // flutua por cima, não come
 readonly property bool emptyWorkspace: !HyprlandData.windowList.some(w => w.workspace.id === win.workspaceId)
 readonly property bool shown: emptyWorkspace || hovering
 ```
-- O dock está sempre na janela; esconder é um `Translate` que o desce para fora da tela (`OutBack`, 380 ms).
+- Esconder é um `Translate` para baixo, guiado por `showSpring` (`MosaicSpring`): sobe com uma molinha e desce.
 - **Área de ativação (`hitArea`, usada como `mask`):**
   - escondido: uma faixa de 10 px na borda, 160 px mais larga que o dock;
-  - aberto: cobre o dock inteiro **até a borda**.
-
-  Antes havia um buraco de 8 px entre o dock e a borda. O mouse caía nele, o dock fechava e reabria, e ficava piscando.
+  - aberto: cobre o dock inteiro **até a borda**. Antes havia um buraco de 8 px entre o dock e a borda: o mouse caía nele, o dock fechava e reabria, e ficava piscando.
 - `HoverHandler` + `leaveTimer` (400 ms): só esconde depois que o mouse sai de verdade.
 - **Lição aprendida:** a janela precisa de `color: "transparent"`. Sem isso, o fundo padrão branco aparece (foi a "barra branca").
 
-### 8.2 Os três blocos
-1. **Marca:** um `Mascot` num `Block` primária→secundária. O clique abre a visão geral do ii (`GlobalStates.overviewOpen`) e faz o mascote pular; o botão direito abre a lateral esquerda.
-2. **Apps:** um `Repeater` sobre `ScriptModel { objectProp: "appId"; values: TaskbarApps.apps }`. O `objectProp` faz o QML reaproveitar o mesmo item para o mesmo app quando a lista muda, em vez de recriar todos. Cada app tem:
-   - **hover:** `scale` 1 → 1,22 com `OutBack` (overshoot 2). A primeira versão seguia a posição do mouse com `SpringAnimation`; a animação reiniciava a cada pixel e travava. Agora é só um estado (mouse em cima ou não);
-   - **ativo:** um bloco `softBlock(tom)` atrás do ícone, com tom `toneFor(index)`;
-   - **pontinhos:** um por janela, até 3; o do app ativo é mais largo;
-   - **abrindo:** `launchBounce`, 3 pulos;
-   - **cliques:** o esquerdo abre ou alterna as janelas, o do meio abre outra, o direito fixa ou desafixa (`TaskbarApps.togglePin`);
-   - `StyledToolTip` com o nome.
-3. **Status:** `Bar.SysTray` do ii (`invertSide: true` abre os menus para cima), ícones de rede, Bluetooth, volume e Não perturbe, e hora/data. O clique abre a lateral direita, e o `onWheel` muda o volume.
+### 8.2 O vidro e as três partes
+- **O vidro:** `glassFill` é a superfície clareada com 10% de branco e com metade da opacidade. Fica acima de 0,3, o limite do hyprglass, então o liquid glass entorta o que está atrás. O contorno é branco a 16%, e um degradê branco de 10% → 0 na metade de cima imita a luz batendo por cima. Raio 20, altura 58.
+- **Marca:** o `Mascot` (logo novo) sem bloco atrás. O clique abre a visão geral do ii e o mascote pula; o botão direito abre a lateral esquerda.
+- **Apps:** um `Repeater` sobre `ScriptModel { objectProp: "appId"; values: TaskbarApps.apps }`. O `objectProp` reaproveita o item de cada app quando a lista muda. Cada app:
+  - **pontinhos:** um por janela, até 3; os do app em foco são mais longos e na cor de destaque;
+  - **abrindo:** `launchBounce`, 3 pulos;
+  - **cliques:** o esquerdo abre ou alterna as janelas, o do meio abre outra, o direito fixa ou desafixa (`TaskbarApps.togglePin`);
+  - nome no hover (`StyledToolTip`).
+- **Status:** Não perturbe (quando ligado), rede, Bluetooth e volume, com um fundinho claro no hover. O clique abre a lateral direita e o scroll muda o volume.
+- As partes são separadas por `Divider`, um fio de luz de 1 px.
 
----
+### 8.2.1 A onda (tipo macOS, sutil)
+A primeira versão do hover travava: cada ícone tinha um `Behavior` com mola, e a animação **reiniciava a cada pixel** que o mouse andava. A onda nova usa **uma mola só**:
+```qml
+HoverHandler { id: appsHover; onHoveredChanged: if (hovered) pointer.settle(point.position.x) }
+onPointerXChanged: if (appsHover.hovered) pointer.target = pointerX   // a mola persegue o mouse
+MosaicSpring { id: pointer; response: 0.16; damping: 1 }               // sem passar do ponto
+MosaicSpring { id: wave; target: appsHover.hovered ? 1 : 0 }           // liga e desliga o efeito
+// em cada ícone:
+readonly property real near: Math.exp(-d * d / 1.4) * wave.value      // d = distância em ícones
+scale: 1 + 0.2 * near       // até 20% maior
+y: -7 * near                // e sobe até 7 px
+```
+- Mudar o **alvo** de uma `MosaicSpring` não reinicia nada: ela só continua de onde está, com a velocidade que tem. Por isso não trava.
+- A curva `exp(-d²/1,4)` é uma **curva de sino**: 1 bem embaixo do mouse, cerca de 0,5 a um ícone de distância e quase 0 a dois.
+- O ícone cresce a partir de baixo (`transformOrigin: Item.Bottom`) e os ícones não mudam de largura. Assim, a posição deles não depende da onda e não há "briga" entre o mouse e o layout.
 
 ### 8.3 Ícones que o Matugen repinta
 O Matugen repinta dois ícones com as cores do papel de parede: o do Mosaic Store (`mosaic-store --icone`) e o do Neovim (`nvim-matugen`), em `~/.local/share/icons/hicolor/scalable/apps/`. O Qt guarda ícones em **cache**, então o arquivo novo só aparecia reiniciando o shell, e daí vinha a gambiarra de reiniciar a cada papel de parede.
