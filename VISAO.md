@@ -53,6 +53,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 53 | Celular na ilha | Pelo **KDE Connect** (ouvindo o D-Bus): carregando (bateria d'água, bolhas, faíscas), ligação tocando/atendida/perdida (anéis, silenciar), conectou/saiu e bateria fraca. Animações portadas do hyprdots. |
 | 54 | Menu iniciar (05/11) | **Tocar o Super:** um cartão cai da ilha e se funde a ela (como a notificação), com a **busca do ii inteira** (apps, conta, comando, web, área de transferência, emojis, ações). Vazio, mostra só os prefixos e os **apps recentes**. Sem as miniaturas das áreas (a bússola cuida delas); tamanho médio (640). |
 | 55 | Bússola v3 (05/11) | ~~Pílula em carrossel~~ (não agradou) → **cúpula de volta, bem mais sutil**: 300×92, blocos pequenos e suaves, número discreto, **a marca em cima** como ponteiro. |
+| 56 | Notas (05/11) | Botão **Notas** nas ferramentas da ilha e **Super+Alt+N**: o cartão fundido à ilha com **abas** (cada uma um `.md` em `~/Documentos/Notas`), texto simples em que `* ` vira bolinha, salvando sozinho. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |

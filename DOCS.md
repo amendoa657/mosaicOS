@@ -274,6 +274,21 @@ Tocar o Super abre o menu **na mesma bolha** da notificação: ele cai de baixo 
 - **Testar sem teclado:** `qs -c mosaic ipc call island menuSearch "fire"` abre o menu já com o texto. A caixa de busca acompanha mudanças do `query` vindas de fora.
 - A marca do dock também abre o menu.
 
+### 5.10.2 As notas (`Notes.qml`)
+Abrem no **mesmo cartão** do menu, fundido à ilha (560 de largura). Dá para abrir pelo botão **Notas** das ferramentas do painel, por **Super+Alt+N** (o bind fica em `hypr/mosaic.lua`, que só carrega com o Mosaic OS ligado) ou pela IPC `island notes`.
+- **Cada aba é um arquivo `.md`** em `~/Documentos/Notas`, então elas abrem em qualquer lugar, inclusive no Neovim. Na primeira vez, a pasta é criada com uma `Notas.md`.
+- As abas vêm de um `FolderListModel` (só `*.md`, por nome), que se atualiza sozinho quando arquivos entram ou saem da pasta.
+  - **+** cria `Nota N.md`;
+  - **duplo clique** renomeia (`mv -n`, que não sobrescreve outro arquivo);
+  - o **×** da aba atual apaga, com confirmação (o primeiro clique deixa vermelho, o segundo manda para a **lixeira** com `gio trash`).
+- **Escrever:** é texto simples, num `TextArea`.
+  - `* ` no começo da linha vira `• ` na hora (em `onTextChanged`, olhando o trecho entre o começo da linha e o cursor);
+  - Enter numa linha com bolinha começa outra com o mesmo recuo; Enter numa bolinha vazia encerra a lista.
+  - O arquivo guarda `* ` (Markdown normal): `toScreen` e `toFile` trocam `* ` ↔ `• ` com uma expressão regular por linha (`/^(\s*)\* /gm`).
+- **Salvar:** sozinho, 600 ms depois da última tecla (`saveLater`). `flush()` salva na hora antes de trocar de aba, criar uma nova ou fechar.
+- **Edição por fora** (Neovim) aparece no editor: o `FileView` vigia o arquivo (`watchChanges`).
+- Menu, notas e notificação dividem o cartão, nesta prioridade: menu > notas > notificações. Abrir um fecha o outro, e os dois pegam o teclado (`cardHere`). Esc ou clique fora fecham.
+
 ### 5.11 `MosaicSpring.qml`: a mola
 Port do `MorphSpring` do hyprdots, no mesmo modelo das molas do SwiftUI:
 - `response`: mais ou menos quantos segundos dura uma oscilação;
