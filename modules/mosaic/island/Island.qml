@@ -38,6 +38,16 @@ Scope {
     // Soft colors: the Matugen tones mixed into the bar surface, so neighbors blend
     function softBlock(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.32); }
     function softTone(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.72); }
+    // The island's soft Mosaic wash: left, middle and right colours of its gradient.
+    // Resting it is a light touch of the tones; as a compass (morph 1) a stronger one.
+    function washStop(i, morph) {
+        const c = Appearance.colors;
+        const tone = [c.colPrimary, c.colSecondary, c.colTertiary][i];
+        const amount = (0.14 + 0.18 * morph) * (i === 1 ? 0.62 : 1);
+        return ColorUtils.mix(tone, c.colLayer0, amount);
+    }
+    // shaders mix colours themselves, so they get them opaque and the alpha apart
+    function opaque(c) { return Qt.rgba(c.r, c.g, c.b, 1); }
 
     Connections {
         target: Notifications
@@ -62,6 +72,81 @@ Scope {
     }
     property bool compassForced: false
 
+    // ---------- events: quick things the island shows for a moment ----------
+    // kind: "volume" | "brightness" | "music" | "print" | "battery" ("" = none)
+    property string eventKind: ""
+    property string eventIcon: ""
+    property string eventText: ""
+    property real eventValue: 0
+    property int eventSerial: 0 // goes up on every event, so the island can do its little bump
+    function showEvent(kind, icon, text, value) {
+        root.eventKind = kind;
+        root.eventIcon = icon;
+        root.eventText = text;
+        root.eventValue = value ?? 0;
+        root.eventSerial++;
+        eventTimer.interval = kind === "music" ? 3200 : 1800;
+        eventTimer.restart();
+    }
+    Timer {
+        id: eventTimer
+        onTriggered: root.eventKind = ""
+    }
+    // nothing fires during the first seconds (players and services settling in)
+    property bool eventsReady: false
+    Timer {
+        running: true
+        interval: 3000
+        onTriggered: root.eventsReady = true
+    }
+
+    // volume and brightness: the island takes the place of the ii OSD
+    Connections {
+        target: Audio.sink?.audio ?? null
+        function onVolumeChanged() { root.volumeEvent(); }
+        function onMutedChanged() { root.volumeEvent(); }
+    }
+    function volumeEvent() {
+        if (!Audio.ready || !root.eventsReady)
+            return;
+        const muted = Audio.sink?.audio?.muted ?? false;
+        const v = Audio.sink?.audio?.volume ?? 0;
+        root.showEvent("volume", muted ? "volume_off" : v < 0.01 ? "volume_mute" : v < 0.5 ? "volume_down" : "volume_up", "", muted ? 0 : v);
+    }
+    Connections {
+        target: Brightness
+        function onBrightnessChanged() {
+            if (!root.eventsReady)
+                return;
+            const screen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name);
+            const v = screen ? (Brightness.getMonitorForScreen(screen)?.brightness ?? 0) : 0;
+            root.showEvent("brightness", "light_mode", "", v);
+        }
+    }
+    // a new song started
+    property string lastTrack: ""
+    readonly property string currentTrack: MprisController.activePlayer?.trackTitle ?? ""
+    onCurrentTrackChanged: {
+        if (root.currentTrack !== "" && root.currentTrack !== root.lastTrack && root.eventsReady && root.playing)
+            root.showEvent("music", "music_note", root.currentTrack, 0);
+        root.lastTrack = root.currentTrack;
+    }
+    // an image landed on the clipboard (every print here goes through wl-copy):
+    // wl-paste --watch runs the check only when the clipboard changes, so idle it costs nothing
+    Process {
+        running: true
+        command: ["wl-paste", "--watch", "sh", "-c", "wl-paste -l | grep -q '^image/' && echo image"]
+        stdout: SplitParser {
+            onRead: line => {
+                if (line === "image" && root.eventsReady)
+                    root.showEvent("print", "screenshot_monitor", "Print copiado", 0);
+            }
+        }
+    }
+    // the phone (KDE Connect) going low
+    readonly property bool phoneLow: Battery.available && !Battery.isCharging && Battery.percentage > 0 && Battery.percentage <= 0.2
+    onPhoneLowChanged: if (root.phoneLow) root.showEvent("battery", "battery_alert", `Celular com ${Math.round(Battery.percentage * 100)}%`, Battery.percentage)
+
     Variants {
         model: Quickshell.screens
         delegate: PanelWindow {
@@ -81,6 +166,9 @@ Scope {
                 Region {
                     item: edgeSensor
                 }
+                Region {
+                    item: bubbleClip
+                }
             }
 
             // ---------- compass: Super held + mouse on the island ----------
@@ -98,7 +186,7 @@ Scope {
             }
             Timer {
                 id: superHold
-                interval: 260
+                interval: 130
                 // another key pressed with Super clears superReleaseMightTrigger: that's a shortcut
                 onTriggered: if (GlobalStates.superDown && GlobalStates.superReleaseMightTrigger && win.isFocusedScreen) win.compassOpen = true
             }
@@ -135,7 +223,7 @@ Scope {
                 width: 360
                 height: 2
                 HoverHandler {
-                    onHoveredChanged: if (hovered && !win.panelOpen && !root.hasNotifs && !GlobalStates.superDown) win.setOpen(true, true)
+                    onHoveredChanged: if (hovered && !win.panelOpen && !GlobalStates.superDown) win.setOpen(true, true)
                 }
             }
             Timer {
@@ -146,32 +234,67 @@ Scope {
 
             Item {
                 id: notch
-                // what is open: notifications win over the panel
+                // what the island is showing, by priority
                 readonly property bool compassOn: win.compassOpen || root.compassForced
-                readonly property string mode: compassOn ? "compass" : root.hasNotifs ? "notifs" : win.panelOpen ? "panel" : ""
-                // 0 = island, 1 = compass: drives the morph (shape, colors, needle)
-                property real morph: compassOn ? 1 : 0
-                Behavior on morph { NumberAnimation { duration: 520; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
+                readonly property bool showEvent: root.eventKind !== "" && win.isFocusedScreen
+                readonly property string mode: compassOn ? "compass" : win.panelOpen ? "panel" : showEvent ? "event" : ""
+                readonly property real restHeight: 30
+                readonly property real radius: Appearance.rounding.windowRounding
+                readonly property real compassHeight: 124 // as a compass it is a half oval
+                readonly property real bandHeight: mode === "event" ? (root.eventKind === "music" ? 48 : 38) : restHeight
+
+                // ----- the springs (MosaicSpring: real physics, with speed) -----
+                readonly property real targetWidth: mode === "" ? restRow.fullWidth + 24
+                    : mode === "event" ? Math.max(restRow.fullWidth + 24, eventLoader.implicitWidth + 64)
+                    : mode === "compass" ? 380 : 460
+                readonly property real targetHeight: mode === "" || mode === "event" ? bandHeight
+                    : mode === "compass" ? compassHeight
+                    : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
+                MosaicSpring { id: widthSpring; response: 0.42; damping: 0.72; epsilon: 0.2; target: notch.targetWidth; Component.onCompleted: settle(target) }
+                MosaicSpring { id: heightSpring; response: 0.46; damping: 0.76; epsilon: 0.2; target: notch.targetHeight; Component.onCompleted: settle(target) }
+                // 0 = island, 1 = compass: drives the shape, the colours and the needle
+                MosaicSpring { id: morphSpring; response: 0.5; damping: 0.78; target: notch.compassOn ? 1 : 0 }
+                // 0 = mark on the left (resting), 1 = mark in the middle (panel, compass)
+                MosaicSpring { id: centerSpring; response: 0.4; damping: 0.8; target: notch.mode === "" || notch.mode === "event" ? 0 : 1 }
+                // feel: grows a hair under the mouse, sinks when pressed, bumps on events
+                MosaicSpring { id: hoverSpring; response: 0.38; damping: 0.92; target: notchHover.hovered ? 1 : 0 }
+                MosaicSpring { id: pressSpring; response: 0.22; damping: 0.7; target: clickArea.pressed ? 1 : 0 }
+                MosaicSpring { id: peekSpring; response: 0.3; damping: 0.7; target: 0 }
+                Timer { id: peekHold; interval: 90; onTriggered: peekSpring.target = 0 }
+                Connections {
+                    target: root
+                    function onEventSerialChanged() {
+                        if (notch.showEvent) {
+                            peekSpring.target = 1;
+                            peekHold.restart();
+                        }
+                    }
+                }
+
+                readonly property real morph: morphSpring.value
+                width: widthSpring.value
+                height: heightSpring.value
+
+                // jelly: the faster the island is changing size, the more it stretches
+                // sideways and flattens (and the other way round when it slows down)
+                readonly property real rush: widthSpring.velocity / 420 + heightSpring.velocity / 420 + morphSpring.velocity * 0.16
+                readonly property real jelly: Math.max(-0.07, Math.min(0.07, rush * 0.052))
+                readonly property real feel: (1 + 0.028 * hoverSpring.value) * (1 + 0.04 * peekSpring.value) * (1 - 0.035 * pressSpring.value)
+                readonly property real scaleX: (1 + jelly) * feel
+                readonly property real scaleY: (1 - jelly * 0.62) * feel
+
                 // full screen on this monitor: the resting island hides above the edge
                 // (the top edge sensor still opens the panel)
                 readonly property int workspaceId: Hyprland.monitorFor(win.screen)?.activeWorkspace?.id ?? -1
                 readonly property bool fullscreenHere: HyprlandData.windowList.some(w => w.workspace.id === notch.workspaceId && w.fullscreen > 0)
-                transform: Translate {
-                    y: notch.fullscreenHere && notch.mode === "" ? -notch.height - 4 : 0
-                    Behavior on y { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-                }
-                readonly property real restWidth: 64
-                readonly property real restHeight: 32
-                readonly property real radius: Appearance.rounding.windowRounding
+                property real hideY: fullscreenHere && mode === "" ? -height - 4 : 0
+                Behavior on hideY { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                transform: [
+                    Scale { origin.x: notch.width / 2; origin.y: 0; xScale: notch.scaleX; yScale: notch.scaleY },
+                    Translate { y: notch.hideY }
+                ]
 
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: mode === "" ? restWidth : mode === "compass" ? 380 : 460
-                // as a compass it is a half oval, flatter than a half circle
-                readonly property real compassHeight: 124
-                height: mode === "" ? restHeight : mode === "compass" ? compassHeight : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
-                Behavior on width { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
-                Behavior on height { NumberAnimation { duration: 460; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
                 focus: win.pinned
                 Keys.onEscapePressed: win.setOpen(false)
 
@@ -184,17 +307,18 @@ Scope {
                     }
                 }
 
-                // The bottom bar's surface and outline. The top corners sit above the
-                // screen edge, so only the bottom ones show.
-                // Turning into the compass, the bottom corners round up until the
-                // island is a half circle, and the surface takes a soft wash of the
-                // four tones.
-                // (a circle squashed from the top edge: a half oval)
+                // The surface: the dock's outline with a soft wash of the Matugen
+                // tones. The top corners sit above the screen edge, so only the
+                // bottom ones show. Turning into the compass, the bottom corners
+                // round up into a half circle squashed from the top: a half oval.
+                // While the notification bubble is out, the goo layer draws the
+                // island instead (same colours), so the two melt into one shape.
                 Rectangle {
                     id: surface
                     readonly property real m: Math.max(0, Math.min(1, notch.morph))
                     readonly property real cornerRadius: notch.radius + (notch.width / 2 - notch.radius) * m
                     readonly property real squash: 1 + (2 * notch.compassHeight / 380 - 1) * m
+                    opacity: bubble.living ? 0 : 1
                     x: 0
                     y: -cornerRadius * squash
                     width: notch.width
@@ -205,18 +329,17 @@ Scope {
                     border.color: Appearance.colors.colLayer0Border
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer0, 0.32 * notch.morph) }
-                        GradientStop { position: 0.5; color: ColorUtils.mix(Appearance.colors.colSecondary, Appearance.colors.colLayer0, 0.2 * notch.morph) }
-                        GradientStop { position: 1.0; color: ColorUtils.mix(Appearance.colors.colTertiary, Appearance.colors.colLayer0, 0.32 * notch.morph) }
+                        GradientStop { position: 0.0; color: root.washStop(0, notch.morph) }
+                        GradientStop { position: 0.5; color: root.washStop(1, notch.morph) }
+                        GradientStop { position: 1.0; color: root.washStop(2, notch.morph) }
                     }
                 }
 
                 MouseArea {
+                    id: clickArea
                     anchors.fill: parent
                     onClicked: {
-                        if (notch.mode === "notifs")
-                            GlobalStates.sidebarRightOpen = true;
-                        else if (root.openedByHover && win.panelOpen)
+                        if (root.openedByHover && win.panelOpen)
                             root.openedByHover = false; // a click pins a panel the mouse opened
                         else
                             win.setOpen(!win.panelOpen);
@@ -225,11 +348,13 @@ Scope {
 
                 Mascot {
                     id: mascot
-                    // in the compass it grows into the needle and turns a quarter per workspace
-                    size: 18 + 10 * notch.morph
+                    // resting: on the left of the row; panel: on top in the middle;
+                    // compass: it grows into the needle and turns a quarter per workspace
+                    readonly property real c: centerSpring.value
+                    size: 16 + 10 * notch.morph
                     showFace: false
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.round((notch.restHeight - 18) / 2 + 2 * notch.morph)
+                    x: 12 + ((notch.width - width) / 2 - 12) * c
+                    y: Math.round((Math.min(notch.height, notch.bandHeight) - 16) / 2 * (1 - c) + ((notch.restHeight - 18) / 2 + 2 * notch.morph) * c)
                     rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
                     Behavior on rotation { enabled: notch.mode !== "compass"; NumberAnimation { duration: 300 } }
                     baseMood: root.playing ? "dance" : "idle"
@@ -244,6 +369,64 @@ Scope {
                         enabled: notch.mode === "panel"
                         onClicked: mascot.poke()
                     }
+                }
+
+                // ----- resting row: mark · time · weather -----
+                Row {
+                    id: restRow
+                    // fullWidth includes the mark's room, so the island sizes around all three
+                    readonly property real lead: 16 + 10
+                    x: 12 + lead
+                    anchors.verticalCenter: parent.top
+                    anchors.verticalCenterOffset: Math.min(notch.height, notch.restHeight) / 2
+                    spacing: 10
+                    opacity: notch.mode === "" ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: 160 } }
+                    readonly property real fullWidth: lead + timeText.implicitWidth + spacing + weatherRow.implicitWidth
+                    StyledText {
+                        id: timeText
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: DateTime.time
+                        font.family: "Space Grotesk"
+                        font.pixelSize: 14
+                        font.weight: Font.Bold
+                        color: Appearance.colors.colOnLayer0
+                    }
+                    Row {
+                        id: weatherRow
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 3
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Weather.data?.temp ?? "--"
+                            font.family: "JetBrains Mono"
+                            font.pixelSize: 12
+                            color: Appearance.colors.colOnLayer0
+                            opacity: 0.85
+                        }
+                        MaterialSymbol {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Icons.getWeatherIcon(Weather.data.wCode) ?? "cloud"
+                            iconSize: 16
+                            fill: 1
+                            color: Appearance.colors.colOnLayer0
+                        }
+                    }
+                }
+
+                // ----- event row: what just happened, next to the mark -----
+                Loader {
+                    id: eventLoader
+                    x: 12 + 16 + 12
+                    anchors.verticalCenter: parent.top
+                    anchors.verticalCenterOffset: Math.min(notch.height, notch.bandHeight) / 2
+                    active: notch.showEvent
+                    opacity: notch.mode === "event" ? 1 : 0
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: 160 } }
+                    sourceComponent: root.eventKind === "volume" || root.eventKind === "brightness" ? levelEvent
+                        : root.eventKind === "music" ? musicEvent : textEvent
                 }
 
                 Compass {
@@ -261,25 +444,201 @@ Scope {
                     width: notch.width - 24
                     height: notch.height - notch.restHeight - 8
                     clip: true
-                    opacity: (notch.mode === "panel" || notch.mode === "notifs") ? 1 : 0
+                    opacity: notch.mode === "panel" ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 180 } }
                     Loader {
                         id: loader
                         width: parent.width
-                        active: notch.mode === "panel" || notch.mode === "notifs"
-                        sourceComponent: notch.mode === "notifs" ? notifsView : panelView
+                        active: notch.mode === "panel"
+                        sourceComponent: panelView
                     }
                 }
             }
 
-            // ---------- notifications, whole ----------
+            // ---------- event contents ----------
             Component {
-                id: notifsView
-                NotificationListView {
-                    implicitHeight: contentHeight
-                    height: contentHeight
-                    popup: true
-                    expandAll: true
+                id: levelEvent
+                Row {
+                    spacing: 10
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.eventIcon
+                        iconSize: 18
+                        fill: 1
+                        color: Appearance.colors.colOnLayer0
+                    }
+                    // the bar fills on a spring, so holding the key feels liquid
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 140
+                        height: 6
+                        radius: 3
+                        color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.85)
+                        Rectangle {
+                            height: parent.height
+                            radius: 3
+                            width: parent.width * levelSpring.value
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0; color: Appearance.colors.colPrimary }
+                                GradientStop { position: 1; color: Appearance.colors.colTertiary }
+                            }
+                        }
+                        MosaicSpring { id: levelSpring; response: 0.3; damping: 0.8; epsilon: 0.002; target: Math.max(0, Math.min(1, root.eventValue)) }
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 30
+                        text: Math.round(root.eventValue * 100)
+                        font.family: "JetBrains Mono"
+                        font.pixelSize: 11
+                        color: Appearance.colors.colOnLayer0
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+            }
+            Component {
+                id: musicEvent
+                Row {
+                    spacing: 10
+                    ClippingRectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 34
+                        height: 34
+                        radius: 8
+                        color: Appearance.colors.colLayer1
+                        Image {
+                            anchors.fill: parent
+                            source: MprisController.activePlayer?.trackArtUrl ?? ""
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize: Qt.size(68, 68)
+                        }
+                    }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(220, Math.max(titleText.implicitWidth, artistText.implicitWidth))
+                        StyledText {
+                            id: titleText
+                            width: parent.width
+                            text: MprisController.activePlayer?.trackTitle ?? ""
+                            font.family: "Space Grotesk"
+                            font.pixelSize: 13
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colOnLayer0
+                            elide: Text.ElideRight
+                        }
+                        StyledText {
+                            id: artistText
+                            width: parent.width
+                            text: MprisController.activePlayer?.trackArtist ?? ""
+                            font.pixelSize: 11
+                            color: Appearance.colors.colOnLayer0
+                            opacity: 0.75
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+            }
+            Component {
+                id: textEvent
+                Row {
+                    spacing: 8
+                    MaterialSymbol {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.eventIcon
+                        iconSize: 18
+                        fill: 1
+                        color: root.eventKind === "battery" ? Appearance.colors.colError : Appearance.colors.colOnLayer0
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.eventText
+                        font.family: "Space Grotesk"
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        color: Appearance.colors.colOnLayer0
+                    }
+                }
+            }
+
+            // ---------- notification bubble, melting out of the island ----------
+            // A bubble drops out from under the island; while it is close, the goo
+            // shader joins the two with a liquid neck. Idea from hyprdots' IsleDrip.
+            Item {
+                id: bubble
+                anchors.fill: parent
+                readonly property bool open: root.hasNotifs && win.isFocusedScreen && notch.mode !== "compass"
+                // life: 0 = tucked under the island, 1 = out (opens on a soft spring, closes with a quick slide)
+                MosaicSpring { id: life; response: 0.72; damping: 0.96; springBack: false; closeMs: 420; target: bubble.open ? 1 : 0 }
+                readonly property real g: Math.max(0, life.value)
+                readonly property bool living: life.value > 0.005 || bubble.open
+                // the compass takes over at once: no bubble half-way
+                Connections {
+                    target: notch
+                    function onModeChanged() { if (notch.mode === "compass") life.settle(0); }
+                }
+
+                readonly property real cardW: 440
+                property real shownH: 80
+                Behavior on shownH { NumberAnimation { duration: 420; easing.type: Easing.InOutCubic } }
+                Binding {
+                    target: bubble
+                    property: "shownH"
+                    value: Math.min(notifList.contentHeight + 16, 460)
+                    when: root.hasNotifs && notifList.contentHeight > 0
+                }
+
+                // the island as it is drawn right now (scale and hiding included)
+                readonly property real isleW: notch.width * notch.scaleX
+                readonly property real base: notch.height * notch.scaleY + notch.hideY
+                readonly property real cx: width / 2
+                // the bubble grows from a thin strip under the island into the card
+                readonly property real bw: bubble.mix(isleW * 0.42, cardW, g)
+                readonly property real bh: bubble.mix(18, shownH, g)
+                readonly property real by: bubble.mix(base - 16, base + 12, g)
+                readonly property real bx: cx - bw / 2
+                function mix(a, b, t) { return a + (b - a) * t; }
+
+                ShaderEffect {
+                    anchors.fill: parent
+                    visible: bubble.living
+                    fragmentShader: Qt.resolvedUrl("shaders/goo.frag.qsb")
+                    property vector2d size: Qt.vector2d(width, height)
+                    readonly property real topEdge: -notch.radius - 2
+                    property vector4d island: Qt.vector4d(bubble.cx, (topEdge + bubble.base) / 2, bubble.isleW / 2, (bubble.base - topEdge) / 2)
+                    property vector4d twin: Qt.vector4d(bubble.cx, bubble.base - 4, Math.max(12, Math.min(bubble.isleW - 44, 260) / 2), 4)
+                    property vector4d body: Qt.vector4d(bubble.cx, bubble.by + bubble.bh / 2, bubble.bw / 2, bubble.bh / 2)
+                    property real islandRadius: notch.radius
+                    property real bodyRadius: Math.min(22, bubble.bh / 2)
+                    property real fuse: 22
+                    property real islandLeft: bubble.cx - bubble.isleW / 2
+                    property real islandWidth: bubble.isleW
+                    property color stop0: root.opaque(root.washStop(0, 0))
+                    property color stop1: root.opaque(root.washStop(1, 0))
+                    property color stop2: root.opaque(root.washStop(2, 0))
+                    property real fillAlpha: Appearance.colors.colLayer0.a
+                    property color strokeColor: root.opaque(Appearance.colors.colLayer0Border)
+                    property real strokeAlpha: Appearance.colors.colLayer0Border.a
+                }
+
+                // the notifications themselves, laid out at full width and revealed by the bubble
+                Item {
+                    id: bubbleClip
+                    x: bubble.bx
+                    y: bubble.by
+                    width: bubble.living ? bubble.bw : 0
+                    height: bubble.living ? bubble.bh : 0
+                    clip: true
+                    NotificationListView {
+                        id: notifList
+                        x: (bubble.bw - width) / 2
+                        y: 8
+                        width: bubble.cardW - 16
+                        height: contentHeight
+                        opacity: Math.pow(bubble.g, 2)
+                        popup: true
+                        expandAll: true
+                    }
                 }
             }
 

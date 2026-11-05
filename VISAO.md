@@ -40,6 +40,11 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 40 | Música | **Abaixo da hora e do clima.** |
 | 41 | Mouse no topo | Levar o mouse à borda de cima **abre**; aberta assim, **fecha quando o mouse sai**. Um clique fixa. |
 | 42 | Tela cheia | A ilha **some em tela cheia** (sobe para fora da borda) e só volta com o mouse no topo, que abre o painel. Notificações e bússola continuam aparecendo. A ilha passou para a camada Overlay, para ficar acima da janela em tela cheia. |
+| 43 | Base hyprdots (05/11) | Do hyprdots vieram **as técnicas, não o visual**: a mola com gelatina, o goo, os eventos na ilha e o derramar do papel de parede, tudo no estilo Mosaic. Layout continua só ilha em cima + dock embaixo. |
+| 44 | Ilha fechada | **Marca · hora · clima**, pequenininha, com **degradê suave Mosaic** (14% dos tons). |
+| 45 | Eventos na ilha | **Volume e brilho** (no lugar do OSD do ii), **música nova**, **print** e **celular fraco**, por um instante ao lado da marca, com um pulinho. Painel e bússola continuam como estavam. |
+| 46 | Notificação | **Bolha que gruda:** sai de baixo da ilha com um pescoço líquido (goo). Clique na ilha agora sempre abre o painel. |
+| 47 | Papéis de parede | **Seletor Mosaic** (busca, Recentes, filtro por cor, aleatório, teclado) e **derramar**: o novo escorre por cima do antigo a partir do clique. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |
@@ -84,6 +89,9 @@ A **própria ilha vira a bússola**, com animação: ela estica com mola e os ca
   - clique abre ou alterna as janelas, o botão do meio abre outra, o direito fixa ou desafixa;
   - o nome aparece no hover.
 - **Status** (degradê secundária→terciária): bandeja, Não perturbe (quando ligado), rede, Bluetooth, volume, hora e data. O clique abre a lateral direita e o scroll muda o volume.
+
+## Ilha v3 + papéis de parede (05/11/2026)
+Técnicas do [hyprdots](https://github.com/fedyaqq34356/hyprdots) (GPL-3.0) portadas e documentadas no DOCS.md (5.4, 5.9–5.11 e 11): `MosaicSpring` (mola com velocidade → gelatina), `shaders/goo.frag` (bolha que gruda), eventos e o seletor com `shaders/pour.frag`. O OSD e o seletor do ii saíram da família.
 
 ## Próximo
 - Dock: prévia das janelas no hover? Esconder em tela cheia?

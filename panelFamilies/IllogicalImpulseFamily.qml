@@ -24,6 +24,7 @@ import qs.modules.ii.verticalBar
 import qs.modules.ii.wallpaperSelector
 import qs.modules.mosaic.dock
 import qs.modules.mosaic.island
+import qs.modules.mosaic.wallpapers
 
 Scope {
     // Mosaic OS: the ii bar left; the dock (modules/mosaic/dock) took its place
@@ -36,7 +37,8 @@ Scope {
     PanelLoader { component: MediaControls {} }
     // Mosaic OS: notifications show up whole in the island
     // PanelLoader { component: NotificationPopup {} }
-    PanelLoader { component: OnScreenDisplay {} }
+    // Mosaic OS: volume and brightness show up in the island
+    // PanelLoader { component: OnScreenDisplay {} }
     PanelLoader { component: OnScreenKeyboard {} }
     PanelLoader { component: Overlay {} }
     PanelLoader { component: Overview {} }
@@ -48,7 +50,9 @@ Scope {
     PanelLoader { component: SidebarLeft {} }
     PanelLoader { component: SidebarRight {} }
     // PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
-    PanelLoader { component: WallpaperSelector {} }
+    // Mosaic OS: the wallpaper picker is modules/mosaic/wallpapers (same shortcuts)
+    // PanelLoader { component: WallpaperSelector {} }
+    PanelLoader { component: MosaicWallpapers {} }
     // Mosaic OS
     PanelLoader { component: Island {} }
 }

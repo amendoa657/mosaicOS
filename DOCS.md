@@ -13,6 +13,7 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 8. [O dock: `modules/mosaic/dock/MosaicDock.qml`](#8-o-dock)
 9. [O que mudou nos arquivos herdados do ii](#9-o-que-mudou-no-ii)
 10. [Como testar sem quebrar a sessão](#10-como-testar)
+11. [Papéis de parede e o derramar: `modules/mosaic/wallpapers/`](#11-papéis-de-parede-e-o-derramar)
 
 ---
 
@@ -44,6 +45,12 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 - **`SequentialAnimation`:** animações uma depois da outra (subir, depois descer).
 - **`FrameAnimation`:** roda código a cada quadro (60×/s). É caro; só use com `running:` condicionado.
 - **`transform: Translate/Scale`:** move ou estica o *desenho* sem mexer no layout dos vizinhos.
+- **`MosaicSpring`** (nosso, seção 5.11): mola de física de verdade que expõe a **velocidade**. É ela que dá o efeito gelatina da ilha (veio do hyprdots).
+- **Cuidado com `Behavior` em valor que muda o tempo todo** (ex.: posição do mouse, ou algo ligado a outra animação): a animação reinicia a cada mudança e trava. Nesses casos, use uma mola que segue um alvo (`MosaicSpring`) ou misture dois valores com um número de 0 a 1 animado.
+
+### Shaders (GLSL)
+Um shader é um programa curtinho que roda **na placa de vídeo, uma vez para cada pixel**, ao mesmo tempo. No Quickshell ele entra por um `ShaderEffect` com `fragmentShader: "arquivo.frag.qsb"`. Cada `property` do `ShaderEffect` vira uma variável (`uniform`) com o mesmo nome dentro do shader. O `.frag` é o código-fonte e o `.qsb` é ele compilado pelo `qsb` do Qt (o comando fica no topo de cada `.frag`). Usamos dois: `goo.frag` (seção 5.10) e `pour.frag` (seção 11).
+- **SDF (campo de distância com sinal):** para cada pixel, a distância até a borda de uma forma (negativa dentro, positiva fora). Com SDF, juntar formas como líquido é só uma conta (`smin`), e a borda fica lisa com 1 px de suavização (`fwidth`).
 
 ### Quickshell
 - **`PanelWindow`:** uma janela de painel no Wayland (*layer surface*). Tem `anchors` (em qual borda gruda), `exclusiveZone` (quanto espaço reserva das janelas; 0 = flutua por cima) e `WlrLayershell.layer`, a camada: Background < Bottom < Top < Overlay. Só a Overlay fica acima de uma janela em tela cheia.
@@ -101,14 +108,18 @@ Arquivo: `modules/mosaic/island/Island.qml`. É um `Scope` com estado global e u
 | `hasNotifs` | tem notificação na tela (`Notifications.popupList.length > 0`) |
 | `hasPlayer`, `playing` | tem música, e se está tocando (o mascote dança) |
 | `compassForced` | bússola aberta pela IPC, para testar sem Super |
+| `eventKind`, `eventIcon`, `eventText`, `eventValue` | o evento sendo mostrado (seção 5.9) |
+| `eventSerial` | sobe a cada evento, para a ilha dar o "pulinho" |
 
-- `softBlock(c)` mistura uma cor do Matugen com a superfície (32%): os blocos suaves. `softTone(c)` mistura mais (72%), para tons bem apagados. A mistura é `ColorUtils.mix(a, b, t)`.
+- `softBlock(c)` mistura uma cor do Matugen com a superfície (32%): os blocos suaves. `softTone(c)` mistura mais (72%), para tons bem apagados. A mistura é `ColorUtils.mix(a, b, t)`, que dá `t` de `a` e `1 - t` de `b`.
+- `washStop(i, morph)` devolve a cor esquerda (0), do meio (1) e direita (2) do degradê da ilha: primária, secundária e terciária com 14% de cor em repouso e até 32% na bússola. A superfície e o shader da bolha usam a mesma função, então as cores batem.
+- `opaque(c)` devolve a cor sem transparência: shaders recebem a cor e o alfa separados.
 - `Connections { target: Notifications; function onNotify... }` faz o mascote pular a cada notificação, emitindo o sinal `jumpRequested`.
 - O **`IpcHandler "island"`** tem `toggle`, `close`, `poke` e `compass`.
 
 ### 5.2 A janela por monitor
 - 560×660 transparente, grudada no topo, `exclusionMode: Ignore` (não empurra janelas), camada **Overlay**.
-- **`mask`**: só a ilha (`notch`) e o sensor da borda recebem o mouse. O resto da janela é "fantasma".
+- **`mask`**: só a ilha (`notch`), o sensor da borda e a bolha de notificação (`bubbleClip`) recebem o mouse. O resto da janela é "fantasma".
 - **`setOpen(open, byHover)`** abre ou fecha o painel nesse monitor.
 - **`pinned`**: aberto por clique. Com ele ligado, `keyboardFocus: OnDemand` deixa o Esc funcionar, e o `HyprlandFocusGrab` fecha o painel ao clicar fora (é o mesmo mecanismo das laterais do ii).
 - **Sensor da borda** (`edgeSensor`, 360×2 px no topo): um `HoverHandler` abre o painel ao passar o mouse, e o `leaveTimer` (350 ms) fecha quando o mouse sai, se tiver sido aberto assim.
@@ -119,21 +130,29 @@ function updateCompass() {
     if (!GlobalStates.superDown) win.compassOpen = false;       // soltou: fecha
     else if (notchHover.hovered) win.compassOpen = true;        // Super + mouse na ilha: na hora
 }
-Timer { id: superHold; interval: 260
+Timer { id: superHold; interval: 130
     onTriggered: if (GlobalStates.superDown && GlobalStates.superReleaseMightTrigger && win.isFocusedScreen) win.compassOpen = true }
 ```
 - `GlobalStates.superDown` vem do ii.
-- `superReleaseMightTrigger` vira `false` quando outra tecla é apertada junto (Super+Enter). Por isso o timer de 260 ms só abre a bússola se o Super estiver **sozinho**, e ela não pisca nos atalhos.
+- `superReleaseMightTrigger` vira `false` quando outra tecla é apertada junto (Super+Enter). Por isso o timer de 130 ms só abre a bússola se o Super estiver **sozinho**, e ela não pisca nos atalhos.
 - `onCompassOpenChanged` zera `superReleaseMightTrigger`, para soltar o Super depois da bússola não abrir também a busca do ii.
 
 ### 5.4 O entalhe (`notch`): o "cérebro" da forma
 ```qml
-readonly property string mode: compassOn ? "compass" : root.hasNotifs ? "notifs" : win.panelOpen ? "panel" : ""
+readonly property string mode: compassOn ? "compass" : win.panelOpen ? "panel" : showEvent ? "event" : ""
 ```
-Um único texto decide tudo, por prioridade: bússola > notificações > painel > repouso. Largura, altura, conteúdo e cor são bindings de `mode`, então ao trocar de modo tudo se anima junto.
-- **Tamanhos:** repouso 64×32; bússola 380×124; painel e notificações com 460 de largura e altura seguindo o conteúdo (até 640).
-- **`morph`** vai de 0 (ilha) a 1 (bússola), com `Behavior` de 520 ms `OutBack`. Forma, cores e ponteiro leem `morph`, então mudam juntos e com mola.
-- **Tela cheia:** `fullscreenHere` procura em `HyprlandData.windowList` uma janela da área atual desse monitor com `fullscreen > 0`. Se achar e a ilha estiver em repouso, um `Translate` a sobe para fora da tela (300 ms `OutCubic`).
+Um único texto decide tudo, por prioridade: bússola > painel > evento > repouso. Largura, altura, conteúdo e cor dependem de `mode`. As notificações não mudam mais o modo: elas saem numa bolha à parte (5.10).
+- **Tamanhos:** repouso = a linha "marca · hora · clima" + 24 px, com 30 de altura; evento = o conteúdo + 64 (38 de altura, 48 para música); bússola 380×124; painel 460 e altura do conteúdo (até 640).
+- **Molas no lugar de `Behavior`:** `targetWidth`/`targetHeight` dizem o tamanho certo, e a largura e a altura **seguem** esses alvos por `MosaicSpring` (`widthSpring`, `heightSpring`, damping ~0,75: passa um pouco e volta). O mesmo para `morphSpring` (0 = ilha, 1 = bússola) e `centerSpring` (0 = marca à esquerda, 1 = marca no meio).
+- **Gelatina (jelly):** a velocidade das molas vira deformação:
+  ```qml
+  readonly property real rush: widthSpring.velocity / 420 + heightSpring.velocity / 420 + morphSpring.velocity * 0.16
+  readonly property real jelly: Math.max(-0.07, Math.min(0.07, rush * 0.052))
+  // xScale = 1 + jelly, yScale = 1 - jelly * 0.62
+  ```
+  Crescendo rápido, a ilha estica para os lados e achata; freando, faz o contrário. Ao parar, a velocidade é 0 e ela volta ao normal. O limite de 7% evita exageros.
+- **Toque:** mais três molas multiplicam a escala: `hoverSpring` (+2,8% com o mouse em cima), `pressSpring` (−3,5% apertando) e `peekSpring` (+4% por 90 ms a cada evento, o "pulinho"). O `Scale` tem origem no **meio do topo**, então ela cresce para baixo e para os lados, sem descolar da borda.
+- **Tela cheia:** `fullscreenHere` procura em `HyprlandData.windowList` uma janela da área atual desse monitor com `fullscreen > 0`. Se achar e a ilha estiver em repouso, `hideY` a sobe para fora da tela (300 ms `OutCubic`).
 
 ### 5.5 A superfície: como vira meio oval
 O truque é que um `Rectangle` com `radius` igual à metade da largura é um círculo, e as bordas do Qt são lisas (antisserrilhadas).
@@ -146,18 +165,21 @@ transform: Scale { yScale: surface.squash }   // achata o círculo → oval
 ```
 - Com `m = 0`, o raio é o normal (cantos arredondados) e `squash = 1`.
 - Com `m = 1`, o raio vira metade da largura (meio círculo). O `Scale` achata na vertical (124×2/380 ≈ 0,65), o que deixa um meio **oval** de 124 px.
-- A cor é um `Gradient` horizontal primária→secundária→terciária, misturado à superfície em proporção a `morph`: o "banho" de cor da bússola.
+- A cor é um `Gradient` horizontal com as três cores de `washStop`: um toque suave dos tons em repouso, mais forte na bússola.
+- Enquanto a bolha de notificação está fora, a superfície fica invisível (`opacity: bubble.living ? 0 : 1`) e o shader desenha a ilha junto com a bolha (5.10).
 
-### 5.6 O mascote como ponteiro
+### 5.6 O mascote: à esquerda, no meio, e como ponteiro
 ```qml
-size: 18 + 10 * notch.morph
+x: 12 + ((notch.width - width) / 2 - 12) * c     // c = centerSpring: 0 à esquerda, 1 no meio
+size: 16 + 10 * notch.morph
 rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
 ```
-Na bússola, a marca cresce e gira 90° por área. Como `offset` já é animado com mola (seção 6), o giro sai com mola de graça. Cutucar só funciona no modo painel.
+Em repouso e nos eventos a marca fica à esquerda; no painel e na bússola ela desliza para o meio. A posição é uma **mistura** entre os dois lugares, com `c` animado por mola, em vez de um `Behavior` no `x` (que travaria, porque `x` também depende da largura, que está sempre mudando). Na bússola, a marca cresce e gira 90° por área. Como `offset` já é animado com mola (seção 6), o giro sai com mola de graça. Cutucar só funciona no modo painel.
 
 ### 5.7 O conteúdo
-Um `Loader` só fica ativo nos modos `panel` e `notifs`. Fechado, o conteúdo é **destruído** e não gasta nada.
-- **notifsView:** o `NotificationListView` do ii com `expandAll: true` (a propriedade nova mostra as notificações inteiras).
+- **Linha de repouso (`restRow`):** hora (Space Grotesk 14, negrito) e clima (ícone + temperatura em JetBrains Mono). `fullWidth` soma o espaço da marca, e a ilha se ajusta em volta das três coisas. Some (opacidade) fora do repouso.
+- **Linha de evento (`eventLoader`):** um `Loader` que escolhe o conteúdo pelo tipo de evento (5.9).
+- **Painel:** um `Loader` só fica ativo no modo `panel`. Fechado, o conteúdo é **destruído** e não gasta nada.
 - **panelView** (`ColumnLayout`):
   1. hora e data (bloco primária→secundária) + clima (secundária→terciária, `Weather.data`, `Icons.getWeatherIcon`);
   2. música (terciária→primária, só se `hasPlayer`), com anterior/tocar/próxima via `MprisController`;
@@ -174,6 +196,48 @@ Um `Loader` só fica ativo nos modos `panel` e `notifs`. Fechado, o conteúdo é
   - o `Canvas` (API 2D do HTML) recorta a forma do copo (`roundedRect` + `clip`) e desenha a superfície como uma senoide: `y = topo + sin(phase + x/w·2π) · amp`;
   - `amp` cresce enquanto o nível ainda está mudando, então a água balança mais;
   - uma segunda onda mais clara atrás dá profundidade.
+
+### 5.9 Eventos
+Coisas rápidas que a ilha mostra por um instante, ao lado da marca, só no monitor em foco. `showEvent(tipo, ícone, texto, valor)` guarda o evento e liga um `Timer` (1,8 s; 3,2 s para música). Nos primeiros 3 s depois de ligar, nada dispara (`eventsReady`), para os serviços não acordarem fazendo barulho.
+| Evento | De onde vem | Como aparece |
+| --- | --- | --- |
+| Volume | `Connections` em `Audio.sink.audio` (`onVolumeChanged`, `onMutedChanged`) | ícone + barra que enche por mola + número |
+| Brilho | `Connections` em `Brightness` (`onBrightnessChanged`) | igual ao volume |
+| Música nova | `onCurrentTrackChanged` (título do `MprisController` mudou e está tocando) | capa + título + artista |
+| Print | `Process` com `wl-paste --watch`: a cada mudança da área de transferência, confere se é imagem | "Print copiado" |
+| Celular fraco | `phoneLow`: `Battery` (KDE Connect) ≤ 20% e sem carregar | ícone vermelho + "Celular com N%" |
+
+O OSD do ii (o aviso de volume e brilho) foi desligado na família (seção 9), porque a ilha faz esse papel. O `wl-paste --watch` só roda o teste quando a área de transferência muda; parado, não gasta nada. Uma imagem copiada do navegador também conta como "print".
+
+### 5.10 A bolha de notificação com "goo"
+Quando chega notificação, uma bolha **sai de baixo da ilha** e, enquanto está perto, um **pescoço líquido** liga as duas. Ideia do `IsleDrip` do hyprdots.
+- `life` (`MosaicSpring`, response 0,72, damping 0,96) vai de 0 (escondida) a 1 (fora). Para fechar, ela desliza rápido (`springBack: false`, 420 ms).
+- A bolha nasce como uma faixa fina com 42% da largura da ilha, 16 px **acima** da borda de baixo (escondida atrás da ilha). Com `life`, ela vira o cartão (440 de largura, altura das notificações) 12 px abaixo:
+  ```qml
+  readonly property real bw: mix(isleW * 0.42, cardW, g)
+  readonly property real bh: mix(18, shownH, g)
+  readonly property real by: mix(base - 16, base + 12, g)
+  ```
+- **O shader `shaders/goo.frag`** desenha três formas como SDF: a ilha (com o topo acima da tela), uma tirinha (`twin`) sob o meio da ilha e a bolha. Ele junta a tirinha e a bolha com `smin` de raio 22 (`fuse`). Como a distância entre elas (12 px) é menor que 22, forma-se o pescoço. Depois junta isso à ilha com um `smin` pequeno (10), que arredonda o encontro. O contorno de 1 px é desenhado no contorno da forma inteira, pescoço incluído.
+- **A conta do `smin` circular:** `max(k, min(a, b)) - length(max(vec2(k) - vec2(a, b), 0))`. Longe das duas formas é igual a `min(a, b)` (a união normal); só onde as duas estão a menos de `k` a borda vira um arco de círculo que encosta nas duas.
+- O conteúdo é o `NotificationListView` do ii, em largura cheia, dentro de um `Item` com `clip` do tamanho da bolha. A bolha "revela" as notificações enquanto cresce, sem refazer o layout a cada quadro. A opacidade é `g²` (aparece no fim).
+- A bússola tem prioridade: ao abrir, `life.settle(0)` some com a bolha na hora.
+
+### 5.11 `MosaicSpring.qml`: a mola
+Port do `MorphSpring` do hyprdots, no mesmo modelo das molas do SwiftUI:
+- `response`: mais ou menos quantos segundos dura uma oscilação;
+- `damping`: 1 para sem passar do ponto; menos que 1 passa e volta.
+
+A cada quadro (`FrameAnimation`), ela calcula:
+```js
+const w = 2 * Math.PI / response;            // frequência
+a = -w*w * (value - target) - 2*damping*w * velocity;   // força da mola + atrito
+velocity += a * h;  value += velocity * h;   // em passos de 4 ms
+```
+- O quadro é dividido em passos de 4 ms, para um quadro lento não "explodir" a conta.
+- Quando chega perto o bastante e devagar o bastante, ela **para sozinha** (`running = false`), e nada roda com a ilha parada.
+- `springBack: false` faz a descida ser um deslize suave (`closeMs`), sem quicar.
+- `settle(v)` pula direto para `v`. Ela nunca mexe em `target`, para não quebrar o binding (foi um bug na primeira versão).
 
 ---
 
@@ -239,8 +303,9 @@ readonly property bool shown: emptyWorkspace || hovering
 ## 9. O que mudou no ii
 Arquivos herdados que foram alterados (o resto é igual ao ii):
 - `panelFamilies/IllogicalImpulseFamily.qml`:
-  - comentados: `Bar`, `Dock` e `VerticalBar` do ii e o `NotificationPopup`;
-  - adicionados: `Island` e `MosaicDock`.
+  - comentados: `Bar`, `Dock`, `VerticalBar`, `NotificationPopup`, `OnScreenDisplay` (volume/brilho foram para a ilha) e `WallpaperSelector` do ii;
+  - adicionados: `Island`, `MosaicDock` e `MosaicWallpapers`.
+- `hypr/mosaic.lua`: a camada `quickshell:mosaicWallpapers` (o cartão do seletor) ganhou o liquid glass.
 - `modules/common/Directories.qml`: as configurações ficam em `~/.config/mosaic-os`.
 - `modules/common/widgets/NotificationListView.qml`: propriedade `expandAll`.
 - `modules/ii/bar/BarContent.qml`: sem `UtilButtons` e bateria, que foram para a ilha (a barra nem carrega mais).
@@ -253,3 +318,49 @@ Arquivos herdados que foram alterados (o resto é igual ao ii):
 - **Erros:** `qs -c mosaic log | grep mosaic/`.
 - **Hyprland aninhado (sem mexer na sessão):** `Hyprland -c arquivo.lua` abre um Hyprland dentro de uma janela. Rodar `WAYLAND_DISPLAY=wayland-N HYPRLAND_INSTANCE_SIGNATURE=... qs -c mosaic` dentro dele, controlar com `qs ipc --pid PID call island compass` e fotografar com `WAYLAND_DISPLAY=wayland-N grim`. A janela do aninhado precisa estar visível, senão ele para de desenhar.
 - **Memória:** `ps -o rss= -p $(pgrep -x qs)` antes e depois.
+- **Pegadinha do aninhado:** o primeiro `qs` que liga fica com o servidor de notificações e com o polkit. Se o de teste ligar antes do seu, as notificações vão para ele. Por isso, teste notificação na sessão de verdade, ou ligue o de teste depois.
+- **Shaders:** depois de mexer num `.frag`, recompile com o comando escrito no topo dele (`/usr/lib/qt6/bin/qsb ...`); o QML carrega o `.qsb`.
+
+---
+
+## 11. Papéis de parede e o derramar
+Arquivo: `modules/mosaic/wallpapers/MosaicWallpapers.qml`, mais o script `scripts/wallpaper-index.sh` e o shader `shaders/pour.frag`. Ele substitui o seletor do ii com os **mesmos atalhos**: `wallpaperSelectorToggle`, `wallpaperSelectorRandom` e a IPC `wallpaperSelector toggle|random`. Layout e efeito vieram do hyprdots, no estilo Mosaic.
+
+### 11.1 Lendo a pasta
+- A pasta é a do papel de parede atual (`Config.options.background.wallpaperPath`).
+- Ao abrir, o `Process` `lister` roda um `find` e lista as imagens. Depois o `indexer` roda `wallpaper-index.sh`, que para **cada imagem nova**:
+  - cria a miniatura de 480×300 com o `vipsthumbnail` (rápido), ou com o `magick` se ele faltar;
+  - tira a cor média, reduzindo a imagem a **1 pixel** com o `magick` (`-resize 1x1!`).
+
+  Tudo fica em `~/.cache/mosaic-os/wallpapers`. Imagens já vistas vêm do cache, e o script roda com `nice -n 19` (prioridade mínima).
+- `colors.tsv` (nome → cor) é lido por um `FileView`. `hueOf(hex)` converte a cor em família: cinza se tiver pouca saturação, senão pela matiz (vermelho < 15°, laranja < 45°...).
+- O histórico (`history`) ganha uma linha a cada papel aplicado; "Recentes" lê de trás para frente, sem repetir.
+
+### 11.2 A janela
+- `LazyLoader`: a janela só existe aberta (ou enquanto fecha). Uma `PanelWindow` na tela inteira, camada Overlay, com teclado exclusivo.
+- O fundo escurece com opacidade 0,25, **abaixo do limite de 0,3 do hyprglass**. Assim só o cartão vira vidro. Clicar no fundo fecha.
+- O cartão abre por `openSpring` (escala 0,94 → 1 e opacidade) e fecha deslizando em 200 ms.
+- **Coluna esquerda:**
+  - a marca e o contador (`mostrados / total`);
+  - o nome e a cor do selecionado;
+  - a busca (um `TextInput`, que também dirige a grade pelo teclado);
+  - os filtros: Todos, Recentes e 8 blocos de cor;
+  - os botões Aplicar e Aleatório (`PickerButton`, com pulinho no clique).
+- **Grade (`GridView`, 3 colunas, 16:10):** cada miniatura entra em **cascata**: um `Timer` de `60 + min(índice, 12) × 28` ms liga `born`, que anima opacidade, escala e um deslize de 18 px com `OutBack`. O mouse em cima seleciona, e uma mola (`lift`) cresce 3,5% e mostra o nome. A borda na cor de destaque marca a seleção, e um ✓ marca o papel em uso.
+- **Teclado:** setas movem (`grid.columns` por linha), Enter aplica, Tab e Shift+Tab trocam o filtro, Esc fecha.
+
+### 11.3 O derramar (`pour`)
+1. `apply(path, item)` pega o centro da miniatura clicada em coordenadas de tela (`mapToItem(null, ...)`), fecha o seletor e chama `pour()`.
+2. Uma `PanelWindow` por monitor na camada **Bottom** (acima do papel de parede, abaixo das janelas, sem receber cliques) carrega a imagem nova. Quando ela está pronta, `pourRun` leva `pourProgress` de 0 a 1 em 1,7 s.
+3. **O shader `pour.frag`**, para cada pixel:
+   - mede a distância `r` até o ponto de origem (`sink`);
+   - calcula o raio da poça, `R = (1 - (1-e)^1.7) · rmax`: começa rápido e freia;
+   - soma uma **ondulação** na borda (`sin(ângulo·5 + e·7)` mais `sin(ângulo·9 - e·11)`, mais forte no meio do caminho);
+   - perto da borda, **desloca a imagem para fora** (refração), com ondinhas;
+   - desenha um **menisco**, a linha clara da borda, iluminada de cima à esquerda e tingida com a cor de destaque;
+   - fora da poça, um brilho fraco enquanto ela se move.
+4. No fim, `commit()` chama `Wallpapers.select(path)`, o script do ii que troca o papel de verdade e roda o Matugen (cores novas), e grava o histórico.
+5. Quando o `wallpaperPath` da configuração muda para o novo, espera 0,9 s (o fundo carregar), apaga a poça em 320 ms e destrói as janelas. Há proteções: se a imagem não carregar em 2,5 s, aplica direto; se o fundo não confirmar em 8 s, apaga a poça assim mesmo.
+- Nos outros monitores, a poça começa do meio do topo.
+- **Aleatório:** sorteia um papel diferente do atual e derrama a partir do centro.
+
