@@ -149,7 +149,7 @@ Timer { id: superHold; interval: 130
 readonly property string mode: compassOn ? "compass" : win.panelOpen ? "panel" : showEvent ? "event" : ""
 ```
 Um único texto decide tudo, por prioridade: bússola > painel > evento > repouso. Largura, altura, conteúdo e cor dependem de `mode`. As notificações não mudam mais o modo: elas saem numa bolha à parte (5.10).
-- **Tamanhos:** repouso = a linha "marca · hora · clima" + 24 px, com 30 de altura; evento = o conteúdo + 64 (38 de altura, 48 para música); bússola 380×124; painel 460 e altura do conteúdo (até 640).
+- **Tamanhos:** repouso = a linha "marca · hora · clima" + 24 px, com 30 de altura; evento = o conteúdo + 64 (38 de altura; 48 para música e bateria; 58 para ligação); bússola 470×62; painel 460 e altura do conteúdo (até 640).
 - **Molas no lugar de `Behavior`:** `targetWidth`/`targetHeight` dizem o tamanho certo, e a largura e a altura **seguem** esses alvos por `MosaicSpring` (`widthSpring`, `heightSpring`, damping ~0,75: passa um pouco e volta). O mesmo para `morphSpring` (0 = ilha, 1 = bússola) e `centerSpring` (0 = marca à esquerda, 1 = marca no meio).
 - **Gelatina (jelly):** a velocidade das molas vira deformação:
   ```qml
@@ -173,7 +173,7 @@ A ilha flutua 6 px abaixo da borda (`topGap`) e é escura como a do hyprdots: `i
   ```
   - em repouso, raio = metade da altura: uma **pílula**;
   - no painel, raio 26: um **cartão**;
-  - na bússola, o de baixo vira metade da largura e a forma é montada mais alta e achatada para 124 px: uma **cúpula** com a base em meio oval.
+  - (a bússola foi uma cúpula em meio oval até 05/11; agora é pílula também, seção 6, mas o shader continua sabendo fazer a cúpula se `rBot` e `hu` forem mudados).
 - A cor é o degradê das três cores de `washStop` (10% dos tons sobre a base escura, 32% na bússola), com contorno de 1 px.
 - A escala (gelatina e toque) agora tem origem no **centro** da ilha, como no hyprdots, porque ela não está mais presa na borda.
 - Enquanto a bolha de notificação está fora, a superfície fica invisível (`opacity: bubble.living ? 0 : 1`) e o shader da bolha desenha a ilha (5.10).
@@ -184,7 +184,7 @@ x: 12 + ((notch.width - width) / 2 - 12) * c     // c = centerSpring: 0 à esque
 size: 16 + 10 * notch.morph
 rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
 ```
-Em repouso e nos eventos a marca fica à esquerda; no painel e na bússola ela desliza para o meio. A posição é uma **mistura** entre os dois lugares, com `c` animado por mola, em vez de um `Behavior` no `x` (que travaria, porque `x` também depende da largura, que está sempre mudando). Na bússola, a marca cresce e gira 90° por área. Como `offset` já é animado com mola (seção 6), o giro sai com mola de graça. Cutucar só funciona no modo painel.
+Em repouso, nos eventos e na bússola a marca fica à esquerda; no painel ela desliza para o meio. A posição é uma **mistura** entre os dois lugares, com `c` animado por mola, em vez de um `Behavior` no `x` (que travaria, porque `x` também depende da largura, que está sempre mudando). Na bússola, a marca cresce e gira 90° por área. Como `offset` já é animado com mola (seção 6), o giro sai com mola de graça. Cutucar só funciona no modo painel.
 
 ### 5.7 O conteúdo
 - **Linha de repouso (`restRow`):** hora (Space Grotesk 14, negrito) e clima (ícone + temperatura em JetBrains Mono). `fullWidth` soma o espaço da marca, e a ilha se ajusta em volta das três coisas. Some (opacidade) fora do repouso.
@@ -293,19 +293,22 @@ velocity += a * h;  value += velocity * h;   // em passos de 4 ms
 ---
 
 ## 6. A bússola
-Arquivo: `modules/mosaic/island/Compass.qml`. Preenche a ilha no modo bússola.
-- `current` é a área atual (`HyprlandData.activeWorkspace.id`). `offset` segue `current` com `Behavior` `OutBack` de 420 ms: é a posição animada da bússola.
-- **O arco:** 13 blocos (`Repeater`), um para cada área de `round(offset)-6` até `+6`. O ângulo de cada um:
+Arquivo: `modules/mosaic/island/Compass.qml`. No modo bússola, a ilha **continua pílula**, só mais larga (470×62). As áreas passam em fila, como um **carrossel**, à direita da marca, que fica à esquerda como na ilha fechada e gira um quarto por área.
+- `current` é a área atual (`HyprlandData.activeWorkspace.id`). `offset` segue `current` com `Behavior` `OutBack` de 420 ms: é a posição animada do carrossel.
+- **A fila:** 11 blocos (`Repeater`), um para cada área de `round(offset) - 5` até `+5`. A posição de cada um:
   ```js
-  angle = (90 - delta * stepAngle) * π / 180      // delta = área - offset; stepAngle = 16°
-  x = centro + cos(angle) * ringRadiusX;  y = sin(angle) * ringRadiusY
+  delta = área - offset;    x = centro + delta * 42 - largura / 2
   ```
-  - `ringRadiusX` é diferente de `ringRadiusY`, por isso o arco é oval, como a ilha.
-  - Como `delta` depende de `offset`, que está animado, **todos os blocos deslizam juntos pelo arco** quando a área muda.
-- **Tamanho e cor:** a atual tem 38 px e cor forte; com janelas, 30 px; vazia, 20 px. O tom é `toneFor(id)` (sempre o mesmo para o mesmo número).
-- **Cascata:** `myReveal = reveal·2,2 − |delta|·0,22`. O do meio aparece primeiro e os de fora depois.
-- **Ícone:** `HyprlandData.biggestWindowForWorkspace(id)` → `AppSearch.guessIcon` → `IconImage`, mais "+N" quando há mais janelas.
-- **Scroll:** o `WheelHandler` acumula `angleDelta`; a cada 60 troca uma área (`hl.dsp.focus({ workspace = N })`). Clicar num bloco vai até ele.
+  Como `delta` depende de `offset`, que está animado, **todos os blocos deslizam juntos** quando a área muda, com a molinha do `OutBack`.
+- **Tamanho e cor:**
+  - a atual tem 36 px, cor forte, contorno, sobe 6 px e mostra o número embaixo;
+  - com janelas, 28 px; vazia, 20 px;
+  - o tom é `toneFor(id)` (sempre o mesmo para o mesmo número), misturado à base escura da ilha.
+- **As pontas:** quanto mais longe do meio, menor (−5% por posição) e mais apagado. Depois de 2,6 posições começa a sumir, e some de todo em 4,8 (`falloff`).
+- **Cascata:** `myReveal = reveal·2,2 − |delta|·0,24`. O do meio aparece primeiro e os de fora depois.
+- **Janelas por área:** `windowsByWs` monta o mapa área → janelas **uma vez** a cada mudança, em vez de cada bloco filtrar a lista inteira (era um item da geral de desempenho). O ícone vem de `HyprlandData.biggestWindowForWorkspace(id)` → `AppSearch.guessIcon` → `IconImage`, com "+N" quando há mais janelas.
+- **Scroll:** o `WheelHandler` acumula `angleDelta`; a cada 60 troca uma área (`hl.dsp.focus({ workspace = N })`). Clique num bloco vai até ele.
+- **Na ilha:** `compassHeight` é 62 e `centerSpring` deixa a marca à esquerda na bússola. A superfície não achata mais (`rBot` = `hu` normais); `morph` só controla o banho de cor e o tamanho da marca.
 
 ---
 

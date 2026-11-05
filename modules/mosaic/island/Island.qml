@@ -323,15 +323,15 @@ Scope {
                 // floating like a pill: fully round while small, a 26 px curve when it grows
                 readonly property real cornerRadius: Math.min(height / 2, 26)
                 readonly property real topGap: 6 // the space above it, under the screen edge
-                readonly property real compassHeight: 124 // as a compass it is a half oval
-                readonly property real bandHeight: mode !== "event" ? restHeight
+                readonly property real compassHeight: 62 // as a compass it stays a pill, just wider and taller
+                readonly property real bandHeight: mode === "compass" ? compassHeight : mode !== "event" ? restHeight
                     : root.eventKind.startsWith("call") ? 58
                     : root.eventKind === "music" || root.eventKind === "charging" || root.eventKind === "battery" ? 48 : 38
 
                 // ----- the springs (MosaicSpring: real physics, with speed) -----
                 readonly property real targetWidth: mode === "" ? restRow.fullWidth + 24
                     : mode === "event" ? Math.max(restRow.fullWidth + 24, eventLoader.implicitWidth + 64)
-                    : mode === "compass" ? 380 : 460
+                    : mode === "compass" ? 470 : 460
                 readonly property real targetHeight: mode === "" || mode === "event" ? bandHeight
                     : mode === "compass" ? compassHeight
                     : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)
@@ -340,7 +340,7 @@ Scope {
                 // 0 = island, 1 = compass: drives the shape, the colours and the needle
                 MosaicSpring { id: morphSpring; response: 0.5; damping: 0.78; target: notch.compassOn ? 1 : 0 }
                 // 0 = mark on the left (resting), 1 = mark in the middle (panel, compass)
-                MosaicSpring { id: centerSpring; response: 0.4; damping: 0.8; target: notch.mode === "" || notch.mode === "event" ? 0 : 1 }
+                MosaicSpring { id: centerSpring; response: 0.4; damping: 0.8; target: notch.mode === "" || notch.mode === "event" || notch.mode === "compass" ? 0 : 1 } // the compass keeps the mark on the left
                 // feel: grows a hair under the mouse, sinks when pressed, bumps on events
                 MosaicSpring { id: hoverSpring; response: 0.38; damping: 0.92; target: notchHover.hovered ? 1 : 0 }
                 MosaicSpring { id: pressSpring; response: 0.22; damping: 0.7; target: clickArea.pressed ? 1 : 0 }
@@ -408,9 +408,9 @@ Scope {
                     fragmentShader: Qt.resolvedUrl("shaders/island.frag.qsb")
                     property vector2d size: Qt.vector2d(width, height)
                     property real rTop: notch.cornerRadius
-                    property real rBot: notch.cornerRadius + (width / 2 - notch.cornerRadius) * m
+                    property real rBot: notch.cornerRadius
                     // built taller than drawn while it is a compass: that is the squash
-                    property real hu: height + (width / 2 + notch.cornerRadius - height) * m
+                    property real hu: height // no squash: the compass is a pill too
                     property color stop0: root.opaque(root.washStop(0, notch.morph))
                     property color stop1: root.opaque(root.washStop(1, notch.morph))
                     property color stop2: root.opaque(root.washStop(2, notch.morph))
@@ -435,10 +435,10 @@ Scope {
                     // resting: on the left of the row; panel: on top in the middle;
                     // compass: it grows into the needle and turns a quarter per workspace
                     readonly property real c: centerSpring.value
-                    size: 16 + 10 * notch.morph
+                    size: 16 + 8 * notch.morph
                     showFace: false
                     x: 12 + ((notch.width - width) / 2 - 12) * c
-                    y: Math.round((Math.min(notch.height, notch.bandHeight) - 16) / 2 * (1 - c) + ((notch.restHeight - 18) / 2 + 2 * notch.morph) * c)
+                    y: Math.round((Math.min(notch.height, notch.bandHeight) - size) / 2 * (1 - c) + ((notch.restHeight - 18) / 2) * c)
                     rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
                     Behavior on rotation { enabled: notch.mode !== "compass"; NumberAnimation { duration: 300 } }
                     baseMood: root.playing ? "dance" : "idle"
