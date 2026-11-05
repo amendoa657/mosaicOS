@@ -45,6 +45,9 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 45 | Eventos na ilha | **Volume e brilho** (no lugar do OSD do ii), **música nova**, **print** e **celular fraco**, por um instante ao lado da marca, com um pulinho. Painel e bússola continuam como estavam. |
 | 46 | Notificação | **Bolha que gruda:** sai de baixo da ilha com um pescoço líquido (goo). Clique na ilha agora sempre abre o painel. |
 | 47 | Papéis de parede | **Seletor Mosaic** (busca, Recentes, filtro por cor, aleatório, teclado) e **derramar**: o novo escorre por cima do antigo a partir do clique. |
+| 48 | Ilha flutuante (05/11) | **Como a do hyprdots:** escura, em pílula, flutuando 6 px abaixo da borda. Painel vira cartão arredondado e a bússola, uma cúpula (topo arredondado, base em meio oval). Substitui as decisões 31 e 34 (entalhe colado na borda). |
+| 49 | Logo novo | O mascote usa o **logo do Mosaic OS** (quadrado grande, barra alta, barra larga e quadradinho) nas **cores do Matugen**. |
+| 50 | Shell lembrado | O último shell escolhido (ii ou Mosaic OS) fica salvo e volta ao reiniciar o PC; trocar papel de parede não reinicia mais o Quickshell. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |

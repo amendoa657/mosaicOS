@@ -1,8 +1,9 @@
 import QtQuick
 import qs.modules.common
 
-// The Mosaic mark, alive: four blocks in the theme tones with one face (a pair
-// of eyes in the middle). It only moves on events: blinks now and then, dances
+// The Mosaic mark, alive: the four blocks of the Mosaic OS logo (a big square,
+// a tall bar, a wide bar and a small square, on an 88-unit grid with 8 of gap)
+// in the theme tones, with one face (a pair of eyes in the middle). It only moves on events: blinks now and then, dances
 // while music plays, jumps on a notification, thinks (blocks turn) while the AI
 // answers, and gets dizzy if poked too much.
 Item {
@@ -13,8 +14,9 @@ Item {
     property bool dizzy: false
     property bool showFace: true
     readonly property string mood: dizzy ? "dizzy" : baseMood
-    readonly property real gap: size * 0.12
-    readonly property real block: (size - gap) / 2
+    // the logo on an 88-unit grid: 56 + 8 + 24. Each slot is [x, y, w, h] in units
+    readonly property real unit: size / 88
+    readonly property var slots: [[0, 0, 56, 56], [64, 0, 24, 56], [0, 64, 56, 24], [64, 64, 24, 24]]
     readonly property var tones: [Appearance.colors.colPrimary, Appearance.colors.colSecondary, Appearance.colors.colTertiary, Appearance.colors.colOnLayer0]
 
     implicitWidth: size
@@ -44,19 +46,21 @@ Item {
             delegate: Rectangle {
                 id: blockRect
                 required property int index
-                readonly property real baseX: (index % 2) * (root.block + root.gap)
-                readonly property real baseY: Math.floor(index / 2) * (root.block + root.gap)
-                // think: the blocks travel one place clockwise, again and again
+                // think: the blocks travel one place clockwise, again and again,
+                // taking the size of the place they land on
                 property int turn: 0
-                readonly property int slot: [0, 1, 3, 2][(([0, 1, 3, 2].indexOf(index)) + turn) % 4]
-                x: root.mood === "think" ? (slot % 2) * (root.block + root.gap) : baseX
-                y: (root.mood === "think" ? Math.floor(slot / 2) * (root.block + root.gap) : baseY) + danceOffset
-                width: root.block
-                height: root.block
-                radius: Math.max(1.5, root.size * 0.07)
+                readonly property int slot: root.mood === "think" ? [0, 1, 3, 2][(([0, 1, 3, 2].indexOf(index)) + turn) % 4] : index
+                readonly property var g: root.slots[slot]
+                x: g[0] * root.unit
+                y: g[1] * root.unit + danceOffset
+                width: g[2] * root.unit
+                height: g[3] * root.unit
+                radius: Math.max(1.5, root.size * 0.05)
                 color: root.tones[index]
                 property real danceOffset: 0
                 Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
+                Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
+                Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
                 Behavior on color { ColorAnimation { duration: 300 } }
 
                 // dance: blocks bob in turns, like a little equalizer

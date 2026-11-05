@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import Quickshell.Hyprland
@@ -30,6 +31,35 @@ Scope {
     function toneFor(i) {
         const c = Appearance.colors;
         return [c.colPrimary, c.colSecondary, c.colTertiary, ColorUtils.mix(c.colSecondary, c.colTertiary, 0.5)][i % 4];
+    }
+
+    // Icons that Matugen repaints with the wallpaper colours (the Mosaic Store one
+    // and the Neovim one, in ~/.local/share/icons). Qt keeps icons in a cache, so a
+    // repainted file only showed up after restarting the shell. For these the dock
+    // loads the file itself with "?v=N" at the end: when the file changes, N goes
+    // up, the address is new, and Qt reads the file again. No restart needed.
+    readonly property string userIcons: Quickshell.env("HOME") + "/.local/share/icons/hicolor/scalable/apps/"
+    readonly property var liveIcons: ["mosaic-store", "nvim-matugen"]
+    property var iconVersions: ({})
+    function iconSource(name) {
+        if (root.liveIcons.includes(name))
+            return "file://" + root.userIcons + name + ".svg?v=" + (root.iconVersions[name] ?? 0);
+        return Quickshell.iconPath(name, "image-missing");
+    }
+    Variants {
+        model: root.liveIcons
+        delegate: FileView {
+            required property string modelData
+            path: root.userIcons + modelData + ".svg"
+            watchChanges: true
+            printErrors: false
+            onFileChanged: {
+                const v = Object.assign({}, root.iconVersions); // a new object, so bindings notice
+                v[modelData] = (v[modelData] ?? 0) + 1;
+                root.iconVersions = v;
+                reload();
+            }
+        }
     }
 
     Variants {
@@ -193,7 +223,7 @@ Scope {
                                             anchors.centerIn: parent
                                             anchors.verticalCenterOffset: -2
                                             implicitSize: 30
-                                            source: Quickshell.iconPath(AppSearch.guessIcon(app.modelData.appId), "image-missing")
+                                            source: root.iconSource(AppSearch.guessIcon(app.modelData.appId))
                                             transformOrigin: Item.Bottom
                                             scale: 1 + 0.22 * app.magnify
                                             Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutBack; easing.overshoot: 2 } }

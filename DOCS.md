@@ -80,12 +80,19 @@ O caminho das configurações foi trocado em `modules/common/Directories.qml` (`
 ---
 
 ## 3. Ligar e desligar
-`scripts/mosaic-os.sh ligar|desligar|alternar` (Ctrl+Super+M chama `alternar`). O que ele faz:
-1. `hyprctl eval 'hl.env("qsConfig", "mosaic")'` grava no Hyprland qual shell está ativo;
-2. `hyprctl reload config-only` recarrega o Hyprland. O `rules.lua` vê `qsConfig == "mosaic"` e carrega `hypr/mosaic.lua`;
-3. mata o `qs` atual e inicia `qs -c mosaic` (ou `qs -c ii`).
+`scripts/mosaic-os.sh ligar|desligar|alternar|reiniciar` (Ctrl+Super+M chama `alternar`).
 
-No `variables.lua`, `hl.env("qsConfig", os.getenv("qsConfig") or "ii")` faz a escolha sobreviver a reloads.
+**A escolha fica salva** em `~/.local/state/mosaic-os/shell` (`mosaic` ou `ii`). Ao reiniciar o PC ou recarregar o Hyprland, continua o mesmo shell.
+1. O script grava o arquivo, avisa o Hyprland (`hyprctl eval 'hl.env("qsConfig", "mosaic")'`) e recarrega a config (`hyprctl reload config-only`).
+2. O `~/.config/hypr/custom/env.lua` é carregado antes de tudo. Ele lê o arquivo com `io.open` do Lua e faz `hl.env("qsConfig", salvo or os.getenv("qsConfig") or "ii")`. O arquivo vence a variável, porque é a fonte da verdade.
+3. O `rules.lua` vê `qsConfig == "mosaic"` e carrega `hypr/mosaic.lua` (o vidro). O `execs.lua` inicia `qs -c $qsConfig` no login.
+4. O script mata o `qs` atual, **espera ele sair de vez** (senão o novo briga pelo servidor de notificações) e inicia o escolhido.
+
+**`alternar` olha o que está rodando de verdade** (`pgrep -ax qs` e o `-c X` do processo), não só a variável. Antes, quando algo reiniciava o `qs -c ii` por fora, a variável ainda dizia "mosaic". O atalho então calculava "trocar para ii", que já estava rodando, e parecia não funcionar.
+
+**`reiniciar`** reinicia o shell salvo sem trocar. A função `qsr` do fish (`~/.config/fish/functions/qsr.fish`) agora chama ele; antes ela reiniciava sempre o ii.
+
+**Não precisa mais reiniciar ao trocar o papel de parede.** O hook do Matugen (`~/.config/matugen/config.toml`, template `site`) agora só roda `mosaic-store --icone`, que repinta o ícone do Mosaic Store. O dock recarrega o ícone sozinho (seção 8.3).
 
 ---
 
@@ -154,19 +161,22 @@ Um único texto decide tudo, por prioridade: bússola > painel > evento > repous
 - **Toque:** mais três molas multiplicam a escala: `hoverSpring` (+2,8% com o mouse em cima), `pressSpring` (−3,5% apertando) e `peekSpring` (+4% por 90 ms a cada evento, o "pulinho"). O `Scale` tem origem no **meio do topo**, então ela cresce para baixo e para os lados, sem descolar da borda.
 - **Tela cheia:** `fullscreenHere` procura em `HyprlandData.windowList` uma janela da área atual desse monitor com `fullscreen > 0`. Se achar e a ilha estiver em repouso, `hideY` a sobe para fora da tela (300 ms `OutCubic`).
 
-### 5.5 A superfície: como vira meio oval
-O truque é que um `Rectangle` com `radius` igual à metade da largura é um círculo, e as bordas do Qt são lisas (antisserrilhadas).
-```qml
-readonly property real cornerRadius: notch.radius + (notch.width / 2 - notch.radius) * m   // m = morph
-readonly property real squash: 1 + (2 * notch.compassHeight / 380 - 1) * m
-y: -cornerRadius * squash                // a metade de cima fica fora da tela
-height: notch.height / squash + cornerRadius
-transform: Scale { yScale: surface.squash }   // achata o círculo → oval
-```
-- Com `m = 0`, o raio é o normal (cantos arredondados) e `squash = 1`.
-- Com `m = 1`, o raio vira metade da largura (meio círculo). O `Scale` achata na vertical (124×2/380 ≈ 0,65), o que deixa um meio **oval** de 124 px.
-- A cor é um `Gradient` horizontal com as três cores de `washStop`: um toque suave dos tons em repouso, mais forte na bússola.
-- Enquanto a bolha de notificação está fora, a superfície fica invisível (`opacity: bubble.living ? 0 : 1`) e o shader desenha a ilha junto com a bolha (5.10).
+### 5.5 A superfície: pílula, cartão e cúpula (`shaders/island.frag`)
+A ilha flutua 6 px abaixo da borda (`topGap`) e é escura como a do hyprdots: `islandBase` é a superfície da barra 55% puxada para o preto, com opacidade mínima de 0,9. O desenho é um shader, porque precisa de cantos diferentes em cima e embaixo e de um achatamento:
+- **A forma** é a **interseção de duas caixas arredondadas** em SDF (`max(d1, d2)`). Uma tem os cantos de cima (`rTop`) e se estende para baixo; a outra tem os de baixo (`rBot`) e se estende para cima. Assim, cada par de cantos tem seu próprio raio, e o de baixo pode ser meio círculo.
+- **O achatamento:** a forma é montada com `hu` px de altura e desenhada com a altura real. Dividir o `y` do pixel por `altura / hu` transforma o meio círculo em meio **oval**.
+- **Os valores**, com `m` = morph (0 ilha, 1 bússola):
+  ```qml
+  property real rTop: notch.cornerRadius                                   // min(altura/2, 26)
+  property real rBot: notch.cornerRadius + (width / 2 - notch.cornerRadius) * m
+  property real hu: height + (width / 2 + notch.cornerRadius - height) * m
+  ```
+  - em repouso, raio = metade da altura: uma **pílula**;
+  - no painel, raio 26: um **cartão**;
+  - na bússola, o de baixo vira metade da largura e a forma é montada mais alta e achatada para 124 px: uma **cúpula** com a base em meio oval.
+- A cor é o degradê das três cores de `washStop` (10% dos tons sobre a base escura, 32% na bússola), com contorno de 1 px.
+- A escala (gelatina e toque) agora tem origem no **centro** da ilha, como no hyprdots, porque ela não está mais presa na borda.
+- Enquanto a bolha de notificação está fora, a superfície fica invisível (`opacity: bubble.living ? 0 : 1`) e o shader da bolha desenha a ilha (5.10).
 
 ### 5.6 O mascote: à esquerda, no meio, e como ponteiro
 ```qml
@@ -218,10 +228,11 @@ Quando chega notificação, uma bolha **sai de baixo da ilha** e, enquanto está
   readonly property real bh: mix(18, shownH, g)
   readonly property real by: mix(base - 16, base + 12, g)
   ```
-- **O shader `shaders/goo.frag`** desenha três formas como SDF: a ilha (com o topo acima da tela), uma tirinha (`twin`) sob o meio da ilha e a bolha. Ele junta a tirinha e a bolha com `smin` de raio 22 (`fuse`). Como a distância entre elas (12 px) é menor que 22, forma-se o pescoço. Depois junta isso à ilha com um `smin` pequeno (10), que arredonda o encontro. O contorno de 1 px é desenhado no contorno da forma inteira, pescoço incluído.
+- **O shader `shaders/goo.frag`** desenha três formas como SDF: a ilha (a pílula como está agora, com a escala), uma tirinha (`twin`) sob o meio da ilha e a bolha. Ele junta a tirinha e a bolha com `smin` de raio 22 (`fuse`). Como a distância entre elas (12 px) é menor que 22, forma-se o pescoço. Depois junta isso à ilha com um `smin` pequeno (10), que arredonda o encontro. O contorno de 1 px é desenhado no contorno da forma inteira, pescoço incluído.
 - **A conta do `smin` circular:** `max(k, min(a, b)) - length(max(vec2(k) - vec2(a, b), 0))`. Longe das duas formas é igual a `min(a, b)` (a união normal); só onde as duas estão a menos de `k` a borda vira um arco de círculo que encosta nas duas.
 - O conteúdo é o `NotificationListView` do ii, em largura cheia, dentro de um `Item` com `clip` do tamanho da bolha. A bolha "revela" as notificações enquanto cresce, sem refazer o layout a cada quadro. A opacidade é `g²` (aparece no fim).
 - A bússola tem prioridade: ao abrir, `life.settle(0)` some com a bolha na hora.
+- A bolha fica **atrás** da ilha (`z: -1`). Por cima, o preenchimento dela apagava a marca e a hora.
 
 ### 5.11 `MosaicSpring.qml`: a mola
 Port do `MorphSpring` do hyprdots, no mesmo modelo das molas do SwiftUI:
@@ -259,11 +270,14 @@ Arquivo: `modules/mosaic/island/Compass.qml`. Preenche a ilha no modo bússola.
 ---
 
 ## 7. O mascote
-Arquivo: `modules/mosaic/island/Mascot.qml`. Quatro blocos (`Repeater` de 4 `Rectangle`) nos tons primária, secundária, terciária e texto.
+Arquivo: `modules/mosaic/island/Mascot.qml`. Os quatro blocos do **logo do Mosaic OS** (`Repeater` de 4 `Rectangle`) nos tons primária, secundária, terciária e texto:
+- numa grade de 88 unidades: quadrado grande 56×56, barra alta 24×56, barra larga 56×24 e quadradinho 24×24, com 8 de espaço;
+- `slots` guarda `[x, y, largura, altura]` de cada lugar, e `unit = size / 88` converte em pixels;
+- cada bloco lê o seu lugar (`g = slots[slot]`).
 - **`mood`** = `dizzy` ou `baseMood` (`idle`, `dance`, `think`).
 - **`jump()`:** `SequentialAnimation` em `body.y`, sobe 45% do tamanho (160 ms `OutQuad`) e desce com `OutBounce` (420 ms).
 - **dance:** cada bloco tem uma animação infinita de `danceOffset` com um atraso diferente (`PauseAnimation`), formando um equalizador.
-- **think:** um `Timer` incrementa `turn`, e cada bloco anda uma casa no sentido horário (`slot`), com `Behavior` `OutBack`.
+- **think:** um `Timer` incrementa `turn`, e cada bloco anda uma casa no sentido horário (`slot`). Ao chegar, toma o **tamanho** do lugar (o quadradinho vira barra, a barra vira quadrado grande...), com `Behavior` `OutBack` em `x`, largura e altura.
 - **poke():** 5 cutucadas em 1,2 s deixam o mascote tonto por 1,8 s (gira ±14°).
 - **Piscar:** um `Timer` aleatório de 3,5 a 7 s. Os olhos estão desligados (`showFace: false`) na ilha e no dock.
 
@@ -300,12 +314,24 @@ readonly property bool shown: emptyWorkspace || hovering
 
 ---
 
+### 8.3 Ícones que o Matugen repinta
+O Matugen repinta dois ícones com as cores do papel de parede: o do Mosaic Store (`mosaic-store --icone`) e o do Neovim (`nvim-matugen`), em `~/.local/share/icons/hicolor/scalable/apps/`. O Qt guarda ícones em **cache**, então o arquivo novo só aparecia reiniciando o shell, e daí vinha a gambiarra de reiniciar a cada papel de parede.
+- Para esses ícones (`liveIcons`), o dock carrega o arquivo direto, com `?v=N` no fim do endereço (`iconSource(nome)`). Os outros continuam pelo tema de ícones.
+- Um `FileView` com `watchChanges` vigia cada arquivo. Quando muda, `N` sobe, o endereço fica diferente e o Qt lê o arquivo de novo.
+- `iconVersions` é trocado por um **objeto novo** (`Object.assign({}, ...)`). Mudar uma chave dentro do mesmo objeto não avisa os bindings.
+
 ## 9. O que mudou no ii
 Arquivos herdados que foram alterados (o resto é igual ao ii):
 - `panelFamilies/IllogicalImpulseFamily.qml`:
   - comentados: `Bar`, `Dock`, `VerticalBar`, `NotificationPopup`, `OnScreenDisplay` (volume/brilho foram para a ilha) e `WallpaperSelector` do ii;
   - adicionados: `Island`, `MosaicDock` e `MosaicWallpapers`.
 - `hypr/mosaic.lua`: a camada `quickshell:mosaicWallpapers` (o cartão do seletor) ganhou o liquid glass.
+
+Arquivos do sistema, fora do projeto:
+- `~/.config/hypr/custom/env.lua`: lê o shell salvo (seção 3);
+- `~/.config/hypr/hyprland/variables.lua`: só um comentário;
+- `~/.config/fish/functions/qsr.fish`: reinicia o shell salvo;
+- `~/.config/matugen/config.toml`: o hook não reinicia mais o Quickshell.
 - `modules/common/Directories.qml`: as configurações ficam em `~/.config/mosaic-os`.
 - `modules/common/widgets/NotificationListView.qml`: propriedade `expandAll`.
 - `modules/ii/bar/BarContent.qml`: sem `UtilButtons` e bateria, que foram para a ilha (a barra nem carrega mais).

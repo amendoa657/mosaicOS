@@ -43,9 +43,12 @@ Scope {
     function washStop(i, morph) {
         const c = Appearance.colors;
         const tone = [c.colPrimary, c.colSecondary, c.colTertiary][i];
-        const amount = (0.14 + 0.18 * morph) * (i === 1 ? 0.62 : 1);
-        return ColorUtils.mix(tone, c.colLayer0, amount);
+        const amount = (0.10 + 0.22 * morph) * (i === 1 ? 0.62 : 1);
+        return ColorUtils.mix(tone, root.islandBase, amount);
     }
+    // the island is dark, like the hyprdots one: the bar surface pushed 55% toward black
+    readonly property color islandBase: ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
+    readonly property real islandAlpha: Math.max(0.9, Appearance.colors.colLayer0.a)
     // shaders mix colours themselves, so they get them opaque and the alpha apart
     function opaque(c) { return Qt.rgba(c.r, c.g, c.b, 1); }
 
@@ -239,7 +242,9 @@ Scope {
                 readonly property bool showEvent: root.eventKind !== "" && win.isFocusedScreen
                 readonly property string mode: compassOn ? "compass" : win.panelOpen ? "panel" : showEvent ? "event" : ""
                 readonly property real restHeight: 30
-                readonly property real radius: Appearance.rounding.windowRounding
+                // floating like a pill: fully round while small, a 26 px curve when it grows
+                readonly property real cornerRadius: Math.min(height / 2, 26)
+                readonly property real topGap: 6 // the space above it, under the screen edge
                 readonly property real compassHeight: 124 // as a compass it is a half oval
                 readonly property real bandHeight: mode === "event" ? (root.eventKind === "music" ? 48 : 38) : restHeight
 
@@ -287,14 +292,15 @@ Scope {
                 // (the top edge sensor still opens the panel)
                 readonly property int workspaceId: Hyprland.monitorFor(win.screen)?.activeWorkspace?.id ?? -1
                 readonly property bool fullscreenHere: HyprlandData.windowList.some(w => w.workspace.id === notch.workspaceId && w.fullscreen > 0)
-                property real hideY: fullscreenHere && mode === "" ? -height - 4 : 0
+                property real hideY: fullscreenHere && mode === "" ? -height - topGap - 6 : 0
                 Behavior on hideY { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                 transform: [
-                    Scale { origin.x: notch.width / 2; origin.y: 0; xScale: notch.scaleX; yScale: notch.scaleY },
+                    Scale { origin.x: notch.width / 2; origin.y: notch.height / 2; xScale: notch.scaleX; yScale: notch.scaleY },
                     Translate { y: notch.hideY }
                 ]
 
                 anchors.horizontalCenter: parent.horizontalCenter
+                y: topGap
                 focus: win.pinned
                 Keys.onEscapePressed: win.setOpen(false)
 
@@ -307,32 +313,30 @@ Scope {
                     }
                 }
 
-                // The surface: the dock's outline with a soft wash of the Matugen
-                // tones. The top corners sit above the screen edge, so only the
-                // bottom ones show. Turning into the compass, the bottom corners
-                // round up into a half circle squashed from the top: a half oval.
+                // The surface, drawn by shaders/island.frag: a dark pill floating
+                // under the top edge (like the hyprdots island), with a light wash of
+                // the Matugen tones. As the panel it is a rounded card; turning into
+                // the compass, the bottom becomes a half circle squashed into a half
+                // oval while the top keeps its small curve.
                 // While the notification bubble is out, the goo layer draws the
                 // island instead (same colours), so the two melt into one shape.
-                Rectangle {
+                ShaderEffect {
                     id: surface
                     readonly property real m: Math.max(0, Math.min(1, notch.morph))
-                    readonly property real cornerRadius: notch.radius + (notch.width / 2 - notch.radius) * m
-                    readonly property real squash: 1 + (2 * notch.compassHeight / 380 - 1) * m
+                    anchors.fill: parent
                     opacity: bubble.living ? 0 : 1
-                    x: 0
-                    y: -cornerRadius * squash
-                    width: notch.width
-                    height: notch.height / squash + cornerRadius
-                    transform: Scale { yScale: surface.squash }
-                    radius: cornerRadius
-                    border.width: 1
-                    border.color: Appearance.colors.colLayer0Border
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: root.washStop(0, notch.morph) }
-                        GradientStop { position: 0.5; color: root.washStop(1, notch.morph) }
-                        GradientStop { position: 1.0; color: root.washStop(2, notch.morph) }
-                    }
+                    fragmentShader: Qt.resolvedUrl("shaders/island.frag.qsb")
+                    property vector2d size: Qt.vector2d(width, height)
+                    property real rTop: notch.cornerRadius
+                    property real rBot: notch.cornerRadius + (width / 2 - notch.cornerRadius) * m
+                    // built taller than drawn while it is a compass: that is the squash
+                    property real hu: height + (width / 2 + notch.cornerRadius - height) * m
+                    property color stop0: root.opaque(root.washStop(0, notch.morph))
+                    property color stop1: root.opaque(root.washStop(1, notch.morph))
+                    property color stop2: root.opaque(root.washStop(2, notch.morph))
+                    property real fillAlpha: root.islandAlpha
+                    property color strokeColor: root.opaque(Appearance.colors.colLayer0Border)
+                    property real strokeAlpha: Appearance.colors.colLayer0Border.a
                 }
 
                 MouseArea {
@@ -567,6 +571,7 @@ Scope {
             Item {
                 id: bubble
                 anchors.fill: parent
+                z: -1 // behind the island, so the mark and the time stay on top of the goo
                 readonly property bool open: root.hasNotifs && win.isFocusedScreen && notch.mode !== "compass"
                 // life: 0 = tucked under the island, 1 = out (opens on a soft spring, closes with a quick slide)
                 MosaicSpring { id: life; response: 0.72; damping: 0.96; springBack: false; closeMs: 420; target: bubble.open ? 1 : 0 }
@@ -590,7 +595,9 @@ Scope {
 
                 // the island as it is drawn right now (scale and hiding included)
                 readonly property real isleW: notch.width * notch.scaleX
-                readonly property real base: notch.height * notch.scaleY + notch.hideY
+                readonly property real isleH: notch.height * notch.scaleY
+                readonly property real isleTop: notch.y + notch.height / 2 - isleH / 2 + notch.hideY
+                readonly property real base: isleTop + isleH
                 readonly property real cx: width / 2
                 // the bubble grows from a thin strip under the island into the card
                 readonly property real bw: bubble.mix(isleW * 0.42, cardW, g)
@@ -604,11 +611,10 @@ Scope {
                     visible: bubble.living
                     fragmentShader: Qt.resolvedUrl("shaders/goo.frag.qsb")
                     property vector2d size: Qt.vector2d(width, height)
-                    readonly property real topEdge: -notch.radius - 2
-                    property vector4d island: Qt.vector4d(bubble.cx, (topEdge + bubble.base) / 2, bubble.isleW / 2, (bubble.base - topEdge) / 2)
+                    property vector4d island: Qt.vector4d(bubble.cx, bubble.isleTop + bubble.isleH / 2, bubble.isleW / 2, bubble.isleH / 2)
                     property vector4d twin: Qt.vector4d(bubble.cx, bubble.base - 4, Math.max(12, Math.min(bubble.isleW - 44, 260) / 2), 4)
                     property vector4d body: Qt.vector4d(bubble.cx, bubble.by + bubble.bh / 2, bubble.bw / 2, bubble.bh / 2)
-                    property real islandRadius: notch.radius
+                    property real islandRadius: notch.cornerRadius * notch.scaleY
                     property real bodyRadius: Math.min(22, bubble.bh / 2)
                     property real fuse: 22
                     property real islandLeft: bubble.cx - bubble.isleW / 2
@@ -616,7 +622,7 @@ Scope {
                     property color stop0: root.opaque(root.washStop(0, 0))
                     property color stop1: root.opaque(root.washStop(1, 0))
                     property color stop2: root.opaque(root.washStop(2, 0))
-                    property real fillAlpha: Appearance.colors.colLayer0.a
+                    property real fillAlpha: root.islandAlpha
                     property color strokeColor: root.opaque(Appearance.colors.colLayer0Border)
                     property real strokeAlpha: Appearance.colors.colLayer0Border.a
                 }
@@ -880,7 +886,7 @@ Scope {
             Bar.LedPopup {
                 id: ledPopup
                 atTop: true
-                edgeMargin: notch.height + 6
+                edgeMargin: notch.y + notch.height + 8
             }
         }
     }
