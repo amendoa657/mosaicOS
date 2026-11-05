@@ -688,6 +688,21 @@ Scope {
                                     opacity: 0.75
                                     elide: Text.ElideRight
                                 }
+                                // the tray (it left the dock), on the other side of the time
+                                Bar.SysTray {
+                                    id: tray
+                                    visible: SystemTray.items.values.length > 0
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.preferredHeight: 22
+                                    invertSide: false // menus open downwards, under the island
+                                    showSeparator: false
+                                }
+                                // while a tray menu is open, a click in it must not close the panel
+                                Binding {
+                                    target: win
+                                    property: "trayBusy"
+                                    value: tray.activeMenu !== null || tray.trayOverflowOpen
+                                }
                             }
                         }
                         Block {
@@ -866,26 +881,6 @@ Scope {
                         }
                     }
 
-                    // the tray (it left the dock): its own block, only when an app has one
-                    Block {
-                        visible: SystemTray.items.values.length > 0
-                        Layout.fillWidth: true
-                        tint: Appearance.colors.colLayer1
-                        implicitHeight: 44
-                        Bar.SysTray {
-                            id: tray
-                            anchors.centerIn: parent
-                            height: 24
-                            invertSide: false // menus open downwards, under the island
-                            showSeparator: false
-                        }
-                        // while a tray menu is open, a click in it must not close the panel
-                        Binding {
-                            target: win
-                            property: "trayBusy"
-                            value: tray.activeMenu !== null || tray.trayOverflowOpen
-                        }
-                    }
                 }
             }
 

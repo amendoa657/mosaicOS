@@ -188,7 +188,7 @@ Em repouso e nos eventos a marca fica à esquerda; no painel e na bússola ela d
 
 ### 5.7 O conteúdo
 - **Linha de repouso (`restRow`):** hora (Space Grotesk 14, negrito) e clima (ícone + temperatura em JetBrains Mono). `fullWidth` soma o espaço da marca, e a ilha se ajusta em volta das três coisas. Some (opacidade) fora do repouso.
-- **Bandeja:** um bloco no fim do painel com o `SysTray` do ii (`invertSide: false`, menus para baixo). Só aparece se algum app tiver ícone de bandeja (`SystemTray.items`). Enquanto um menu dela está aberto (`trayBusy`), o clique-fora e a saída do mouse não fecham o painel; senão, clicar no menu fecharia tudo.
+- **Bandeja:** o `SysTray` do ii fica **no bloco da hora, do lado direito**, só com o painel aberto (`invertSide: false`: menus para baixo). Ele só aparece se algum app tiver ícone de bandeja (`SystemTray.items`). Enquanto um menu dela está aberto (`trayBusy`), o clique-fora e a saída do mouse não fecham o painel; senão, clicar no menu fecharia tudo.
 - **Bateria do celular:** só aparece com um número de verdade (o KDE Connect dá `NaN` com o celular longe).
 - **Linha de evento (`eventLoader`):** um `Loader` que escolhe o conteúdo pelo tipo de evento (5.9).
 - **Painel:** um `Loader` só fica ativo no modo `panel`. Fechado, o conteúdo é **destruído** e não gasta nada.
@@ -286,7 +286,7 @@ Arquivo: `modules/mosaic/island/Mascot.qml`. Os quatro blocos do **logo do Mosai
 ---
 
 ## 8. O dock
-Arquivo: `modules/mosaic/dock/MosaicDock.qml`. Uma placa de **vidro claro** flutuando embaixo, com os ícones "pousados" nela. Da esquerda para a direita: a marca, os apps e o status. O relógio fica na ilha, e a bandeja também (no painel, seção 5.7).
+Arquivo: `modules/mosaic/dock/MosaicDock.qml`. Uma placa de **vidro claro** flutuando embaixo, com os ícones "pousados" nela. Da esquerda para a direita: a marca, os apps e o status. O relógio fica na ilha, e a bandeja também (no bloco da hora do painel, seção 5.7).
 
 ### 8.1 Mostrar e esconder
 ```qml
