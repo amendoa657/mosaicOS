@@ -103,7 +103,17 @@ Scope {
         }
     }
 
+    // Mosaic OS: search, clipboard and emojis open the start menu in the island
+    // (GlobalStates.searchOpen, modules/mosaic/island); Super+Tab keeps this overview.
     function toggleClipboard() {
+        if (GlobalStates.searchOpen && LauncherSearch.query.startsWith(Config.options.search.prefix.clipboard)) {
+            GlobalStates.searchOpen = false;
+            return;
+        }
+        LauncherSearch.query = Config.options.search.prefix.clipboard;
+        GlobalStates.searchOpen = true;
+    }
+    function toggleClipboardOverview() {
         if (GlobalStates.overviewOpen && overviewScope.dontAutoCancelSearch) {
             GlobalStates.overviewOpen = false;
             return;
@@ -114,6 +124,14 @@ Scope {
     }
 
     function toggleEmojis() {
+        if (GlobalStates.searchOpen && LauncherSearch.query.startsWith(Config.options.search.prefix.emojis)) {
+            GlobalStates.searchOpen = false;
+            return;
+        }
+        LauncherSearch.query = Config.options.search.prefix.emojis;
+        GlobalStates.searchOpen = true;
+    }
+    function toggleEmojisOverview() {
         if (GlobalStates.overviewOpen && overviewScope.dontAutoCancelSearch) {
             GlobalStates.overviewOpen = false;
             return;
@@ -127,16 +145,16 @@ Scope {
         target: "search"
 
         function toggle() {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            GlobalStates.searchOpen = !GlobalStates.searchOpen;
         }
         function workspacesToggle() {
             GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
         }
         function close() {
-            GlobalStates.overviewOpen = false;
+            GlobalStates.searchOpen = false;
         }
         function open() {
-            GlobalStates.overviewOpen = true;
+            GlobalStates.searchOpen = true;
         }
         function toggleReleaseInterrupt() {
             GlobalStates.superReleaseMightTrigger = false;
@@ -151,7 +169,7 @@ Scope {
         description: "Toggles search on press"
 
         onPressed: {
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            GlobalStates.searchOpen = !GlobalStates.searchOpen;
         }
     }
     GlobalShortcut {
@@ -183,7 +201,7 @@ Scope {
                 GlobalStates.superReleaseMightTrigger = true;
                 return;
             }
-            GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+            GlobalStates.searchOpen = !GlobalStates.searchOpen;
         }
     }
     GlobalShortcut {

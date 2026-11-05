@@ -168,7 +168,7 @@ Scope {
                                 if (event.button === Qt.RightButton)
                                     GlobalStates.sidebarLeftOpen = !GlobalStates.sidebarLeftOpen;
                                 else
-                                    GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
+                                    GlobalStates.searchOpen = !GlobalStates.searchOpen; // the start menu in the island
                             }
                         }
                     }

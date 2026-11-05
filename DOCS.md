@@ -259,6 +259,21 @@ Quando chega notificação, uma bolha **sai de baixo da ilha** e, enquanto está
 - A bússola tem prioridade: ao abrir, `life.settle(0)` some com a bolha na hora.
 - A bolha fica **atrás** da ilha (`z: -1`). Por cima, o preenchimento dela apagava a marca e a hora.
 
+### 5.10.1 O menu iniciar (`StartMenu.qml`, `RecentApps.qml`)
+Tocar o Super abre o menu **na mesma bolha** da notificação: ele cai de baixo da ilha e se funde a ela, com 640 de largura (a janela da ilha passou a ter 680).
+- **O gatilho:** os atalhos de busca do ii agora ligam `GlobalStates.searchOpen` em vez de abrir a visão geral do ii. Isso foi feito no `modules/ii/overview/Overview.qml` do Mosaic OS e vale para: Super solto, `searchToggle`, a IPC `search toggle|open|close`, Super+V (área de transferência) e Super+. (emojis). Super+Tab continua abrindo a visão geral das áreas do ii. Segurar o Super ainda abre a bússola: o `superHold` zera `superReleaseMightTrigger`, então soltar não abre o menu.
+- **Na ilha:** `menuScreen` guarda o monitor em foco quando abre, e `menuHere` diz se é esse monitor. Com o menu aberto, a bolha mostra o `StartMenu` (num `Loader`) em vez das notificações, e a janela pega o teclado (`WlrKeyboardFocus.Exclusive`).
+- **Clique fora fecha**, mas a captura (`HyprlandFocusGrab`) só liga **300 ms depois** de abrir (`menuGrab`). Ligada na hora, ela disparava antes de o cartão existir e fechava o menu no mesmo instante.
+- **A busca é toda do ii:** o `LauncherSearch` recebe o texto (`query`) e devolve `results`. Cada resultado tem `name`, `type`, `verb`, `iconName` e `iconType` (ícone do sistema, símbolo Material ou texto/emoji), `execute()` e `actions` (ações extras do app, copiar/apagar na área de transferência). Então estão todos os recursos do menu do ii: apps, conta (`=`), comando (`$`), web (`?`), área de transferência (`;`), emojis (`:`) e ações (`/`).
+- **Vazio:** um chip por prefixo (clicar digita o prefixo; eles surgem em cascata) e a grade de **Recentes**.
+- **Buscando:** uma lista de até 7 linhas. As linhas entram deslizando uma depois da outra. A linha escolhida tem um bloco que **desliza por mola** até ela (`selSpring`) e mostra o verbo ("Abrir ↵") e as ações extras.
+- **Teclado:** digitar busca, ↑↓ escolhem, Enter executa, Esc fecha.
+- **`RecentApps`:** guarda os últimos 8 apps em `~/.cache/mosaic-os/recent-apps.json`. Conta como usado:
+  - o app aberto pelo menu;
+  - qualquer app cuja **janela nova** apareça (`ToplevelManager.toplevels`). Só a diferença em relação à lista anterior é olhada, e as janelas que já estavam abertas ao ligar não contam.
+- **Testar sem teclado:** `qs -c mosaic ipc call island menuSearch "fire"` abre o menu já com o texto. A caixa de busca acompanha mudanças do `query` vindas de fora.
+- A marca do dock também abre o menu.
+
 ### 5.11 `MosaicSpring.qml`: a mola
 Port do `MorphSpring` do hyprdots, no mesmo modelo das molas do SwiftUI:
 - `response`: mais ou menos quantos segundos dura uma oscilação;
@@ -326,7 +341,7 @@ readonly property bool shown: emptyWorkspace || hovering
 
 ### 8.2 O vidro e as três partes
 - **O vidro:** `glassFill` é a superfície clareada com 10% de branco e com metade da opacidade. Fica acima de 0,3, o limite do hyprglass, então o liquid glass entorta o que está atrás. O contorno é branco a 16%, e um degradê branco de 10% → 0 na metade de cima imita a luz batendo por cima. Raio 20, altura 58.
-- **Marca:** o `Mascot` (logo novo) sem bloco atrás. O clique abre a visão geral do ii e o mascote pula; o botão direito abre a lateral esquerda.
+- **Marca:** o `Mascot` (logo novo) sem bloco atrás. O clique abre o menu iniciar (5.10.1) e o mascote pula; o botão direito abre a lateral esquerda.
 - **Apps:** um `Repeater` sobre `ScriptModel { objectProp: "appId"; values: TaskbarApps.apps }`. O `objectProp` reaproveita o item de cada app quando a lista muda. Cada app:
   - **pontinhos:** um por janela, até 3; os do app em foco são mais longos e na cor de destaque;
   - **abrindo:** `launchBounce`, 3 pulos;
@@ -384,6 +399,7 @@ Também no projeto: `services/Battery.qml` (o serviço do ii que foi adaptado pa
 - **Hyprland aninhado (sem mexer na sessão):** `Hyprland -c arquivo.lua` abre um Hyprland dentro de uma janela. Rodar `WAYLAND_DISPLAY=wayland-N HYPRLAND_INSTANCE_SIGNATURE=... qs -c mosaic` dentro dele, controlar com `qs ipc --pid PID call island compass` e fotografar com `WAYLAND_DISPLAY=wayland-N grim`. A janela do aninhado precisa estar visível, senão ele para de desenhar.
 - **Memória:** `ps -o rss= -p $(pgrep -x qs)` antes e depois.
 - **Pegadinha do aninhado:** o primeiro `qs` que liga fica com o servidor de notificações e com o polkit. Se o de teste ligar antes do seu, as notificações vão para ele. Por isso, teste notificação na sessão de verdade, ou ligue o de teste depois.
+- **Nunca simule teclado ou mouse (`wtype`, `ydotool`) na sessão de verdade:** o foco pode estar em outro app. Um teste digitou no Neovim aberto, que salvou sozinho. Use o Hyprland de teste ou uma IPC de teste (`menuSearch`, `phoneTest`).
 - **Shaders:** depois de mexer num `.frag`, recompile com o comando escrito no topo dele (`/usr/lib/qt6/bin/qsb ...`); o QML carrega o `.qsb`.
 
 ---

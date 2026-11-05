@@ -73,6 +73,11 @@ Scope {
         function poke(): void { root.jumpRequested(); }
         // shows the compass without holding Super (tests, or a keybind later)
         function compass(): void { root.compassForced = !root.compassForced; }
+        // open the start menu with something typed (tests, or a keybind later)
+        function menuSearch(text: string): void {
+            LauncherSearch.query = text;
+            GlobalStates.searchOpen = true;
+        }
         // pretend a phone event, to see the animations without the phone:
         // charging | low | ringing | talking | missed | connected | disconnected
         function phoneTest(kind: string): void {
@@ -90,6 +95,23 @@ Scope {
         }
     }
     property bool compassForced: false
+
+    // ---------- start menu (Super tapped): GlobalStates.searchOpen ----------
+    // The ii search shortcuts (Super, Super+V clipboard, Super+. emojis) now open
+    // this menu instead of the ii overview (modules/ii/overview/Overview.qml).
+    property string menuScreen: ""
+    Connections {
+        target: GlobalStates
+        function onSearchOpenChanged() {
+            if (GlobalStates.searchOpen) {
+                root.menuScreen = Hyprland.focusedMonitor?.name ?? "";
+                root.openScreen = ""; // the panel gives way
+            } else {
+                LauncherSearch.query = "";
+            }
+        }
+    }
+    RecentApps { id: recentApps }
 
     // ---------- events: quick things the island shows for a moment ----------
     // kind: "volume" | "brightness" | "music" | "print" | "battery" ("" = none)
@@ -198,7 +220,7 @@ Scope {
             exclusionMode: ExclusionMode.Ignore
             anchors.top: true
             color: "transparent"
-            implicitWidth: 560
+            implicitWidth: 680 // room for the start menu card (640)
             implicitHeight: 660
             // The notch, plus a thin strip on the top edge that opens it on hover
             mask: Region {
@@ -250,11 +272,29 @@ Scope {
             }
 
             // Opened by click: keyboard (Esc) and click-outside close it, like the ii sidebars
-            WlrLayershell.keyboardFocus: win.pinned ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            readonly property bool menuHere: GlobalStates.searchOpen && root.menuScreen === win.screen.name
+            // click-outside for the menu starts a moment after it opens: switched on at
+            // once, it fired before the menu card existed and closed it right away
+            property bool menuGrab: false
+            onMenuHereChanged: {
+                win.menuGrab = false;
+                if (win.menuHere)
+                    menuGrabDelay.restart();
+            }
+            Timer {
+                id: menuGrabDelay
+                interval: 300
+                onTriggered: win.menuGrab = win.menuHere
+            }
+            WlrLayershell.keyboardFocus: win.menuHere ? WlrKeyboardFocus.Exclusive : win.pinned ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             HyprlandFocusGrab {
-                active: win.pinned && !ledPopup.open && !win.trayBusy
+                active: (win.pinned && !ledPopup.open && !win.trayBusy) || win.menuGrab
                 windows: [win]
-                onCleared: win.setOpen(false)
+                onCleared: {
+                    win.setOpen(false);
+                    if (win.menuHere)
+                        GlobalStates.searchOpen = false;
+                }
             }
 
             // ---------- hover: the top edge opens it, leaving closes it ----------
@@ -815,7 +855,9 @@ Scope {
                 id: bubble
                 anchors.fill: parent
                 z: -1 // behind the island, so the mark and the time stay on top of the goo
-                readonly property bool open: root.hasNotifs && win.isFocusedScreen && notch.mode !== "compass"
+                // the card is the start menu when it is open here, else the notifications
+                readonly property bool showMenu: win.menuHere
+                readonly property bool open: (showMenu || (root.hasNotifs && win.isFocusedScreen)) && notch.mode !== "compass"
                 // life: 0 = tucked under the island, 1 = out (opens on a soft spring, closes with a quick slide)
                 MosaicSpring { id: life; response: 0.72; damping: 0.96; springBack: false; closeMs: 420; target: bubble.open ? 1 : 0 }
                 readonly property real g: Math.max(0, life.value)
@@ -826,14 +868,20 @@ Scope {
                     function onModeChanged() { if (notch.mode === "compass") life.settle(0); }
                 }
 
-                readonly property real cardW: 440
+                readonly property real cardW: showMenu ? 640 : 440
                 property real shownH: 80
-                Behavior on shownH { NumberAnimation { duration: 420; easing.type: Easing.InOutCubic } }
+                Behavior on shownH { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
                 Binding {
                     target: bubble
                     property: "shownH"
                     value: Math.min(notifList.contentHeight + 16, 460)
-                    when: root.hasNotifs && notifList.contentHeight > 0
+                    when: !bubble.showMenu && root.hasNotifs && notifList.contentHeight > 0
+                }
+                Binding {
+                    target: bubble
+                    property: "shownH"
+                    value: menuLoader.item ? menuLoader.item.implicitHeight + 24 : 80
+                    when: bubble.showMenu
                 }
 
                 // the island as it is drawn right now (scale and hiding included)
@@ -884,6 +932,7 @@ Scope {
                     clip: true
                     NotificationListView {
                         id: notifList
+                        visible: !bubble.showMenu
                         x: (bubble.bw - width) / 2
                         y: 8
                         width: bubble.cardW - 16
@@ -891,6 +940,19 @@ Scope {
                         opacity: Math.pow(bubble.g, 2)
                         popup: true
                         expandAll: true
+                    }
+                    Loader {
+                        id: menuLoader
+                        active: bubble.showMenu
+                        x: (bubble.bw - width) / 2
+                        y: 12
+                        width: bubble.cardW - 24
+                        opacity: Math.pow(bubble.g, 2)
+                        sourceComponent: StartMenu {
+                            recents: recentApps
+                            onDone: GlobalStates.searchOpen = false
+                            Component.onCompleted: focusSearch()
+                        }
                     }
                 }
             }
