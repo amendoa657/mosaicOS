@@ -9,40 +9,35 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 
-// What the island shows as the workspace compass: it stays a pill, just wider,
-// and the workspaces pass by in a row like a carousel, to the right of the
-// Mosaic mark (which turns a quarter per workspace, in Island). Each workspace
-// is a Mosaic block in one of the four tones (same number, same tone, always)
-// with the icon of its biggest window and +N when there are more. The current
-// one sits in the middle, biggest and brightest, with its number under it; the
-// others shrink and fade towards the ends. Scrolling turns the carousel (1 to
-// 50) and switches workspace; clicking a block goes there.
+// What the island shows when it turns into the workspace compass: a small, quiet
+// dome under the island's mark (the needle, in Island). Each workspace is a Mosaic tile in one
+// of the four tones (same number, same tone, always) with the icon of its biggest
+// window and +N when there are more; the current one is bigger and brighter. The
+// tiles come out from the middle one after the other. Scrolling turns the compass
+// (1 to 50, about ten in view) and switches workspace; clicking a tile goes there.
 Item {
     id: root
     property bool open: false
-    property real leftReserve: 50 // the mark lives there
     readonly property int maxWorkspace: 50
     readonly property int current: HyprlandData.activeWorkspace?.id ?? 1
-    // where the carousel points, on a spring: turning is smooth and a little bouncy
+    // where the compass points, animated: turning is smooth and a little springy
     property real offset: current
     Behavior on offset { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.3 } }
 
-    readonly property real step: 42 // px between two workspaces
-    readonly property real centerX: leftReserve + (width - leftReserve - 12) / 2
+    // the tiles ride an oval arc that follows the half-oval island
+    readonly property real ringRadiusX: Math.max(0, width / 2 - 26)
+    readonly property real ringRadiusY: Math.max(0, height - 20)
+    readonly property real stepAngle: 19 // degrees between two workspaces
 
-    // blocks pop out in a cascade from the middle once the island has widened
+    // tiles pop out in a cascade once the island has opened up
     property real reveal: open ? 1 : 0
-    Behavior on reveal { NumberAnimation { duration: root.open ? 560 : 140; easing.type: Easing.OutCubic } }
+    Behavior on reveal { NumberAnimation { duration: root.open ? 620 : 140; easing.type: Easing.OutCubic } }
 
-    function toneFor(id) {
-        const c = Appearance.colors;
-        return [c.colPrimary, c.colSecondary, c.colTertiary, ColorUtils.mix(c.colSecondary, c.colTertiary, 0.5)][(id - 1) % 4];
-    }
-    function go(id) {
-        const target = Math.max(1, Math.min(root.maxWorkspace, id));
-        if (target !== root.current)
-            Hyprland.dispatch(`hl.dsp.focus({ workspace = ${target} })`);
-    }
+    readonly property var tones: [Appearance.colors.colPrimary, Appearance.colors.colSecondary, Appearance.colors.colTertiary, ColorUtils.mix(Appearance.colors.colSecondary, Appearance.colors.colTertiary, 0.5)]
+    function toneFor(id) { return root.tones[(id - 1) % 4]; }
+
+    // the dark island surface: the soft blocks are mixed toward it
+    readonly property color washBase: ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
     // windows per workspace, worked out once per change (not once per block)
     readonly property var windowsByWs: {
         const map = {};
@@ -51,52 +46,70 @@ Item {
         return map;
     }
 
+    function go(id) {
+        const target = Math.max(1, Math.min(root.maxWorkspace, id));
+        if (target !== root.current)
+            Hyprland.dispatch(`hl.dsp.focus({ workspace = ${target} })`);
+    }
+
+    // the current workspace's number, under the mark (the mark is the needle, in Island)
+    StyledText {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: 27
+        text: root.current
+        font.family: "JetBrains Mono"
+        font.pixelSize: 13
+        font.weight: Font.Bold
+        color: Appearance.colors.colOnLayer0
+        opacity: 0.75 * root.reveal
+    }
+
     Repeater {
-        model: 11
+        model: 13
         delegate: Item {
             id: tile
             required property int index
-            readonly property int wsId: Math.round(root.offset) - 5 + index
+            readonly property int wsId: Math.round(root.offset) - 6 + index
             readonly property real delta: wsId - root.offset
-            readonly property real dist: Math.abs(delta)
+            // lower numbers on the left, higher on the right, like reading
+            readonly property real angle: (90 - delta * root.stepAngle) * Math.PI / 180
             readonly property bool valid: wsId >= 1 && wsId <= root.maxWorkspace
             readonly property bool isCurrent: wsId === root.current
-            readonly property var windows: root.windowsByWs[wsId] ?? []
-            readonly property var biggest: valid && windows.length > 0 ? HyprlandData.biggestWindowForWorkspace(wsId) : null
-            readonly property real baseSize: isCurrent ? 36 : windows.length > 0 ? 28 : 20
-            // further from the middle: a bit smaller and fainter, gone at the ends
-            readonly property real falloff: Math.max(0, 1 - Math.max(0, dist - 2.6) / 2.2)
-            readonly property real myReveal: Math.max(0, Math.min(1, root.reveal * 2.2 - dist * 0.24))
+            readonly property var windows: root.windowsByWs[tile.wsId] ?? []
+            readonly property var biggest: tile.valid ? HyprlandData.biggestWindowForWorkspace(tile.wsId) : null
+            readonly property real size: isCurrent ? 26 : tile.windows.length > 0 ? 20 : 12
             readonly property color tone: root.toneFor(Math.max(1, wsId))
+            // cascade: the middle tile first, then outwards
+            readonly property real myReveal: Math.max(0, Math.min(1, root.reveal * 2.2 - Math.abs(delta) * 0.22))
 
-            visible: valid && falloff > 0 && myReveal > 0
-            width: baseSize
-            height: baseSize
-            x: root.centerX + delta * root.step - width / 2
-            y: (root.height - height) / 2 - (isCurrent ? 6 : 0) * myReveal
-            opacity: myReveal * falloff
-            scale: (0.5 + 0.5 * myReveal) * (1 - Math.min(dist, 4) * 0.05)
+            visible: valid && Math.abs(delta) <= 5.6 && myReveal > 0
+            opacity: myReveal * Math.max(0, 1 - Math.max(0, Math.abs(delta) - 3.6) / 2)
+            scale: 0.4 + 0.6 * myReveal
+            width: size
+            height: size
+            x: root.width / 2 + Math.cos(angle) * root.ringRadiusX * (0.55 + 0.45 * myReveal) - width / 2
+            y: Math.sin(angle) * root.ringRadiusY * (0.55 + 0.45 * myReveal) - height / 2
             Behavior on width { NumberAnimation { duration: 280; easing.type: Easing.OutBack } }
             Behavior on height { NumberAnimation { duration: 280; easing.type: Easing.OutBack } }
 
-            // the block, in its tone: vivid when current, soft with windows, faint when empty
+            // the tile: a Mosaic block in its tone (soft when away, vivid when current)
             Rectangle {
                 anchors.fill: parent
-                radius: Math.round(tile.baseSize * 0.28)
-                color: tile.isCurrent ? ColorUtils.mix(tile.tone, root.washBase, 0.95)
-                    : ColorUtils.mix(tile.tone, root.washBase, tile.windows.length > 0 ? 0.55 : 0.28)
-                border.width: tile.isCurrent ? 2 : 0
+                radius: Math.round(tile.size * 0.28)
+                // quiet: soft tones on the dark island, only the current one a little brighter
+                color: tile.isCurrent ? ColorUtils.mix(tile.tone, root.washBase, 0.7) : ColorUtils.mix(tile.tone, root.washBase, tile.windows.length > 0 ? 0.38 : 0.18)
+                border.width: tile.isCurrent ? 1 : 0
                 border.color: ColorUtils.mix(Appearance.colors.colOnLayer0, tile.tone, 0.5)
                 Behavior on color { ColorAnimation { duration: 220 } }
             }
             IconImage {
                 visible: tile.biggest !== null
                 anchors.centerIn: parent
-                implicitSize: Math.round(tile.baseSize * 0.6)
+                implicitSize: Math.round(tile.size * 0.6)
                 source: Quickshell.iconPath(AppSearch.guessIcon(tile.biggest?.class), "image-missing")
             }
             StyledText {
-                visible: tile.biggest === null
+                visible: tile.biggest === null && tile.size >= 20
                 anchors.centerIn: parent
                 text: tile.wsId
                 font.family: "JetBrains Mono"
@@ -126,19 +139,6 @@ Item {
                     color: Appearance.colors.colLayer0
                 }
             }
-            // the current one's number, under it
-            StyledText {
-                visible: tile.isCurrent && tile.biggest !== null
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.bottom
-                anchors.topMargin: 2
-                text: tile.wsId
-                font.family: "JetBrains Mono"
-                font.pixelSize: 10
-                font.weight: Font.Bold
-                color: Appearance.colors.colOnLayer0
-                opacity: 0.85
-            }
             MouseArea {
                 anchors.fill: parent
                 onClicked: root.go(tile.wsId)
@@ -146,10 +146,7 @@ Item {
         }
     }
 
-    // the dark island surface, so the soft blocks are mixed toward it
-    readonly property color washBase: ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
-
-    // scroll turns the carousel
+    // scroll turns the compass
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         property real accumulated: 0
