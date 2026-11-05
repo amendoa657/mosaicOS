@@ -323,7 +323,7 @@ Scope {
                 // floating like a pill: fully round while small, a 26 px curve when it grows
                 readonly property real cornerRadius: Math.min(height / 2, 26)
                 readonly property real topGap: 6 // the space above it, under the screen edge
-                readonly property real compassHeight: 92 // as a compass it is a small dome (half oval), with the mark on top
+                readonly property real compassHeight: 112 // as a compass it is a small dome (half oval), with the mark on top
                 readonly property real bandHeight: mode !== "event" ? restHeight
                     : root.eventKind.startsWith("call") ? 58
                     : root.eventKind === "music" || root.eventKind === "charging" || root.eventKind === "battery" ? 48 : 38
@@ -331,7 +331,7 @@ Scope {
                 // ----- the springs (MosaicSpring: real physics, with speed) -----
                 readonly property real targetWidth: mode === "" ? restRow.fullWidth + 24
                     : mode === "event" ? Math.max(restRow.fullWidth + 24, eventLoader.implicitWidth + 64)
-                    : mode === "compass" ? 300 : 460
+                    : mode === "compass" ? 340 : 460
                 readonly property real targetHeight: mode === "" || mode === "event" ? bandHeight
                     : mode === "compass" ? compassHeight
                     : Math.min(Math.round(content.implicitHeight) + restHeight + 14, 640)

@@ -149,7 +149,7 @@ Timer { id: superHold; interval: 130
 readonly property string mode: compassOn ? "compass" : win.panelOpen ? "panel" : showEvent ? "event" : ""
 ```
 Um único texto decide tudo, por prioridade: bússola > painel > evento > repouso. Largura, altura, conteúdo e cor dependem de `mode`. As notificações não mudam mais o modo: elas saem numa bolha à parte (5.10).
-- **Tamanhos:** repouso = a linha "marca · hora · clima" + 24 px, com 30 de altura; evento = o conteúdo + 64 (38 de altura; 48 para música e bateria; 58 para ligação); bússola 300×92; painel 460 e altura do conteúdo (até 640).
+- **Tamanhos:** repouso = a linha "marca · hora · clima" + 24 px, com 30 de altura; evento = o conteúdo + 64 (38 de altura; 48 para música e bateria; 58 para ligação); bússola 340×112; painel 460 e altura do conteúdo (até 640).
 - **Molas no lugar de `Behavior`:** `targetWidth`/`targetHeight` dizem o tamanho certo, e a largura e a altura **seguem** esses alvos por `MosaicSpring` (`widthSpring`, `heightSpring`, damping ~0,75: passa um pouco e volta). O mesmo para `morphSpring` (0 = ilha, 1 = bússola) e `centerSpring` (0 = marca à esquerda, 1 = marca no meio).
 - **Gelatina (jelly):** a velocidade das molas vira deformação:
   ```qml
@@ -173,7 +173,7 @@ A ilha flutua 6 px abaixo da borda (`topGap`) e é escura como a do hyprdots: `i
   ```
   - em repouso, raio = metade da altura: uma **pílula**;
   - no painel, raio 26: um **cartão**;
-  - na bússola, o de baixo vira metade da largura e a forma é montada mais alta e achatada para 92 px: uma **cúpula** com a base em meio oval.
+  - na bússola, o de baixo vira metade da largura e a forma é montada mais alta e achatada para 112 px: uma **cúpula** com a base em meio oval.
 - A cor é o degradê das três cores de `washStop` (10% dos tons sobre a base escura, 16% na bússola), com contorno de 1 px.
 - A escala (gelatina e toque) agora tem origem no **centro** da ilha, como no hyprdots, porque ela não está mais presa na borda.
 - Enquanto a bolha de notificação está fora, a superfície fica invisível (`opacity: bubble.living ? 0 : 1`) e o shader da bolha desenha a ilha (5.10).
@@ -293,17 +293,18 @@ velocity += a * h;  value += velocity * h;   // em passos de 4 ms
 ---
 
 ## 6. A bússola
-Arquivo: `modules/mosaic/island/Compass.qml`. No modo bússola, a ilha vira uma **cúpula pequena e discreta** (300×92, base em meio oval; seção 5.5). A marca Mosaic fica **em cima, no meio**, como ponteiro, e gira um quarto por área. Por um dia ela foi uma pílula em carrossel, mas o usuário preferiu a cúpula, só que mais sutil.
+Arquivo: `modules/mosaic/island/Compass.qml`. No modo bússola, a ilha vira uma **cúpula pequena e discreta** (340×112, base em meio oval; seção 5.5). A marca Mosaic fica **em cima, no meio**, como ponteiro, e gira um quarto por área. Por um dia ela foi uma pílula em carrossel, mas o usuário preferiu a cúpula, só que mais sutil.
 - `current` é a área atual (`HyprlandData.activeWorkspace.id`). `offset` segue `current` com `Behavior` `OutBack` de 420 ms: é a posição animada da bússola.
 - **O arco:** 13 blocos (`Repeater`), um para cada área de `round(offset) - 6` até `+6`. O ângulo de cada um:
   ```js
-  angle = (90 - delta * stepAngle) * π / 180      // delta = área - offset; stepAngle = 19°
+  angle = (90 - delta * stepAngle) * π / 180      // delta = área - offset; stepAngle = 24°
   x = centro + cos(angle) * ringRadiusX;  y = sin(angle) * ringRadiusY
   ```
-  - `ringRadiusX` (metade da largura − 26) é diferente de `ringRadiusY` (altura − 20), por isso o arco é oval, como a cúpula.
+  - `ringRadiusX` (metade da largura − 30) é diferente de `ringRadiusY` (altura − 26), por isso o arco é oval, como a cúpula. Os recuos são do tamanho de meio bloco, então os blocos ficam dentro da borda.
+  - **Nada vaza:** só ângulos entre 18° e 162° ficam dentro da cúpula. Passando disso, um bloco sairia pelos cantos de cima. `maxDelta = (90 − 18) / 24 = 3` áreas de cada lado aparecem inteiras, e a quarta some (opacidade) enquanto sai.
   - Como `delta` depende de `offset`, que está animado, **todos os blocos deslizam juntos pelo arco** quando a área muda.
 - **Sutil:**
-  - blocos pequenos: a atual tem 26 px, com janelas 20 e vazia 12 (só o bloquinho, sem número);
+  - blocos: a atual tem 34 px, com janelas 28 e vazia 16 (só o bloquinho, sem número); o ícone ocupa 66% do bloco;
   - cores suaves misturadas à base escura da ilha (atual 70% do tom, com janelas 38%, vazia 18%), e só a atual tem contorno de 1 px;
   - o número da área atual fica pequeno (JetBrains Mono 13) sob a marca;
   - o banho de cor da cúpula subiu só 6% em relação à ilha fechada;

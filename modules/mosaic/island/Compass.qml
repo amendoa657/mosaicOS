@@ -25,9 +25,13 @@ Item {
     Behavior on offset { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.3 } }
 
     // the tiles ride an oval arc that follows the half-oval island
-    readonly property real ringRadiusX: Math.max(0, width / 2 - 26)
-    readonly property real ringRadiusY: Math.max(0, height - 20)
-    readonly property real stepAngle: 19 // degrees between two workspaces
+    // the arc sits inside the dome, a block's half away from its edge
+    readonly property real ringRadiusX: Math.max(0, width / 2 - 30)
+    readonly property real ringRadiusY: Math.max(0, height - 26)
+    readonly property real stepAngle: 24 // degrees between two workspaces
+    // only angles between 18° and 162° are inside the dome: past that, a block
+    // would poke out of the top corners, so it is faded out before getting there
+    readonly property real maxDelta: (90 - 18) / stepAngle
 
     // tiles pop out in a cascade once the island has opened up
     property real reveal: open ? 1 : 0
@@ -77,13 +81,13 @@ Item {
             readonly property bool isCurrent: wsId === root.current
             readonly property var windows: root.windowsByWs[tile.wsId] ?? []
             readonly property var biggest: tile.valid ? HyprlandData.biggestWindowForWorkspace(tile.wsId) : null
-            readonly property real size: isCurrent ? 26 : tile.windows.length > 0 ? 20 : 12
+            readonly property real size: isCurrent ? 34 : tile.windows.length > 0 ? 28 : 16
             readonly property color tone: root.toneFor(Math.max(1, wsId))
             // cascade: the middle tile first, then outwards
             readonly property real myReveal: Math.max(0, Math.min(1, root.reveal * 2.2 - Math.abs(delta) * 0.22))
 
-            visible: valid && Math.abs(delta) <= 5.6 && myReveal > 0
-            opacity: myReveal * Math.max(0, 1 - Math.max(0, Math.abs(delta) - 3.6) / 2)
+            visible: valid && Math.abs(delta) <= root.maxDelta + 0.5 && myReveal > 0
+            opacity: myReveal * Math.max(0, 1 - Math.max(0, Math.abs(delta) - root.maxDelta) / 0.5)
             scale: 0.4 + 0.6 * myReveal
             width: size
             height: size
@@ -105,7 +109,7 @@ Item {
             IconImage {
                 visible: tile.biggest !== null
                 anchors.centerIn: parent
-                implicitSize: Math.round(tile.size * 0.6)
+                implicitSize: Math.round(tile.size * 0.66)
                 source: Quickshell.iconPath(AppSearch.guessIcon(tile.biggest?.class), "image-missing")
             }
             StyledText {
