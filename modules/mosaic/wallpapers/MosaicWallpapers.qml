@@ -116,6 +116,7 @@ Scope {
 
     // ---------- open / close ----------
     property string openScreen: ""
+    property string startPage: "papers" // which tab it opens on (the IPC can ask for widgets)
     readonly property bool open: GlobalStates.wallpaperSelectorOpen
     onOpenChanged: {
         if (root.open) {
@@ -139,6 +140,7 @@ Scope {
     IpcHandler {
         target: "wallpaperSelector"
         function toggle(): void { root.toggle(); }
+        function widgets(): void { root.startPage = "widgets"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
             if (root.files.length === 0) {
                 lister.running = true;
@@ -182,6 +184,8 @@ Scope {
 
             readonly property real v: Math.max(0, openSpring.value)
             property string filter: "all"
+            property string page: root.startPage // "papers" | "widgets" (the tabs at the top)
+            Component.onDestruction: root.startPage = "papers"
             property string query: ""
             readonly property var shown: {
                 const q = win.query.trim().toLowerCase();
@@ -544,16 +548,199 @@ Scope {
                     }
                 }
 
+                // ----- tabs: Papéis / Widgets -----
+                Row {
+                    id: pageTabs
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.top: parent.top
+                    anchors.topMargin: 18
+                    spacing: 8
+                    Repeater {
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }]
+                        delegate: Rectangle {
+                            id: pageTab
+                            required property var modelData
+                            readonly property bool on: win.page === modelData.id
+                            implicitWidth: pageTabRow.implicitWidth + 28
+                            implicitHeight: 36
+                            radius: Appearance.rounding.small
+                            color: on ? (MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : root.softBlockOf(Appearance.colors.colPrimary))
+                                : (MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer1)
+                            border.width: MosaicTheme.brutal ? (on ? MosaicTheme.border : 1) : 0
+                            border.color: MosaicTheme.ink
+                            Behavior on color { ColorAnimation { duration: 160 } }
+                            transform: Translate { x: tabShadow.sinkShift; y: tabShadow.sinkShift }
+                            HardShadow { id: tabShadow; visible: MosaicTheme.brutal && !pageTab.on; sink: pageTabArea.pressed }
+                            RowLayout {
+                                id: pageTabRow
+                                anchors.centerIn: parent
+                                spacing: 8
+                                MaterialSymbol {
+                                    text: pageTab.modelData.icon
+                                    iconSize: 18
+                                    color: Appearance.colors.colOnLayer0
+                                }
+                                StyledText {
+                                    text: MosaicTheme.brutal ? pageTab.modelData.label.toUpperCase() : pageTab.modelData.label
+                                    font.family: "Space Grotesk"
+                                    font.pixelSize: 14
+                                    font.weight: pageTab.on ? Font.Bold : Font.Normal
+                                    color: Appearance.colors.colOnLayer0
+                                }
+                            }
+                            MouseArea {
+                                id: pageTabArea
+                                anchors.fill: parent
+                                onClicked: win.page = pageTab.modelData.id
+                            }
+                        }
+                    }
+                }
+
+                // ----- Widgets: the desktop widgets, each with its own switch -----
+                // Each one is Config.options.background.widgets.<key>.enable: the ii
+                // background shows or hides it as soon as the value changes.
+                GridView {
+                    id: widgetGrid
+                    visible: win.page === "widgets"
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 16
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 18
+                    clip: true
+                    cellWidth: Math.floor(width / 2)
+                    cellHeight: 92
+                    interactive: false
+                    model: [
+                        { key: "clock", icon: "schedule", name: "Relógio", hint: "a hora grande no fundo" },
+                        { key: "calendar", icon: "calendar_month", name: "Calendário", hint: "o mês com o dia de hoje" },
+                        { key: "weather", icon: "partly_cloudy_day", name: "Clima", hint: "temperatura e previsão" },
+                        { key: "media", icon: "music_note", name: "Música", hint: "o que está tocando" },
+                        { key: "photos", icon: "photo", name: "Fotos", hint: "um porta-retratos" },
+                        { key: "photos2", icon: "photo_library", name: "Fotos 2", hint: "o segundo porta-retratos" },
+                        { key: "anniversary", icon: "favorite", name: "Dias juntos", hint: "o contador de dias" }
+                    ]
+                    delegate: Item {
+                        id: wcell
+                        required property var modelData
+                        required property int index
+                        readonly property var conf: Config.options.background.widgets[modelData.key]
+                        readonly property bool on: conf?.enable ?? false
+                        width: widgetGrid.cellWidth
+                        height: widgetGrid.cellHeight
+                        // cascade, like the wallpapers
+                        property real born: 0
+                        Behavior on born { NumberAnimation { duration: 380; easing.type: Easing.OutBack } }
+                        Timer { running: wcell.visible; interval: 60 + wcell.index * 40; onTriggered: wcell.born = 1 }
+                        onVisibleChanged: if (!visible) born = 0
+
+                        Rectangle {
+                            id: wcard
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            anchors.rightMargin: 6 + MosaicTheme.shadow
+                            anchors.bottomMargin: 6 + MosaicTheme.shadow
+                            radius: Appearance.rounding.normal
+                            opacity: wcell.born
+                            scale: 0.9 + 0.1 * wcell.born
+                            color: MosaicTheme.brutal ? (wcell.on ? MosaicTheme.slabRaised : MosaicTheme.slab) : (wcell.on ? root.softBlockOf(Appearance.colors.colPrimary) : Appearance.colors.colLayer1)
+                            border.width: MosaicTheme.brutal ? MosaicTheme.border : 0
+                            border.color: MosaicTheme.ink
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                            transform: Translate { x: wShadow.sinkShift; y: wShadow.sinkShift }
+                            HardShadow { id: wShadow; visible: MosaicTheme.brutal && wcell.on; sink: wArea.pressed }
+
+                            Rectangle { // the icon on a little block
+                                id: wIcon
+                                x: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 44
+                                height: 44
+                                radius: Appearance.rounding.small
+                                color: wcell.on ? (MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : Appearance.colors.colPrimary) : (MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer2)
+                                border.width: MosaicTheme.brutal ? 1.5 : 0
+                                border.color: MosaicTheme.ink
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                MaterialSymbol {
+                                    anchors.centerIn: parent
+                                    text: wcell.modelData.icon
+                                    iconSize: 24
+                                    fill: wcell.on ? 1 : 0
+                                    color: wcell.on && !MosaicTheme.brutal ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer0
+                                }
+                            }
+                            Column {
+                                anchors.left: wIcon.right
+                                anchors.leftMargin: 12
+                                anchors.right: wSwitch.left
+                                anchors.rightMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                StyledText {
+                                    width: parent.width
+                                    text: wcell.modelData.name
+                                    font.family: "Space Grotesk"
+                                    font.pixelSize: 15
+                                    font.weight: Font.DemiBold
+                                    color: Appearance.colors.colOnLayer0
+                                    elide: Text.ElideRight
+                                }
+                                StyledText {
+                                    width: parent.width
+                                    text: wcell.modelData.hint
+                                    font.pixelSize: 11
+                                    color: Appearance.colors.colOnLayer0
+                                    opacity: 0.65
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            // the switch: the knob slides on a spring (square knob in brutal themes)
+                            Rectangle {
+                                id: wSwitch
+                                anchors.right: parent.right
+                                anchors.rightMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 46
+                                height: 26
+                                radius: MosaicTheme.r(13)
+                                color: wcell.on ? Appearance.colors.colPrimary : (MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colLayer2)
+                                border.width: MosaicTheme.brutal ? 1.5 : 0
+                                border.color: MosaicTheme.ink
+                                Behavior on color { ColorAnimation { duration: 180 } }
+                                Rectangle {
+                                    width: 18
+                                    height: 18
+                                    radius: MosaicTheme.r(9)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: 4 + (parent.width - width - 8) * knob.value
+                                    color: wcell.on ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer0
+                                    MosaicSpring { id: knob; response: 0.3; damping: 0.7; epsilon: 0.002; target: wcell.on ? 1 : 0; Component.onCompleted: settle(target) }
+                                }
+                            }
+                            MouseArea {
+                                id: wArea
+                                anchors.fill: parent
+                                onClicked: if (wcell.conf) wcell.conf.enable = !wcell.on
+                            }
+                        }
+                    }
+                }
+
                 // ----- the grid -----
                 GridView {
                     id: grid
+                    visible: win.page === "papers"
                     readonly property int columns: 3
                     anchors.left: side.right
                     anchors.leftMargin: 24
                     anchors.right: parent.right
                     anchors.rightMargin: 18
-                    anchors.top: parent.top
-                    anchors.topMargin: 18
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 12
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 18
                     clip: true

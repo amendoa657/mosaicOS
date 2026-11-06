@@ -452,6 +452,13 @@ Arquivo: `modules/mosaic/wallpapers/MosaicWallpapers.qml`, mais o script `script
 - **Grade (`GridView`, 3 colunas, 16:10):** cada miniatura entra em **cascata**: um `Timer` de `60 + min(índice, 12) × 28` ms liga `born`, que anima opacidade, escala e um deslize de 18 px com `OutBack`. O mouse em cima seleciona, e uma mola (`lift`) cresce 3,5% e mostra o nome. A borda na cor de destaque marca a seleção, e um ✓ marca o papel em uso.
 - **Teclado:** setas movem (`grid.columns` por linha), Enter aplica, Tab e Shift+Tab trocam o filtro, Esc fecha.
 
+### 11.2.1 A aba Widgets
+No topo da área da direita há duas abas: **Papéis** (a grade) e **Widgets**. A aba Widgets tem um cartão por widget da área de trabalho: relógio, calendário, clima, música, fotos, fotos 2 e dias juntos.
+- Cada cartão liga e desliga `Config.options.background.widgets.<nome>.enable`. O fundo do ii mostra ou esconde o widget assim que o valor muda, e a configuração (`~/.config/mosaic-os/config.json`) guarda a escolha.
+- O cartão inteiro é clicável. O interruptor desliza por mola (`MosaicSpring`) e, no tema brutal, tem a bolinha quadrada; o cartão ligado "levanta" sobre a sombra dura.
+- Os cartões entram em cascata ao abrir a aba.
+- IPC: `qs -c mosaic ipc call wallpaperSelector widgets` abre o seletor já na aba Widgets.
+
 ### 11.3 O derramar (`pour`)
 1. `apply(path, item)` pega o centro da miniatura clicada em coordenadas de tela (`mapToItem(null, ...)`), fecha o seletor e chama `pour()`.
 2. Uma `PanelWindow` por monitor na camada **Bottom** (acima do papel de parede, abaixo das janelas, sem receber cliques) carrega a imagem nova. Quando ela está pronta, `pourRun` leva `pourProgress` de 0 a 1 em 1,7 s.
