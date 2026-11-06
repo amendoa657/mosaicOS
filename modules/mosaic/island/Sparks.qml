@@ -1,4 +1,5 @@
 import QtQuick
+import qs.modules.common
 
 // A burst of sparks flying out from one point and fading (charging started,
 // phone connected). Each spark has its own angle and reach, a little shuffled

@@ -15,6 +15,7 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 10. [Como testar sem quebrar a sessão](#10-como-testar)
 11. [Papéis de parede e o derramar: `modules/mosaic/wallpapers/`](#11-papéis-de-parede-e-o-derramar)
 12. [Temas: `modules/common/MosaicTheme.qml`](#12-temas-modulescommonmosaicthemeqml-themes)
+13. [As laterais: `modules/mosaic/sidebars/`](#13-as-laterais-modulesmosaicsidebars)
 
 ---
 
@@ -398,7 +399,7 @@ O Matugen repinta dois ícones com as cores do papel de parede: o do Mosaic Stor
 Arquivos herdados que foram alterados (o resto é igual ao ii):
 - `panelFamilies/IllogicalImpulseFamily.qml`:
   - comentados: `Bar`, `Dock`, `VerticalBar`, `NotificationPopup`, `OnScreenDisplay` (volume/brilho foram para a ilha) e `WallpaperSelector` do ii;
-  - adicionados: `Island`, `MosaicDock` e `MosaicWallpapers`.
+  - adicionados: `Island`, `MosaicDock`, `MosaicWallpapers`, `MosaicSidebarLeft` e `MosaicSidebarRight` (as laterais do ii foram comentadas).
 - `hypr/mosaic.lua`: a camada `quickshell:mosaicWallpapers` (o cartão do seletor) ganhou o liquid glass.
 
 Arquivos do sistema, fora do projeto:
@@ -522,4 +523,35 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
 **Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Pela IPC: `qs -c mosaic ipc call theme set gruvbox|mosaic` e `theme get`.
 
 **Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato), `style` (`soft` ou `brutal`; no brutal, também `ink` e `shadowColor`) e `hypr` (cores de borda e fundo, e `rounding` das janelas).
+
+---
+
+## 13. As laterais (`modules/mosaic/sidebars/`)
+Substituem as laterais do ii, com os **mesmos atalhos e IPC**: `sidebarLeftToggle`/`Open`/`Close`/`ToggleDetach`, `sidebarRightToggle`/`Open`/`Close` e as IPC `sidebarLeft`/`sidebarRight` `toggle|open|close`. São **colunas inteiras coladas na borda**, no estilo do tema: vidro no Mosaic, placa sólida brutalista no Gruvbox.
+- **Entrada:** `slide` (`MosaicSpring`) leva a coluna de fora da tela até o lugar. A janela só existe enquanto está aberta ou animando.
+- **Cantos:** só os do lado de dentro são arredondados. Um retângulo da cor da coluna cobre os cantos que encostam na borda da tela.
+- **Brutal:** a sombra dura cai para **dentro** da tela, à esquerda da lateral direita e à direita da esquerda. Por isso é um retângulo próprio, não o `HardShadow`, que sempre desloca para baixo e para a direita.
+- Esc e clique fora fecham (`GlobalFocusGrab`, como no ii).
+
+### 13.1 Direita (`MosaicSidebarRight.qml`)
+De cima para baixo:
+1. **Saudação** (Bom dia/Boa tarde/Boa noite, pela hora), data, **Configurações** (`settings.qml` do ii) e **Desligar** (a tela de sessão do ii).
+2. **Botões rápidos** (`Toggle`, 3×2):
+   - Wi-Fi (`Network.toggleWifi`, com o nome da rede);
+   - Bluetooth (`Bluetooth.defaultAdapter.enabled`);
+   - Silêncio (`Notifications.silent`);
+   - Luz noturna (`Hyprsunset.toggleTemperature`);
+   - Café (`Idle.toggleInhibit`, a tela não apaga);
+   - Microfone (`Audio.source.audio.muted`).
+
+   O botão direito do Wi-Fi e do Bluetooth abre as configurações de cada um.
+3. **Sliders** (`Slide`) de volume e brilho: o preenchimento segue o valor por mola; arrastar, clicar ou rolar muda; o ícone do volume liga e desliga o mudo.
+4. **Celular** (KDE Connect): nome e bateria (a `PhoneBattery` d'água), perguntados uma vez a cada abertura (sem ficar consultando). Três botões: **tocar o celular** (`findmyphone.ring`), **ping** (`ping.sendPing`) e **enviar arquivo** (escolhe pelo `zenity` e manda com `share.shareUrl`).
+5. **Calendário:** o `CalendarWidget` do ii.
+6. **Notificações:** a `NotificationList` do ii (histórico, limpar tudo, silêncio), ocupando o resto da altura.
+
+### 13.2 Esquerda (`MosaicSidebarLeft.qml`)
+- Três abas: **Tradutor** (o `Translator` do ii), **Tarefas** (o `TodoWidget` do ii, que saiu da direita) e **IA** (o `AiChat` do ii). A aba Anime saiu.
+- Cada página é criada só na primeira vez que a aba é aberta (`Loader` com `wanted`) e fica viva depois; trocar de aba faz fade com um deslize de 24 px.
+- IPC: `qs -c mosaic ipc call sidebarLeft tab 0|1|2` abre direto numa aba.
 

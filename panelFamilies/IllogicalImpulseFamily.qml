@@ -24,6 +24,7 @@ import qs.modules.ii.verticalBar
 import qs.modules.ii.wallpaperSelector
 import qs.modules.mosaic.dock
 import qs.modules.mosaic.island
+import qs.modules.mosaic.sidebars
 import qs.modules.mosaic.wallpapers
 
 Scope {
@@ -47,8 +48,11 @@ Scope {
     PanelLoader { component: ScreenCorners {} }
     PanelLoader { component: ScreenTranslator {} }
     PanelLoader { component: SessionScreen {} }
-    PanelLoader { component: SidebarLeft {} }
-    PanelLoader { component: SidebarRight {} }
+    // Mosaic OS: the sidebars are modules/mosaic/sidebars (same shortcuts)
+    // PanelLoader { component: SidebarLeft {} }
+    PanelLoader { component: MosaicSidebarLeft {} }
+    // PanelLoader { component: SidebarRight {} }
+    PanelLoader { component: MosaicSidebarRight {} }
     // PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
     // Mosaic OS: the wallpaper picker is modules/mosaic/wallpapers (same shortcuts)
     // PanelLoader { component: WallpaperSelector {} }
