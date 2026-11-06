@@ -89,6 +89,41 @@ color255 #a89984`,
     // kitty is told to reload its config (SIGUSR1).
     function paintTerminal() {
         terminalFile.setText((root.theme.terminal ?? "") + "\n");
+        sequencesFile.setText(root.sequencesFor(root.theme.terminal ?? ""));
+    }
+    // The same palette as terminal escape codes (OSC 4/10/11/12/17). Every new fish
+    // prints the ii's wallpaper codes at start (config.fish), which repaint the
+    // terminal over kitty's config; with a fixed theme it prints these instead.
+    // "" (Mosaic theme): the wallpaper codes are used again.
+    function sequencesFor(palette) {
+        if (palette === "")
+            return "";
+        const esc = "\x1b]", end = "\x1b\\";
+        const osc = { foreground: "10", background: "11", cursor: "12", selection_background: "17" };
+        let out = "";
+        for (const line of palette.split("\n")) {
+            const m = line.trim().match(/^(\w+)\s+(#[0-9a-fA-F]{6})$/);
+            if (!m)
+                continue;
+            const n = m[1].match(/^color(\d+)$/);
+            if (n)
+                out += `${esc}4;${n[1]};${m[2]}${end}`;
+            else if (osc[m[1]])
+                out += `${esc}${osc[m[1]]};${m[2]}${end}`;
+        }
+        return out;
+    }
+    // repaint the shells that are already open (what the ii does on wallpaper change)
+    function pushToOpenTerminals() {
+        const file = root.theme.terminal ? Quickshell.env("HOME") + "/.config/mosaic-os/terminal-sequences.txt"
+            : Quickshell.env("HOME") + "/.local/state/quickshell/user/generated/terminal/sequences.txt";
+        Quickshell.execDetached(["sh", "-c", `for f in /dev/pts/[0-9]*; do [ -w "$f" ] && cat '${file}' > "$f" 2>/dev/null & done`]);
+    }
+    FileView {
+        id: sequencesFile
+        path: Quickshell.env("HOME") + "/.config/mosaic-os/terminal-sequences.txt"
+        printErrors: false
+        onSaved: root.pushToOpenTerminals()
     }
     FileView {
         id: terminalFile

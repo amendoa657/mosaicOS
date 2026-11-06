@@ -64,10 +64,13 @@ apply_anyterm() {
 
   sed -i "s/\$alpha/$term_alpha/g" "$STATE_DIR/user/generated/terminal/sequences.txt"
 
+  # Mosaic OS: with a fixed theme (Gruvbox...) the open terminals keep the theme's colours
+  seqfile="$STATE_DIR"/user/generated/terminal/sequences.txt
+  [ -s "$XDG_CONFIG_HOME/mosaic-os/terminal-sequences.txt" ] && seqfile="$XDG_CONFIG_HOME/mosaic-os/terminal-sequences.txt"
   for file in /dev/pts/*; do
     if [[ $file =~ ^/dev/pts/[0-9]+$ ]]; then
       {
-      cat "$STATE_DIR"/user/generated/terminal/sequences.txt >"$file"
+      cat "$seqfile" >"$file"
       } & disown || true
     fi
   done
