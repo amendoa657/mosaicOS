@@ -16,7 +16,8 @@ AbstractBackgroundWidget {
     implicitHeight: contentColumn.implicitHeight
     implicitWidth: contentColumn.implicitWidth
 
-    readonly property string clockStyle: GlobalStates.screenLocked ? Config.options.background.widgets.clock.styleLocked : Config.options.background.widgets.clock.style
+    // Mosaic OS: brutal themes (Gruvbox) use their own clock, the fat slab (BrutalClock)
+    readonly property string clockStyle: MosaicTheme.brutal ? "brutal" : GlobalStates.screenLocked ? Config.options.background.widgets.clock.styleLocked : Config.options.background.widgets.clock.style
     readonly property bool forceCenter: (GlobalStates.screenLocked && Config.options.lock.centerClock)
     readonly property bool shouldShow: (!Config.options.background.widgets.clock.showOnlyWhenLocked || GlobalStates.screenLocked)
     property bool wallpaperSafetyTriggered: false
@@ -56,6 +57,14 @@ AbstractBackgroundWidget {
                     sourceComponent: CookieQuote {}
                 }
             }
+        }
+
+        FadeLoader {
+            id: brutalClockLoader
+            anchors.horizontalCenter: parent.horizontalCenter
+            shown: root.clockStyle === "brutal" && root.shouldShow
+            fade: false
+            sourceComponent: BrutalClock {}
         }
 
         FadeLoader {

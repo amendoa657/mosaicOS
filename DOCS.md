@@ -509,6 +509,14 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
 - **Bússola:** blocos em cor cheia com contorno; a área atual ganha sombra dura.
 - **Dock, menu, notas e seletor de papéis:** placa sólida com contorno e sombra. A seleção do menu, a aba atual e a miniatura escolhida "levantam" sobre a sombra; o cartão do seletor tem uma sombra de 8 px.
 
+**Terminal (kitty):** o `kitty.conf` inclui `~/.config/mosaic-os/terminal-theme.conf` **depois** das cores do Matugen, e no kitty o que vem depois vence. Um tema fixo escreve a paleta dele nesse arquivo (o Gruvbox: fundo `#282828`, texto `#ebdbb2` e as 16 cores Gruvbox); o tema Mosaic deixa o arquivo vazio, e valem as cores do papel de parede. Depois de gravar, `pkill -USR1 -x kitty` faz todo kitty aberto recarregar a config.
+
+**Widgets da área de trabalho:**
+- **Relógio:** nos temas brutais o `ClockWidget` usa o estilo `brutal` (`clock/BrutalClock.qml`), qualquer que seja o estilo configurado. É uma placa sólida com a hora em Space Grotesk Black 112, contorno creme de 3 px e sombra dura de 10 px. A data vem num **adesivo torto** (−4°) laranja colado no canto, e a marca Mosaic fica no topo. A cada minuto novo a placa faz "tum": afunda na sombra por 140 ms.
+- **Calendário, fotos e música:** viram placa sólida com contorno de 3 px e sombra dura de 8 px (`HardShadow { size: 8 }`).
+- **Dias juntos e clima:** a flor e a pílula viram um **adesivo quadrado torto** (−3°), com contorno e uma cópia laranja deslocada como sombra.
+- No tema Mosaic, tudo continua como no ii.
+
 **Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Pela IPC: `qs -c mosaic ipc call theme set gruvbox|mosaic` e `theme get`.
 
 **Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato), `style` (`soft` ou `brutal`; no brutal, também `ink` e `shadowColor`) e `hypr` (cores de borda e fundo, e `rounding` das janelas).

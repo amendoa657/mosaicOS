@@ -58,6 +58,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 58 | Formato no tema (05/11) | Tema também é **formato**: o Gruvbox é **quadrado** (ilha em caixa, bússola sem cúpula, blocos e janelas com quinas de poucos px); o Mosaic segue macio. |
 | 59 | Gruvbox neo-brutalista (05/11) | Tema também é **estilo**: o Gruvbox é **neo-brutalista quente**, com superfícies sólidas chapadas, contorno creme de 2 px, **sombra dura laranja** deslocada (inclusive na ilha e no líquido), botões que afundam na sombra, etiquetas tortas e títulos em maiúsculas. |
 | 60 | Widgets (05/11) | No seletor de papéis, abas **Papéis / Widgets**; na aba Widgets, um interruptor para **cada widget da área de trabalho** (relógio, calendário, clima, música, fotos, fotos 2, dias juntos). |
+| 61 | Terminal e widgets no tema (05/11) | O tema também pinta o **kitty** (Gruvbox de verdade no terminal) e os **widgets do fundo**: no Gruvbox, o relógio vira uma **placa digital gorda** com a data num adesivo torto, e os outros ganham moldura brutalista. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |

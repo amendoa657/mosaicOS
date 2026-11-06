@@ -8,11 +8,12 @@ import qs.modules.common
 // in; the parent does the moving (see `sinkShift`), the shadow stays put.
 Rectangle {
     property bool sink: false
-    readonly property real sinkShift: MosaicTheme.brutal && sink ? MosaicTheme.shadow * 0.75 : 0
+    property real size: MosaicTheme.shadow // bigger things can ask for a bigger shadow
+    readonly property real sinkShift: MosaicTheme.brutal && sink ? size * 0.75 : 0
     visible: MosaicTheme.brutal
     z: -1
-    x: MosaicTheme.shadow - sinkShift
-    y: MosaicTheme.shadow - sinkShift
+    x: size - sinkShift
+    y: size - sinkShift
     width: parent.width
     height: parent.height
     radius: parent.radius

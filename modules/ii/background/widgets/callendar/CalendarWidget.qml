@@ -1,4 +1,5 @@
 import QtQuick
+import qs.modules.mosaic.island
 import QtQuick.Layouts
 import QtQuick.Controls
 import qs
@@ -38,9 +39,11 @@ AbstractBackgroundWidget {
         implicitWidth: 300
         implicitHeight: contentColumn.implicitHeight + 40
         radius: Appearance.rounding.large
-        color: Appearance.colors.colLayer0
-        border.width: 1
-        border.color: Appearance.colors.colLayer0Border
+        // Mosaic OS: brutal themes frame it as a solid slab with a thick outline and a hard shadow
+        color: MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colLayer0
+        border.width: MosaicTheme.brutal ? 3 : 1
+        border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
+        HardShadow { size: 8 }
 
         ColumnLayout {
             id: contentColumn

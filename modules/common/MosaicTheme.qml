@@ -23,6 +23,33 @@ Singleton {
           swatches: ["#fe8019", "#b8bb26", "#83a598", "#ebdbb2"], base: "#282828", roundness: 0.2, style: "brutal",
           // neo-brutalist: cream outlines, a hard orange shadow, flat colours
           ink: "#ebdbb2", shadowColor: "#d65d0e",
+          // the terminal (kitty): Gruvbox dark
+          terminal: `background #282828
+foreground #ebdbb2
+cursor #ebdbb2
+cursor_text_color #282828
+selection_background #504945
+selection_foreground #ebdbb2
+url_color #83a598
+color0 #282828
+color8 #928374
+color1 #cc241d
+color9 #fb4934
+color2 #98971a
+color10 #b8bb26
+color3 #d79921
+color11 #fabd2f
+color4 #458588
+color12 #83a598
+color5 #b16286
+color13 #d3869b
+color6 #689d6a
+color14 #8ec07c
+color7 #a89984
+color15 #ebdbb2
+color253 #665c54
+color254 #7c6f64
+color255 #a89984`,
           hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)", rounding: 3 } }
     ]
     property string current: "mosaic"
@@ -53,6 +80,21 @@ Singleton {
         root.current = id;
         stateFile.setText(id);
         root.paintHyprland();
+        root.paintTerminal();
+    }
+
+    // The terminal (kitty): kitty.conf includes ~/.config/mosaic-os/terminal-theme.conf
+    // AFTER the Matugen colours, and in kitty what comes later wins. A fixed theme
+    // writes its palette there; the Mosaic theme leaves it empty. Then every open
+    // kitty is told to reload its config (SIGUSR1).
+    function paintTerminal() {
+        terminalFile.setText((root.theme.terminal ?? "") + "\n");
+    }
+    FileView {
+        id: terminalFile
+        path: Quickshell.env("HOME") + "/.config/mosaic-os/terminal-theme.conf"
+        printErrors: false
+        onSaved: Quickshell.execDetached(["pkill", "-USR1", "-x", "kitty"])
     }
 
     // Hyprland: a fixed theme sets the border and background colours live; the
@@ -76,12 +118,14 @@ Singleton {
         id: stateFile
         path: Quickshell.env("HOME") + "/.config/mosaic-os/theme"
         printErrors: false // only exists after the first choice
+        onLoadFailed: root.paintTerminal()
         onLoaded: {
             const id = text().trim();
             if (root.themes.some(t => t.id === id)) {
                 root.current = id;
                 if (id !== "mosaic")
                     root.paintHyprland(); // after a restart, Hyprland has the config colours again
+                root.paintTerminal();
             }
         }
     }
