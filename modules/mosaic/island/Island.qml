@@ -221,14 +221,19 @@ Scope {
     property real recordStart: 0
     property int recordSeconds: 0
     readonly property string recordScript: Quickshell.shellPath("scripts/videos/record.sh")
+    // pgrep finds it; ps tells how long it has been running (etimes, in seconds),
+    // so the clock is right even when the recording started before we noticed
     Process {
         id: recCheck
-        command: ["pgrep", "-x", "wf-recorder"]
-        onExited: code => {
-            const now = code === 0;
-            if (now && !root.recording)
-                root.recordStart = Date.now();
-            root.recording = now;
+        command: ["sh", "-c", "pid=$(pgrep -x wf-recorder | head -1) && ps -o etimes= -p \"$pid\""]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const secs = parseInt(this.text);
+                const now = !isNaN(secs);
+                if (now && !root.recording)
+                    root.recordStart = Date.now() - secs * 1000;
+                root.recording = now;
+            }
         }
     }
     Timer {
@@ -244,14 +249,18 @@ Scope {
         interval: 1000
         onTriggered: root.recordSeconds = Math.floor((Date.now() - root.recordStart) / 1000)
     }
-    // click: record a region with sound (select it with the mouse); right click:
-    // the whole screen with sound; while recording, either one stops it
-    function toggleRecording(fullscreen) {
+    // the whole screen (the focused monitor) with sound; while recording, stops it
+    function toggleRecording() {
         if (root.recording)
             Quickshell.execDetached(["pkill", "-INT", "-x", "wf-recorder"]);
         else
-            Quickshell.execDetached(["bash", "-c", `sleep 0.3; '${root.recordScript}' --sound${fullscreen ? " --fullscreen" : ""}`]);
-        recCheck.running = true;
+            Quickshell.execDetached(["bash", "-c", `sleep 0.3; '${root.recordScript}' --sound --fullscreen`]);
+        recheckSoon.restart(); // show the change right away, not at the next 1.5 s check
+    }
+    Timer {
+        id: recheckSoon
+        interval: 700
+        onTriggered: recCheck.running = true
     }
 
     // ---------- the phone, through KDE Connect (PhoneLink.qml) ----------
@@ -1333,17 +1342,14 @@ Scope {
                                 anchors.rightMargin: 6
                                 spacing: 0
                                 QuickTool {
-                                    // record the screen (click: a region; right click: the whole screen)
-                                    icon: root.recording ? "stop_circle" : "screen_record"
-                                    label: root.recording ? "Parar" : "Gravar"
+                                    // record the whole screen; while recording it turns red, pulses and shows the time
+                                    icon: root.recording ? "stop" : "screen_record"
+                                    label: root.recording ? `${Math.floor(root.recordSeconds / 60)}:${String(root.recordSeconds % 60).padStart(2, "0")}` : "Gravar"
                                     toggled: root.recording
+                                    alert: root.recording
                                     onClicked: {
                                         win.setOpen(false);
-                                        root.toggleRecording(false);
-                                    }
-                                    onAltClicked: {
-                                        win.setOpen(false);
-                                        root.toggleRecording(true);
+                                        root.toggleRecording();
                                     }
                                 }
                                 QuickTool {
@@ -1453,6 +1459,7 @@ Scope {
         required property string icon
         required property string label
         property bool toggled: false
+        property bool alert: false // red and pulsing (recording)
         signal clicked()
         signal altClicked() // right click
         Layout.fillWidth: true
@@ -1468,6 +1475,8 @@ Scope {
             buttonRadius: MosaicTheme.brutal ? MosaicTheme.r(21) : 21 // brutal themes: square keys
             toggled: tool.toggled
             colBackground: Appearance.colors.colLayer2
+            colBackgroundToggled: tool.alert ? Appearance.colors.colError : Appearance.colors.colPrimary
+            colBackgroundToggledHover: tool.alert ? Qt.lighter(Appearance.colors.colError, 1.1) : Appearance.colors.colPrimaryHover
             onClicked: tool.clicked()
             altAction: () => tool.altClicked()
             contentItem: Item {
@@ -1475,8 +1484,29 @@ Scope {
                     anchors.centerIn: parent
                     text: tool.icon
                     iconSize: 20
-                    color: tool.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
+                    color: tool.alert ? Appearance.colors.colOnError : tool.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer1
                 }
+            }
+        }
+        // alert: a red ring growing out of the button and fading, again and again
+        Rectangle {
+            visible: tool.alert
+            anchors.centerIn: toolButton
+            width: toolButton.width
+            height: toolButton.height
+            radius: toolButton.buttonRadius
+            color: "transparent"
+            border.width: 2
+            border.color: Appearance.colors.colError
+            SequentialAnimation on scale {
+                running: tool.alert
+                loops: Animation.Infinite
+                NumberAnimation { from: 1; to: 1.35; duration: 1100; easing.type: Easing.OutCubic }
+            }
+            SequentialAnimation on opacity {
+                running: tool.alert
+                loops: Animation.Infinite
+                NumberAnimation { from: 0.9; to: 0; duration: 1100; easing.type: Easing.OutQuad }
             }
         }
         StyledText {
@@ -1484,9 +1514,10 @@ Scope {
             anchors.top: toolButton.bottom
             anchors.topMargin: 4
             text: tool.label
-            font.family: "Space Grotesk"
+            font.family: tool.alert ? "JetBrains Mono" : "Space Grotesk"
             font.pixelSize: 11
-            color: Appearance.colors.colSubtext
+            font.weight: tool.alert ? Font.Bold : Font.Normal
+            color: tool.alert ? Appearance.colors.colError : Appearance.colors.colSubtext
         }
     }
 
