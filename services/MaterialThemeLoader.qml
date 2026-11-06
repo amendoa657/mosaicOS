@@ -13,7 +13,18 @@ import Quickshell.Hyprland
  */
 Singleton {
     id: root
-    property string filePath: Directories.generatedMaterialThemePath
+    // Mosaic OS: a fixed theme (MosaicTheme, e.g. Gruvbox) has its own colours
+    // file; the Mosaic theme uses the one Matugen writes from the wallpaper
+    function themePath() { return MosaicTheme.colorsFile !== "" ? MosaicTheme.colorsFile : Directories.generatedMaterialThemePath; }
+    property string filePath: themePath()
+    Connections {
+        target: MosaicTheme
+        function onColorsFileChanged() {
+            root.filePath = Qt.binding(() => root.themePath());
+            themeFileView.reload();
+            delayedFileRead.start();
+        }
+    }
 
     function reapplyTheme() {
         themeFileView.reload()
@@ -43,7 +54,7 @@ Singleton {
         target: Config.options.background
         function onWallpaperPathChanged() {
             root.filePath = ""
-            root.filePath = Directories.generatedMaterialThemePath
+            root.filePath = Qt.binding(() => root.themePath())
             resetFilePathNextWallpaperChange.enabled = false
         }
     }

@@ -274,6 +274,81 @@ Scope {
                         }
                     }
 
+                    // ----- themes: Mosaic (wallpaper colours) or a fixed palette -----
+                    Row {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 6
+                        spacing: 8
+                        Repeater {
+                            model: MosaicTheme.themes
+                            delegate: Rectangle {
+                                id: themeCard
+                                required property var modelData
+                                readonly property bool on: MosaicTheme.current === modelData.id
+                                // the Mosaic theme shows the live wallpaper tones
+                                readonly property var swatches: modelData.swatches ?? [Appearance.colors.colPrimary, Appearance.colors.colSecondary, Appearance.colors.colTertiary, Appearance.colors.colOnLayer0]
+                                width: (side.width - 8) / 2
+                                height: 56
+                                radius: Appearance.rounding.small
+                                color: modelData.base ?? Appearance.colors.colLayer1
+                                border.width: on ? 2 : 1
+                                border.color: on ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
+                                scale: themeArea.pressed ? 0.95 : themeArea.containsMouse ? 1.02 : 1
+                                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
+                                Behavior on border.color { ColorAnimation { duration: 200 } }
+                                // a little Mosaic mark painted in the theme's four tones
+                                Item {
+                                    id: miniMark
+                                    x: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 26
+                                    height: 26
+                                    Repeater {
+                                        model: [[0, 0, 56, 56], [64, 0, 24, 56], [0, 64, 56, 24], [64, 64, 24, 24]]
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            required property int index
+                                            x: modelData[0] * 26 / 88
+                                            y: modelData[1] * 26 / 88
+                                            width: modelData[2] * 26 / 88
+                                            height: modelData[3] * 26 / 88
+                                            radius: 2
+                                            color: themeCard.swatches[index]
+                                        }
+                                    }
+                                }
+                                Column {
+                                    anchors.left: miniMark.right
+                                    anchors.leftMargin: 10
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    StyledText {
+                                        text: themeCard.modelData.name
+                                        font.family: "Space Grotesk"
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                        color: themeCard.modelData.swatches ? themeCard.modelData.swatches[3] : Appearance.colors.colOnLayer0
+                                    }
+                                    StyledText {
+                                        width: parent.width
+                                        text: themeCard.modelData.hint
+                                        font.pixelSize: 10
+                                        color: themeCard.modelData.swatches ? themeCard.modelData.swatches[3] : Appearance.colors.colOnLayer0
+                                        opacity: 0.65
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                MouseArea {
+                                    id: themeArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: MosaicTheme.set(themeCard.modelData.id)
+                                }
+                            }
+                        }
+                    }
+
                     // the selected one: its name and its colour
                     StyledText {
                         Layout.fillWidth: true

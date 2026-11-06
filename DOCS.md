@@ -14,6 +14,7 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 9. [O que mudou nos arquivos herdados do ii](#9-o-que-mudou-no-ii)
 10. [Como testar sem quebrar a sessão](#10-como-testar)
 11. [Papéis de parede e o derramar: `modules/mosaic/wallpapers/`](#11-papéis-de-parede-e-o-derramar)
+12. [Temas: `services/MosaicTheme.qml`](#12-temas-servicesmosaicthemeqml-themes)
 
 ---
 
@@ -465,4 +466,21 @@ Arquivo: `modules/mosaic/wallpapers/MosaicWallpapers.qml`, mais o script `script
 5. Quando o `wallpaperPath` da configuração muda para o novo, espera 0,9 s (o fundo carregar), apaga a poça em 320 ms e destrói as janelas. Há proteções: se a imagem não carregar em 2,5 s, aplica direto; se o fundo não confirmar em 8 s, apaga a poça assim mesmo.
 - Nos outros monitores, a poça começa do meio do topo.
 - **Aleatório:** sorteia um papel diferente do atual e derrama a partir do centro.
+
+---
+
+## 12. Temas (`services/MosaicTheme.qml`, `themes/`)
+Um **tema** é um conjunto de cores para o **Quickshell** e o **Hyprland** (bordas e fundo); os apps não mudam. Existem dois:
+- **Mosaic:** as cores vêm do papel de parede. O Matugen é só a forma como esse tema consegue as cores.
+- **Gruvbox** (escuro médio): paleta fixa em `themes/gruvbox.json`. Primária laranja `#fe8019`, secundária verde `#b8bb26`, terciária azul `#83a598`, fundo `#282828` e texto `#ebdbb2`. Os containers usam os tons "faded" do Gruvbox.
+
+**Como funciona:**
+1. O shell inteiro pinta suas cores a partir de **49 cores Material** (`primary`, `surface_container`, `on_surface`...). O Matugen escreve essas cores em `~/.local/state/quickshell/user/generated/colors.json`, e o `MaterialThemeLoader` do ii as copia para `Appearance.m3colors`. Daí saem todas as `Appearance.colors.*`.
+2. Um tema fixo é **outro JSON com as mesmas 49 chaves**. O `MaterialThemeLoader` do Mosaic OS lê `themePath()`: o arquivo do tema, ou o do Matugen no tema Mosaic. Quando o tema muda, ele relê. Com o Gruvbox ligado, trocar o papel de parede não muda as cores, porque o loader nem olha o arquivo do Matugen.
+3. **Hyprland:** o tema fixo manda as cores de borda e fundo ao vivo (`hyprctl eval 'hl.config({ general = { col = {...} } })'`). Voltar ao Mosaic recarrega a config, que traz de volta o `colors.lua` do Matugen. Depois de reiniciar, o tema salvo pinta o Hyprland de novo quando o shell liga.
+4. A escolha fica em `~/.config/mosaic-os/theme`.
+
+**Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Pela IPC: `qs -c mosaic ipc call theme set gruvbox|mosaic` e `theme get`.
+
+**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão) e `hypr` (cores de borda e fundo).
 
