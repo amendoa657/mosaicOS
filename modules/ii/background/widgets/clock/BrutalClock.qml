@@ -34,7 +34,7 @@ Item {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: 2
             text: DateTime.time
-            font.family: "Space Grotesk"
+            font.family: MosaicTheme.fontUi
             font.pixelSize: 112
             font.weight: Font.Black
             font.letterSpacing: -4

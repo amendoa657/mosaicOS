@@ -36,7 +36,9 @@ Scope {
     // does the work; the sheen that used to sit on top read as a grey bar
     // Dock tab: darkness (toward black) and opacity (how solid the tint is)
     readonly property color glassFill: {
-        const tint = ColorUtils.mix("#000000", ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.08), Config.options.mosaicDock.darkness);
+        // retro themes (Horizonte): a warm dark film instead of a light one
+        const film = MosaicTheme.retro ? Appearance.m3colors.m3surfaceContainer : ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.08);
+        const tint = ColorUtils.mix("#000000", film, Config.options.mosaicDock.darkness);
         return Qt.rgba(tint.r, tint.g, tint.b, Config.options.mosaicDock.opacity);
     }
     readonly property color glassEdge: Qt.rgba(1, 1, 1, 0.16)
@@ -134,6 +136,7 @@ Scope {
                 border.width: MosaicTheme.brutal ? MosaicTheme.border : 1
                 border.color: MosaicTheme.brutal ? MosaicTheme.ink : root.glassEdge
                 HardShadow {}
+                Grain { radius: dock.radius } // film grain (retro themes)
                 transform: Translate { y: (1 - showSpring.value) * (root.dockHeight + root.gap + 6) }
                 Behavior on width { NumberAnimation { duration: 320; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
 

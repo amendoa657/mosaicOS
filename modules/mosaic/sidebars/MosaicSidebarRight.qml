@@ -149,7 +149,7 @@ Scope {
                                 const g = h < 5 ? "Boa madrugada" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
                                 return MosaicTheme.brutal ? g.toUpperCase() : g;
                             }
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontDisplay
                             font.pixelSize: 18
                             font.weight: MosaicTheme.brutal ? Font.Black : Font.Bold
                             color: Appearance.colors.colOnLayer0
@@ -302,7 +302,7 @@ Scope {
                             spacing: 0
                             StyledText {
                                 text: phoneBox.phoneName
-                                font.family: "Space Grotesk"
+                                font.family: MosaicTheme.fontUi
                                 font.pixelSize: 14
                                 font.weight: Font.DemiBold
                                 color: Appearance.colors.colOnLayer0
@@ -357,7 +357,7 @@ Scope {
                         x: 14
                         y: 12
                         text: MosaicTheme.brutal ? "NOTIFICAÇÕES" : "Notificações"
-                        font.family: "Space Grotesk"
+                        font.family: MosaicTheme.fontUi
                         font.pixelSize: 13
                         font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
                         font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
@@ -445,7 +445,7 @@ Scope {
             StyledText {
                 Layout.fillWidth: true
                 text: tg.label
-                font.family: "Space Grotesk"
+                font.family: MosaicTheme.fontUi
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
                 color: Appearance.colors.colOnLayer0

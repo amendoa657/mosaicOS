@@ -11,6 +11,10 @@ import Quickshell.Io
 // - "mosaic": the colours come from the wallpaper (Matugen), as before. Matugen
 //   is only the way this theme gets its colours.
 // - "gruvbox": a fixed palette (themes/gruvbox.json, Gruvbox dark medium).
+// - "horizonte": a fixed dark palette (themes/horizonte.json) taken from the
+//   first screen of the Claude Opus 5.5 page: a navy sky, an orange horizon,
+//   an almost black ground, cream text, serif titles and film grain. Choosing
+//   it also sets its wallpaper (`wallpaper`).
 // The choice is kept in ~/.config/mosaic-os/theme. MaterialThemeLoader reads the
 // right colours file; this singleton also paints Hyprland.
 Singleton {
@@ -50,7 +54,39 @@ color15 #ebdbb2
 color253 #665c54
 color254 #7c6f64
 color255 #a89984`,
-          hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)", rounding: 3 } }
+          hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)", rounding: 3 } },
+        { id: "horizonte", name: "Horizonte", hint: "pôr do sol anos 70", file: Quickshell.shellPath("themes/horizonte.json"),
+          swatches: ["#e8673a", "#f2c94c", "#79a5d4", "#f2ede4"], base: "#12100d", roundness: 0.6, style: "retro",
+          ink: "#f2ede4", fontDisplay: "Fraunces",
+          wallpaper: Quickshell.env("HOME") + "/Imagens/Wallpapers/horizonte.jpg",
+          // the terminal (kitty): cream on the ground's near black, the sky's blues
+          terminal: `background #12100d
+foreground #f2ede4
+cursor #e8673a
+cursor_text_color #12100d
+selection_background #332c25
+selection_foreground #f2ede4
+url_color #79a5d4
+color0 #12100d
+color8 #5c5348
+color1 #d9534a
+color9 #ef6f5e
+color2 #8fa86a
+color10 #a9c47f
+color3 #e8a84c
+color11 #f2c94c
+color4 #5f8cc0
+color12 #79a5d4
+color5 #b5739a
+color13 #cf8fb4
+color6 #6fa3a0
+color14 #8cc0bb
+color7 #c8bdae
+color15 #f2ede4
+color253 #3f372e
+color254 #5c5348
+color255 #c8bdae`,
+          hypr: { active: "rgba(e8673aaa)", inactive: "rgba(332c2566)", background: "rgba(0e0c0aff)", rounding: 8 } }
     ]
     property string current: "mosaic"
     readonly property var theme: root.themes.find(t => t.id === root.current) ?? root.themes[0]
@@ -62,6 +98,21 @@ color255 #a89984`,
     //   a hard shadow offset by `shadow` px (no blur), things sink into their
     //   shadow when pressed, and a few labels tilt like stickers (`tilt` degrees)
     readonly property bool brutal: root.theme.style === "brutal"
+    // - "retro" (Horizonte): the soft shapes, plus film grain on the island and
+    //   the dock (`grain`: how strong), and serif titles
+    readonly property bool retro: root.theme.style === "retro"
+    readonly property real grain: root.retro ? 0.07 : 0
+    // Fonts: `fontUi` for text, `fontDisplay` for titles (the clock, headers).
+    // A theme's display font is used only if it is installed (Fraunces comes from
+    // the AUR: ttf-fraunces-variable); until then, a serif that is.
+    readonly property string fontUi: "Space Grotesk"
+    readonly property string fontDisplay: {
+        const want = root.theme.fontDisplay;
+        if (!want)
+            return root.fontUi;
+        const installed = Qt.fontFamilies();
+        return installed.includes(want) ? want : (installed.includes("Noto Serif") ? "Noto Serif" : "serif");
+    }
     readonly property real border: root.brutal ? 2 : 0
     readonly property real shadow: root.brutal ? 4 : 0
     readonly property color ink: root.theme.ink ?? "transparent"
@@ -81,6 +132,16 @@ color255 #a89984`,
         stateFile.setText(id);
         root.paintHyprland();
         root.paintTerminal();
+        // a theme with its own wallpaper puts it up (dark mode: the theme is dark only)
+        if (root.theme.wallpaper)
+            wallpaperProc.running = true;
+    }
+    // The wallpaper script reloads Hyprland, which brings back the config's border
+    // colours: once it is done, the theme's are painted again.
+    Process {
+        id: wallpaperProc
+        command: [Directories.wallpaperSwitchScriptPath, "--image", root.theme.wallpaper ?? "", "--mode", "dark"]
+        onExited: root.paintHyprland()
     }
 
     // The terminal (kitty): kitty.conf includes ~/.config/mosaic-os/terminal-theme.conf
@@ -142,7 +203,7 @@ color255 #a89984`,
             Quickshell.execDetached(["hyprctl", "reload", "config-only"]);
     }
 
-    // qs -c mosaic ipc call theme set gruvbox|mosaic
+    // qs -c mosaic ipc call theme set gruvbox|horizonte|mosaic
     IpcHandler {
         target: "theme"
         function set(id: string): void { root.set(id); }

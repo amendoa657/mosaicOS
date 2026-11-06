@@ -16,8 +16,9 @@ AbstractBackgroundWidget {
     implicitHeight: contentColumn.implicitHeight
     implicitWidth: contentColumn.implicitWidth
 
-    // Mosaic OS: brutal themes (Gruvbox) use their own clock, the fat slab (BrutalClock)
-    readonly property string clockStyle: MosaicTheme.brutal ? "brutal" : GlobalStates.screenLocked ? Config.options.background.widgets.clock.styleLocked : Config.options.background.widgets.clock.style
+    // Mosaic OS: brutal themes (Gruvbox) use their own clock, the fat slab (BrutalClock);
+    // retro themes (Horizonte) the serif one from the Opus 5.5 page (RetroClock)
+    readonly property string clockStyle: MosaicTheme.brutal ? "brutal" : MosaicTheme.retro ? "retro" : GlobalStates.screenLocked ? Config.options.background.widgets.clock.styleLocked : Config.options.background.widgets.clock.style
     readonly property bool forceCenter: (GlobalStates.screenLocked && Config.options.lock.centerClock)
     readonly property bool shouldShow: (!Config.options.background.widgets.clock.showOnlyWhenLocked || GlobalStates.screenLocked)
     property bool wallpaperSafetyTriggered: false
@@ -65,6 +66,14 @@ AbstractBackgroundWidget {
             shown: root.clockStyle === "brutal" && root.shouldShow
             fade: false
             sourceComponent: BrutalClock {}
+        }
+
+        FadeLoader {
+            id: retroClockLoader
+            anchors.horizontalCenter: parent.horizontalCenter
+            shown: root.clockStyle === "retro" && root.shouldShow
+            fade: false
+            sourceComponent: RetroClock {}
         }
 
         FadeLoader {

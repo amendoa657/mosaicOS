@@ -35,6 +35,7 @@ layout(std140, binding = 0) uniform buf {
     vec2 shadowOffset; // brutal themes: a hard shadow of the whole shape
     vec4 shadowColor;
     float shadowAlpha;
+    float grain;   // film grain (retro themes), 0 = none
 };
 
 float sdRoundBox(vec2 p, vec4 r, float rad) {
@@ -53,6 +54,13 @@ float shapeD(vec2 p) {
     float dT = sdRoundBox(p, twin, 4.0);
     float dB = sdRoundBox(p, body, bodyRadius);
     return smin(dI, smin(dT, dB, max(fuse, 0.001)), min(10.0, fuse));
+}
+
+// film grain: a fixed random brightness per pixel (a cheap hash, no texture)
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
 }
 
 void main() {
@@ -77,6 +85,7 @@ void main() {
     float t = clamp((p.x - islandLeft) / max(islandWidth, 1.0), 0.0, 1.0);
     vec3 rgb = t < 0.5 ? mix(stop0.rgb, stop1.rgb, t * 2.0) : mix(stop1.rgb, stop2.rgb, (t - 0.5) * 2.0);
     float alpha = fillAlpha;
+    rgb += (hash(floor(p)) - 0.5) * grain;
 
     // the outline follows the whole silhouette, neck included
     float band = smoothstep(-strokeWidth - aa, -strokeWidth + aa, d);

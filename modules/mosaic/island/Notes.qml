@@ -156,7 +156,7 @@ Item {
                     x: 12
                     anchors.verticalCenter: parent.verticalCenter
                     text: notes.tabName(tab.fileName)
-                    font.family: "Space Grotesk"
+                    font.family: MosaicTheme.fontUi
                     font.pixelSize: 13
                     font.weight: tab.on ? Font.DemiBold : Font.Normal
                     color: Appearance.colors.colOnLayer0
@@ -276,7 +276,7 @@ Item {
                 wrapMode: TextEdit.Wrap
                 background: null
                 padding: 0
-                font.family: "Space Grotesk"
+                font.family: MosaicTheme.fontUi
                 font.pixelSize: 14
                 color: Appearance.colors.colOnLayer0
                 selectionColor: Appearance.colors.colPrimary

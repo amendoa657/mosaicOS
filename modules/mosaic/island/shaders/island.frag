@@ -11,6 +11,8 @@
 // `hu` pixels tall and drawn `size.y` tall, which turns the half circle into a
 // half oval.
 //
+// Retro themes (Horizonte) sprinkle film grain on the surface (grain).
+//
 // Brutal themes (Gruvbox) add a thick outline (strokeWidth) and a hard shadow:
 // the same shape again, moved by shadowOffset and painted flat underneath.
 // The effect is bigger than the shape by that offset (shapeSize = the shape).
@@ -38,6 +40,7 @@ layout(std140, binding = 0) uniform buf {
     vec2 shadowOffset;
     vec4 shadowColor;
     float shadowAlpha;
+    float grain;   // film grain (retro themes), 0 = none
 };
 
 float sdBox(vec2 p, vec2 c, vec2 b, float r) {
@@ -55,6 +58,13 @@ float shapeD(vec2 p) {
     float dTop = sdBox(q, vec2(w * 0.5, big * 0.5), vec2(w * 0.5, big * 0.5), rTop);
     float dBot = sdBox(q, vec2(w * 0.5, hu - big * 0.5), vec2(w * 0.5, big * 0.5), rBot);
     return max(dTop, dBot) * min(1.0, sq);
+}
+
+// film grain: a fixed random brightness per pixel (a cheap hash, no texture)
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
 }
 
 void main() {
@@ -81,6 +91,7 @@ void main() {
     float t = clamp(p.x / max(w, 1.0), 0.0, 1.0);
     vec3 rgb = t < 0.5 ? mix(stop0.rgb, stop1.rgb, t * 2.0) : mix(stop1.rgb, stop2.rgb, (t - 0.5) * 2.0);
     float alpha = fillAlpha;
+    rgb += (hash(floor(p)) - 0.5) * grain;
 
     float band = smoothstep(-strokeWidth - aa, -strokeWidth + aa, d);
     rgb = mix(rgb, strokeColor.rgb, band * strokeAlpha);

@@ -272,7 +272,7 @@ Scope {
                         StyledText {
                             text: MosaicTheme.brutal ? "PAPÉIS DE PAREDE" : "Papéis de parede"
                             font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontDisplay
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
                             color: Appearance.colors.colOnLayer0
@@ -298,9 +298,11 @@ Scope {
                     }
 
                     // ----- themes: Mosaic (wallpaper colours) or a fixed palette -----
-                    Row {
+                    // two per row; more themes wrap to the next row
+                    Grid {
                         Layout.fillWidth: true
                         Layout.topMargin: 6
+                        columns: 2
                         spacing: 8
                         Repeater {
                             model: MosaicTheme.themes
@@ -349,7 +351,8 @@ Scope {
                                     anchors.verticalCenter: parent.verticalCenter
                                     StyledText {
                                         text: themeCard.modelData.name
-                                        font.family: "Space Grotesk"
+                                        // in the theme's own title font, when it is installed
+                                        font.family: themeCard.modelData.fontDisplay && Qt.fontFamilies().includes(themeCard.modelData.fontDisplay) ? themeCard.modelData.fontDisplay : MosaicTheme.fontUi
                                         font.pixelSize: 13
                                         font.weight: Font.DemiBold
                                         color: themeCard.modelData.swatches ? themeCard.modelData.swatches[3] : Appearance.colors.colOnLayer0
@@ -378,7 +381,7 @@ Scope {
                         Layout.fillWidth: true
                         Layout.topMargin: 10
                         text: root.niceName(win.selected)
-                        font.family: "Space Grotesk"
+                        font.family: MosaicTheme.fontDisplay
                         font.pixelSize: 24
                         font.weight: Font.Bold
                         color: Appearance.colors.colOnLayer0
@@ -428,7 +431,7 @@ Scope {
                             anchors.rightMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
                             focus: true
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontUi
                             font.pixelSize: 14
                             color: Appearance.colors.colOnLayer0
                             selectionColor: Appearance.colors.colPrimary
@@ -498,7 +501,7 @@ Scope {
                                     visible: !!chip.modelData.label
                                     anchors.centerIn: parent
                                     text: chip.modelData.label ?? ""
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontUi
                                     font.pixelSize: 12
                                     color: Appearance.colors.colOnLayer0
                                 }
@@ -586,7 +589,7 @@ Scope {
                                 }
                                 StyledText {
                                     text: MosaicTheme.brutal ? pageTab.modelData.label.toUpperCase() : pageTab.modelData.label
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontUi
                                     font.pixelSize: 14
                                     font.weight: pageTab.on ? Font.Bold : Font.Normal
                                     color: Appearance.colors.colOnLayer0
@@ -686,7 +689,7 @@ Scope {
                                 StyledText {
                                     width: parent.width
                                     text: wcell.modelData.name
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontUi
                                     font.pixelSize: 15
                                     font.weight: Font.DemiBold
                                     color: Appearance.colors.colOnLayer0
@@ -938,7 +941,7 @@ Scope {
                                         anchors.bottom: parent.bottom
                                         anchors.bottomMargin: 8
                                         text: root.niceName(cell.modelData)
-                                        font.family: "Space Grotesk"
+                                        font.family: MosaicTheme.fontUi
                                         font.pixelSize: 11
                                         color: "white"
                                         elide: Text.ElideRight
@@ -1011,7 +1014,7 @@ Scope {
         spacing: 10
         StyledText {
             text: MosaicTheme.brutal ? group.title.toUpperCase() : group.title
-            font.family: "Space Grotesk"
+            font.family: MosaicTheme.fontUi
             font.pixelSize: 15
             font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
             font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
@@ -1049,7 +1052,7 @@ Scope {
                         StyledText {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: opt.modelData.label
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontDisplay
                             font.pixelSize: 20
                             font.weight: Font.Bold
                             color: Appearance.colors.colOnLayer0
@@ -1091,7 +1094,7 @@ Scope {
             StyledText {
                 width: parent.width - valueText.width
                 text: MosaicTheme.brutal ? tune.title.toUpperCase() : tune.title
-                font.family: "Space Grotesk"
+                font.family: MosaicTheme.fontUi
                 font.pixelSize: 15
                 font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
                 font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
@@ -1229,7 +1232,7 @@ Scope {
             }
             StyledText {
                 text: btn.label
-                font.family: "Space Grotesk"
+                font.family: MosaicTheme.fontUi
                 font.pixelSize: 14
                 font.weight: btn.strong ? Font.DemiBold : Font.Normal
                 color: Appearance.colors.colOnLayer0

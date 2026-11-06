@@ -164,7 +164,7 @@ Scope {
                                 }
                                 StyledText {
                                     text: MosaicTheme.brutal ? tabKey.modelData.label.toUpperCase() : tabKey.modelData.label
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontUi
                                     font.pixelSize: 13
                                     font.weight: tabKey.on ? Font.Bold : Font.Normal
                                     color: Appearance.colors.colOnLayer0

@@ -80,7 +80,7 @@ Item {
             anchors.right: parent.right
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            font.family: "Space Grotesk"
+            font.family: MosaicTheme.fontUi
             font.pixelSize: 16
             color: Appearance.colors.colOnLayer0
             selectionColor: Appearance.colors.colPrimary
@@ -184,7 +184,7 @@ Item {
                         }
                         StyledText {
                             text: chip.modelData.label
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontUi
                             font.pixelSize: 12
                             color: Appearance.colors.colOnLayer0
                             opacity: 0.85
@@ -210,7 +210,7 @@ Item {
             anchors.topMargin: 14
             x: 4
             text: MosaicTheme.brutal ? "RECENTES" : "Recentes"
-            font.family: "Space Grotesk"
+            font.family: MosaicTheme.fontUi
             font.pixelSize: 12
             font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
             font.letterSpacing: MosaicTheme.brutal ? 1.5 : 0
@@ -258,7 +258,7 @@ Item {
                             width: tile.width - 12
                             horizontalAlignment: Text.AlignHCenter
                             text: tile.modelData.name
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontUi
                             font.pixelSize: 11
                             color: Appearance.colors.colOnLayer0
                             elide: Text.ElideRight
@@ -286,7 +286,7 @@ Item {
         anchors.topMargin: 14
         anchors.horizontalCenter: parent.horizontalCenter
         text: "Nada encontrado"
-        font.family: "Space Grotesk"
+        font.family: MosaicTheme.fontUi
         font.pixelSize: 13
         color: Appearance.colors.colOnLayer0
         opacity: 0.5

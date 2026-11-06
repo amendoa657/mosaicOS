@@ -506,6 +506,7 @@ Scope {
                     property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
                     property color shadowColor: root.opaque(MosaicTheme.shadowColor)
                     property real shadowAlpha: MosaicTheme.brutal ? 1 : 0
+                    property real grain: MosaicTheme.grain
                 }
 
                 MouseArea {
@@ -591,7 +592,7 @@ Scope {
                         id: timeText
                         anchors.verticalCenter: parent.verticalCenter
                         text: DateTime.time
-                        font.family: "Space Grotesk"
+                        font.family: MosaicTheme.fontUi
                         font.pixelSize: 14
                         font.weight: Font.Bold
                         color: Appearance.colors.colOnLayer0
@@ -794,7 +795,7 @@ Scope {
                             id: titleText
                             width: parent.width
                             text: MprisController.activePlayer?.trackTitle ?? ""
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontUi
                             font.pixelSize: 13
                             font.weight: Font.Bold
                             color: Appearance.colors.colOnLayer0
@@ -840,7 +841,7 @@ Scope {
                         anchors.verticalCenter: parent.verticalCenter
                         StyledText {
                             text: root.eventText
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontUi
                             font.pixelSize: 13
                             font.weight: Font.Bold
                             color: Appearance.colors.colOnLayer0
@@ -860,7 +861,7 @@ Scope {
                         Component.onCompleted: counted = root.eventValue * 100
                         Behavior on counted { NumberAnimation { duration: 1200; easing.type: Easing.OutCubic } }
                         text: Math.round(counted) + "%"
-                        font.family: "Space Grotesk"
+                        font.family: MosaicTheme.fontUi
                         font.pixelSize: 20
                         font.weight: Font.Bold
                         color: Appearance.colors.colOnLayer0
@@ -921,7 +922,7 @@ Scope {
                             StyledText {
                                 anchors.centerIn: parent
                                 text: (root.eventText.match(/[A-Za-zÀ-ÿ0-9]/)?.[0] ?? "?").toUpperCase()
-                                font.family: "Space Grotesk"
+                                font.family: MosaicTheme.fontUi
                                 font.pixelSize: 17
                                 font.weight: Font.Bold
                                 color: "white"
@@ -935,7 +936,7 @@ Scope {
                             id: callName
                             width: parent.width
                             text: root.eventText
-                            font.family: "Space Grotesk"
+                            font.family: MosaicTheme.fontUi
                             font.pixelSize: 15
                             font.weight: Font.Bold
                             color: Appearance.colors.colOnLayer0
@@ -1005,7 +1006,7 @@ Scope {
                     StyledText {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.eventText
-                        font.family: "Space Grotesk"
+                        font.family: MosaicTheme.fontUi
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         color: Appearance.colors.colOnLayer0
@@ -1026,7 +1027,7 @@ Scope {
                     StyledText {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.eventText
-                        font.family: "Space Grotesk"
+                        font.family: MosaicTheme.fontUi
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         color: Appearance.colors.colOnLayer0
@@ -1117,6 +1118,7 @@ Scope {
                     property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
                     property color shadowColor: root.opaque(MosaicTheme.shadowColor)
                     property real shadowAlpha: MosaicTheme.brutal ? 1 : 0
+                    property real grain: MosaicTheme.grain
                 }
 
                 // the notifications themselves, laid out at full width and revealed by the bubble
@@ -1190,7 +1192,7 @@ Scope {
                                 spacing: 10
                                 StyledText {
                                     text: DateTime.time
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontDisplay
                                     font.pixelSize: 34
                                     font.weight: Font.DemiBold
                                     color: Appearance.colors.colOnLayer0
@@ -1200,7 +1202,7 @@ Scope {
                                     Layout.alignment: Qt.AlignBottom
                                     Layout.bottomMargin: 13
                                     text: DateTime.longDate
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontUi
                                     font.pixelSize: 13
                                     color: Appearance.colors.colOnLayer0
                                     opacity: 0.75
@@ -1240,7 +1242,7 @@ Scope {
                                     spacing: 0
                                     StyledText {
                                         text: Weather.data?.temp ?? "--°"
-                                        font.family: "Space Grotesk"
+                                        font.family: MosaicTheme.fontDisplay
                                         font.pixelSize: 18
                                         font.weight: Font.DemiBold
                                         color: Appearance.colors.colOnLayer0
@@ -1288,7 +1290,7 @@ Scope {
                                 StyledText {
                                     Layout.fillWidth: true
                                     text: MprisController.activePlayer?.trackTitle ?? ""
-                                    font.family: "Space Grotesk"
+                                    font.family: MosaicTheme.fontUi
                                     font.pixelSize: 13
                                     font.weight: Font.DemiBold
                                     color: Appearance.colors.colOnLayer0

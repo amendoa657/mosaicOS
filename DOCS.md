@@ -513,9 +513,10 @@ As duas usam a mesma página (`GlassPage`), cada uma com a sua configuração: `
 ---
 
 ## 12. Temas (`modules/common/MosaicTheme.qml`, `themes/`)
-Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (bordas, fundo e cantos das janelas); os apps não mudam. Existem dois:
+Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (bordas, fundo e cantos das janelas); os apps não mudam. Existem três:
 - **Mosaic:** as cores vêm do papel de parede. O Matugen é só a forma como esse tema consegue as cores.
 - **Gruvbox** (escuro médio): paleta fixa em `themes/gruvbox.json`. Primária laranja `#fe8019`, secundária verde `#b8bb26`, terciária azul `#83a598`, fundo `#282828` e texto `#ebdbb2`. Os containers usam os tons "faded" do Gruvbox.
+- **Horizonte** (só escuro): paleta fixa em `themes/horizonte.json`, tirada da primeira tela da página do Claude Opus 5.5. As cores foram medidas na própria imagem (Pillow, `getpixel` em faixas da altura): primária laranja do horizonte `#e8673a` (a foto tem `#e1562b`, suavizado), secundária mostarda `#f2c94c` (a lateral amarela), terciária azul do céu `#79a5d4`, fundo quase preto amarronzado `#12100d` (o chão) e texto creme `#f2ede4` (o mesmo do título da página). Ao ligar o tema, ele põe o seu papel de parede, `~/Imagens/Wallpapers/horizonte.jpg`. As outras duas imagens da página, `horizonte-mostarda.jpg` e `horizonte-cogumelo.jpg`, ficam na pasta como papéis extras. As imagens não entram no repositório.
 
 **Como funciona:**
 1. O shell inteiro pinta suas cores a partir de **49 cores Material** (`primary`, `surface_container`, `on_surface`...). O Matugen escreve essas cores em `~/.local/state/quickshell/user/generated/colors.json`, e o `MaterialThemeLoader` do ii as copia para `Appearance.m3colors`. Daí saem todas as `Appearance.colors.*`.
@@ -528,7 +529,8 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
 - Os arredondamentos do ii (`Appearance.rounding.*`, usados nas laterais, na visão geral etc.) também são multiplicados. O "totalmente redondo" (`full`, 9999) vira uma quina de 6 px nos temas quadrados. O `MosaicTheme` mora em `modules/common`, ao lado do `Appearance`, justamente para os dois se enxergarem sem dependência circular.
 - **Ilha:** em repouso, raio = metade da altura × formato (pílula ou caixa). A **cúpula** da bússola depende de `formato²`: no Mosaic é a cúpula de sempre; no Gruvbox (0,04) vira uma caixa quase reta.
 - **Líquido:** o raio da bolha passa por `r()`, e o `fuse` (a curva da junção) encolhe até 35% nos temas quadrados. A notificação continua derretendo, só que com curvas mais justas.
-- **Hyprland:** o tema também manda `decoration.rounding` (3 no Gruvbox). Voltar ao Mosaic recarrega a config (22).
+- **Hyprland:** o tema também manda `decoration.rounding` (3 no Gruvbox, 8 no Horizonte). Voltar ao Mosaic recarrega a config (22).
+- O **Horizonte** fica no meio: `roundness` 0,6.
 
 **Estilo (`style`):** além de cor e formato, o tema escolhe a *linguagem visual*.
 - **`soft`** (Mosaic): vidro, degradês, contornos finos e curvas macias.
@@ -539,11 +541,19 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
   - **Botões que afundam:** ao apertar, o botão anda para dentro da própria sombra (chips, +, Aplicar/Aleatório, filtro ligado).
   - **Etiquetas tortas como adesivo:** `tilt` = −2,5° no contador do seletor e no "RECENTES".
   - **Títulos** em maiúsculas com espaçamento.
+- **`retro`** (Horizonte): as formas do `soft`, mais três coisas:
+  - **Granulado de filme:** `MosaicTheme.grain` = 0,07 (zero nos outros temas). Na ilha e na bolha é um uniform novo, `grain`, nos shaders `island.frag` e `goo.frag`: cada pixel soma `(hash(floor(p)) − 0,5) × grain` à cor. `hash` é uma função de ruído barata, sem textura: devolve um número "aleatório" mas fixo para cada coordenada, então o grão não pisca. Na dock, que é um `Rectangle`, vai por cima uma `Grain.qml` (`shaders/grain.frag`): o mesmo ruído recortado num retângulo arredondado (SDF), que clareia onde o valor passa do meio e escurece onde fica abaixo. Com `grain` 0, a `Grain` fica invisível e nem vira passe de shader.
+  - **Película escura na dock:** o `glassFill` usa `m3surfaceContainer` do tema (marrom quase preto) no lugar da película branca. A transparência e a escuridão da aba Dock continuam valendo.
+  - **Títulos com serifa:** ver Fontes, abaixo.
 - **`HardShadow.qml`:** a sombra dura reutilizável. É um `Rectangle` com `z: -1` (filho com z negativo é desenhado **atrás** do pai), na forma do pai, deslocado. Com `sink: pressed`, ela devolve `sinkShift`, e o pai anda isso (`transform: Translate`); a sombra fica no lugar e o botão parece afundar.
 - **Ilha e bolha:** os shaders `island.frag` e `goo.frag` ganharam `strokeWidth`, `shadowOffset`, `shadowColor` e `shadowAlpha`. A sombra é **a mesma forma SDF calculada de novo em `p − offset`** e pintada por baixo, então até o pescoço líquido e a cúpula têm sombra dura. A `ShaderEffect` da ilha ficou 4 px maior para caber a sombra (`shapeSize` é a ilha, `size` é a ilha mais a sombra).
 - **Painel:** os blocos (`Block`) ficam com cor chapada mais forte (`softBlock` mistura 50% com o fundo, sem degradê), contorno e sombra. O layout deixa 4 px à direita e embaixo para a sombra não ser cortada, e as teclas das ferramentas ficam quadradas.
 - **Bússola:** blocos em cor cheia com contorno; a área atual ganha sombra dura.
 - **Dock, menu, notas e seletor de papéis:** placa sólida com contorno e sombra. A seleção do menu, a aba atual e a miniatura escolhida "levantam" sobre a sombra; o cartão do seletor tem uma sombra de 8 px.
+
+**Fontes:** `MosaicTheme.fontUi` (texto, Space Grotesk) e `MosaicTheme.fontDisplay` (títulos). Todas as `font.family: "Space Grotesk"` dos módulos do Mosaic OS passaram para `fontUi`. Usam `fontDisplay` o relógio e a temperatura da ilha, o cabeçalho da lateral direita, o título do seletor, o nome do papel escolhido e as opções grandes das abas. Um tema pede a fonte em `fontDisplay` (o Horizonte pede **Fraunces**, serifa macia de estilo antigo, parecida com o título da página). Ela só é usada se estiver instalada: `Qt.fontFamilies()` lista as fontes do sistema; se faltar, vai Noto Serif. A Fraunces vem do AUR: `yay -S ttf-fraunces-variable`. Nos temas sem `fontDisplay`, os títulos ficam em Space Grotesk, como antes.
+
+**Papel de parede do tema:** um tema com `wallpaper` roda `switchwall.sh --image <arquivo> --mode dark` ao ser escolhido, por um `Process`, e não por `execDetached`. O motivo: o script recarrega o Hyprland, o que traz de volta as cores de borda da config. Quando ele termina (`onExited`), o tema repinta o Hyprland. Voltar ao Mosaic não troca o papel; o Matugen tira as cores do que estiver na tela.
 
 **Terminal (kitty):** o `kitty.conf` inclui `~/.config/mosaic-os/terminal-theme.conf` **depois** das cores do Matugen, e no kitty o que vem depois vence. Um tema fixo escreve a paleta dele nesse arquivo (o Gruvbox: fundo `#282828`, texto `#ebdbb2` e as 16 cores Gruvbox); o tema Mosaic deixa o arquivo vazio, e valem as cores do papel de parede. Depois de gravar, `pkill -USR1 -x kitty` faz todo kitty aberto recarregar a config.
 - **A pegadinha:** o `~/.config/fish/config.fish` do ii roda `cat sequences.txt` a cada shell novo. Esse arquivo tem as cores do Matugen como **códigos de escape** (OSC 4/10/11/12), que mandam o terminal trocar a paleta na hora e passam por cima do `kitty.conf`. Por isso o kitty carregava o Gruvbox, mas o fish pintava por cima com as cores do papel de parede.
@@ -553,11 +563,17 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
 - **Relógio:** nos temas brutais o `ClockWidget` usa o estilo `brutal` (`clock/BrutalClock.qml`), qualquer que seja o estilo configurado. É uma placa sólida com a hora em Space Grotesk Black 112, contorno creme de 3 px e sombra dura de 10 px. A data vem num **adesivo torto** (−4°) laranja colado no canto, e a marca Mosaic fica no topo. A cada minuto novo a placa faz "tum": afunda na sombra por 140 ms.
 - **Calendário, fotos e música:** viram placa sólida com contorno de 3 px e sombra dura de 8 px (`HardShadow { size: 8 }`).
 - **Dias juntos e clima:** a flor e a pílula viram um **adesivo quadrado torto** (−3°), com contorno e uma cópia laranja deslocada como sombra.
+- **Relógio retrô** (`clock/RetroClock.qml`, temas `retro`), composto como a primeira tela da página do Opus 5.5:
+  - em cima, a data em maiúsculas pequenas com espaçamento de 2,4 px ("6 DE NOVEMBRO, 2026");
+  - a hora grande na serifa do tema (128 px, peso normal, como o título da página);
+  - embaixo, uma **linha de pontos guia** igual ao índice da página, de "(sex)" até o período do dia (madrugada, manhã, tarde ou noite). Os pontos são uma `Row` de retângulos de 1 px; o `Repeater` calcula quantos cabem (`largura / 4`).
+
+  Não há placa atrás: o relógio fica direto sobre o papel de parede, e `style: Text.Raised` dá um halo escuro leve para ler sobre o céu claro.
 - No tema Mosaic, tudo continua como no ii.
 
-**Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Pela IPC: `qs -c mosaic ipc call theme set gruvbox|mosaic` e `theme get`.
+**Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Os cartões ficam em duas colunas (`Grid`), e um terceiro tema desce para a fileira de baixo. O nome de cada tema aparece na fonte de títulos dele, se estiver instalada. Pela IPC: `qs -c mosaic ipc call theme set gruvbox|horizonte|mosaic` e `theme get`.
 
-**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato), `style` (`soft` ou `brutal`; no brutal, também `ink` e `shadowColor`) e `hypr` (cores de borda e fundo, e `rounding` das janelas).
+**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato), `style` (`soft`, `brutal` ou `retro`; no brutal, também `ink` e `shadowColor`), opcionais `fontDisplay` e `wallpaper`, e `hypr` (cores de borda e fundo, e `rounding` das janelas).
 
 ---
 
