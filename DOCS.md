@@ -467,6 +467,15 @@ No topo da área da direita há duas abas: **Papéis** (a grade) e **Widgets**. 
 - Os cartões entram em cascata ao abrir a aba.
 - IPC: `qs -c mosaic ipc call wallpaperSelector widgets` abre o seletor já na aba Widgets.
 
+### 11.2.2 A aba Gravação
+Configura a gravação de tela do botão **Gravar** da ilha: **Resolução** (Nativa, 1440p, 1080p, 720p) e **Quadros por segundo** (30, 60, 120, 144). A pasta dos vídeos aparece embaixo.
+- As escolhas vão para `Config.options.screenRecord.resolution` e `.fps` (campos novos no `Config.qml`).
+- O `scripts/videos/record.sh` lê as duas com `jq` e passa ao `wf-recorder`:
+  - `-r <fps>`, que fixa a taxa de quadros;
+  - `-F scale=-2:<altura>`, um filtro do ffmpeg que muda a altura; o `-2` faz a largura seguir a proporção e ficar par, como o codificador exige.
+  - Na Nativa, não há filtro.
+- Valem a partir da próxima gravação. IPC: `qs -c mosaic ipc call wallpaperSelector recording` abre direto nessa aba.
+
 ### 11.3 O derramar (`pour`)
 1. `apply(path, item)` pega o centro da miniatura clicada em coordenadas de tela (`mapToItem(null, ...)`), fecha o seletor e chama `pour()`.
 2. Uma `PanelWindow` por monitor na camada **Bottom** (acima do papel de parede, abaixo das janelas, sem receber cliques) carrega a imagem nova. Quando ela está pronta, `pourRun` leva `pourProgress` de 0 a 1 em 1,7 s.

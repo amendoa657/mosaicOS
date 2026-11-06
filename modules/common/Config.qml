@@ -585,6 +585,9 @@ Singleton {
 
             property JsonObject screenRecord: JsonObject {
                 property string savePath: Directories.videos.replace("file://","") // strip "file://"
+                // Mosaic OS (the Gravação tab of the wallpaper/theme window):
+                property string resolution: "native" // "native" | "1440" | "1080" | "720" (height; the width follows)
+                property int fps: 60 // a constant frame rate
             }
 
             property JsonObject screenSnip: JsonObject {

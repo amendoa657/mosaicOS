@@ -141,6 +141,7 @@ Scope {
         target: "wallpaperSelector"
         function toggle(): void { root.toggle(); }
         function widgets(): void { root.startPage = "widgets"; GlobalStates.wallpaperSelectorOpen = true; }
+        function recording(): void { root.startPage = "record"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
             if (root.files.length === 0) {
                 lister.running = true;
@@ -557,7 +558,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }]
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -730,6 +731,93 @@ Scope {
                     }
                 }
 
+                // ----- Gravação: resolution and fps of the screen recorder -----
+                // Config.options.screenRecord.resolution / .fps, read by record.sh
+                // (wf-recorder -F scale=-2:<height> and -r <fps>) on the next recording.
+                Flickable {
+                    id: recordPage
+                    visible: win.page === "record"
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 16
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 18
+                    clip: true
+                    contentHeight: recordColumn.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    readonly property var conf: Config.options.screenRecord
+                    Column {
+                        id: recordColumn
+                        width: parent.width
+                        spacing: 22
+                        RecordGroup {
+                            title: "Resolução"
+                            hint: "A altura do vídeo; a largura acompanha a proporção da tela."
+                            options: [
+                                { value: "native", label: "Nativa", sub: "como a tela" },
+                                { value: "1440", label: "1440p", sub: "2K" },
+                                { value: "1080", label: "1080p", sub: "Full HD" },
+                                { value: "720", label: "720p", sub: "leve" }
+                            ]
+                            current: recordPage.conf.resolution
+                            onPicked: value => recordPage.conf.resolution = value
+                        }
+                        RecordGroup {
+                            title: "Quadros por segundo"
+                            hint: "Mais fps = movimento mais liso e arquivo maior."
+                            options: [
+                                { value: 30, label: "30", sub: "fps" },
+                                { value: 60, label: "60", sub: "fps" },
+                                { value: 120, label: "120", sub: "fps" },
+                                { value: 144, label: "144", sub: "fps" }
+                            ]
+                            current: recordPage.conf.fps
+                            onPicked: value => recordPage.conf.fps = value
+                        }
+                        // where the videos go, and how to record
+                        Rectangle {
+                            width: parent.width - MosaicTheme.shadow
+                            height: recInfo.implicitHeight + 28
+                            radius: Appearance.rounding.normal
+                            color: MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colLayer1
+                            border.width: MosaicTheme.brutal ? 1.5 : 0
+                            border.color: MosaicTheme.ink
+                            Column {
+                                id: recInfo
+                                x: 16
+                                y: 14
+                                width: parent.width - 32
+                                spacing: 6
+                                Row {
+                                    spacing: 8
+                                    MaterialSymbol {
+                                        text: "folder"
+                                        iconSize: 18
+                                        color: Appearance.colors.colOnLayer0
+                                    }
+                                    StyledText {
+                                        text: recordPage.conf.savePath
+                                        font.family: "JetBrains Mono"
+                                        font.pixelSize: 12
+                                        color: Appearance.colors.colOnLayer0
+                                    }
+                                }
+                                StyledText {
+                                    width: parent.width
+                                    wrapMode: Text.Wrap
+                                    text: "Para gravar: o botão Gravar da ilha (clique: uma área; clique direito: a tela inteira). As mudanças valem a partir da próxima gravação."
+                                    font.pixelSize: 11
+                                    color: Appearance.colors.colOnLayer0
+                                    opacity: 0.7
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ----- the grid -----
                 GridView {
                     id: grid
@@ -870,6 +958,79 @@ Scope {
     }
 
     function softBlockOf(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.32); }
+
+    // A row of choices with a title (the Gravação tab): the chosen one stands up
+    component RecordGroup: Column {
+        id: group
+        required property string title
+        property string hint: ""
+        required property var options
+        property var current
+        signal picked(var value)
+        width: parent ? parent.width : 0
+        spacing: 10
+        StyledText {
+            text: MosaicTheme.brutal ? group.title.toUpperCase() : group.title
+            font.family: "Space Grotesk"
+            font.pixelSize: 15
+            font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
+            font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
+            color: Appearance.colors.colOnLayer0
+        }
+        StyledText {
+            visible: group.hint !== ""
+            text: group.hint
+            font.pixelSize: 11
+            color: Appearance.colors.colOnLayer0
+            opacity: 0.65
+        }
+        Row {
+            spacing: 10 + MosaicTheme.shadow
+            Repeater {
+                model: group.options
+                delegate: Rectangle {
+                    id: opt
+                    required property var modelData
+                    readonly property bool on: String(group.current) === String(modelData.value)
+                    width: 110
+                    height: 64
+                    radius: Appearance.rounding.normal
+                    color: on ? (MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer1, 0.32))
+                        : (MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer1)
+                    border.width: MosaicTheme.brutal ? (on ? MosaicTheme.border : 1) : (on ? 2 : 0)
+                    border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colPrimary
+                    Behavior on color { ColorAnimation { duration: 180 } }
+                    transform: Translate { x: optShadow.sinkShift; y: optShadow.sinkShift }
+                    HardShadow { id: optShadow; visible: MosaicTheme.brutal && opt.on; sink: optArea.pressed }
+                    scale: !MosaicTheme.brutal && optArea.pressed ? 0.95 : 1
+                    Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
+                    Column {
+                        anchors.centerIn: parent
+                        StyledText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: opt.modelData.label
+                            font.family: "Space Grotesk"
+                            font.pixelSize: 20
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colOnLayer0
+                        }
+                        StyledText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: opt.modelData.sub
+                            font.pixelSize: 11
+                            color: Appearance.colors.colOnLayer0
+                            opacity: 0.65
+                        }
+                    }
+                    MouseArea {
+                        id: optArea
+                        anchors.fill: parent
+                        onClicked: group.picked(opt.modelData.value)
+                    }
+                }
+            }
+        }
+    }
 
     component PickerButton: Rectangle {
         id: btn

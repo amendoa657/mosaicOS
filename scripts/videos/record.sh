@@ -23,6 +23,13 @@ getactivemonitor() {
     hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .name'
 }
 
+# Mosaic OS: resolution and fps from the Gravação tab (config.json, screenRecord)
+RES=$(jq -r '.screenRecord.resolution // "native"' "$CONFIG_FILE" 2>/dev/null)
+FPS=$(jq -r '.screenRecord.fps // 60' "$CONFIG_FILE" 2>/dev/null)
+EXTRA=()
+[[ "$FPS" =~ ^[0-9]+$ ]] && (( FPS > 0 )) && EXTRA+=(-r "$FPS")
+[[ "$RES" =~ ^[0-9]+$ ]] && EXTRA+=(-F "scale=-2:$RES") # -2: the width follows the height, kept even
+
 mkdir -p "$RECORDING_DIR"
 cd "$RECORDING_DIR" || exit
 
@@ -53,9 +60,9 @@ else
     if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
         notify-send "Starting recording" 'recording_'"$(getdate)"'.mp4' -a 'Recorder' & disown
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            wf-recorder -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --audio="$(getaudiooutput)"
+            wf-recorder "${EXTRA[@]}" -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --audio="$(getaudiooutput)"
         else
-            wf-recorder -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t
+            wf-recorder "${EXTRA[@]}" -o "$(getactivemonitor)" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t
         fi
     else
         # If a manual region was provided via --region, use it; otherwise run slurp as before.
@@ -70,9 +77,9 @@ else
 
         notify-send "Starting recording" 'recording_'"$(getdate)"'.mp4' -a 'Recorder' & disown
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            wf-recorder --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region" --audio="$(getaudiooutput)"
+            wf-recorder "${EXTRA[@]}" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region" --audio="$(getaudiooutput)"
         else
-            wf-recorder --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region"
+            wf-recorder "${EXTRA[@]}" --pixel-format yuv420p -f './recording_'"$(getdate)"'.mp4' -t --geometry "$region"
         fi
     fi
 fi
