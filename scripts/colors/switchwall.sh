@@ -309,6 +309,8 @@ switch() {
         > "$STATE_DIR"/user/generated/material_colors.scss
     deactivate
     "$SCRIPT_DIR"/applycolor.sh
+    # Mosaic OS: a fixed theme repaints Neovim, the Mosaic Store and Zen over Matugen's wallpaper colours
+    "$SCRIPT_DIR"/theme-apps.sh
 
     # Pass screen width, height, and wallpaper path to post_process
     max_width_desired="$(hyprctl monitors -j | jq '([.[].width] | min)' | xargs)"

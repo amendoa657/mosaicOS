@@ -578,6 +578,19 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
 - **A pegadinha:** o `~/.config/fish/config.fish` do ii roda `cat sequences.txt` a cada shell novo. Esse arquivo tem as cores do Matugen como **códigos de escape** (OSC 4/10/11/12), que mandam o terminal trocar a paleta na hora e passam por cima do `kitty.conf`. Por isso o kitty carregava o Gruvbox, mas o fish pintava por cima com as cores do papel de parede.
 - **A correção:** o tema também gera `~/.config/mosaic-os/terminal-sequences.txt`, a mesma paleta em códigos de escape (`sequencesFor()` converte `colorN`, `foreground`, `background`, `cursor` e `selection_background`). O `config.fish` usa esse arquivo quando ele não está vazio (`test -s`); senão, usa o do Matugen. Ao trocar de tema, `pushToOpenTerminals()` escreve os códigos em todo `/dev/pts/N` aberto, repintando os terminais que já estavam abertos. O `scripts/colors/applycolor.sh` do Mosaic OS, que empurra as cores do Matugen quando o papel de parede muda, também respeita o arquivo do tema.
 
+**Neovim, Mosaic Store e Zen** (`scripts/colors/theme-apps.sh`): esses três pegam as cores por templates do Matugen. São eles:
+- `~/.config/nvim/colors/matugen.lua` e o ícone do nvim;
+- `~/.config/mosaic-store/colors.css`, com o post hook `mosaic-store --icone`;
+- `zen-userChrome.css` e `zen-userContent.css` no perfil do Zen.
+
+Com um tema fixo, eles recebem as cores **do tema** em vez das do papel de parede.
+- **Como:** o script converte o JSON do tema (as 49 cores) para o formato que o próprio Matugen usa no `--json` (`colors.<nome>.{dark,default,light}.color`; tema fixo é só escuro, então os três modos levam a mesma cor). Depois roda `matugen json <arquivo> -c <config>`. A config tem **só esses templates**, copiados do `~/.config/matugen/config.toml` (lido com `tomllib`, então os caminhos e o post hook são os mesmos). O resto (Hyprland, GTK, KDE) não é tocado.
+- **Quando roda:**
+  - no fim de toda troca de papel de parede (`switchwall.sh`, depois do Matugen normal), senão o papel novo devolveria as cores dele;
+  - na troca de tema. Um tema fixo sem papel próprio (Gruvbox) roda o script na hora, recebendo o id do tema como argumento, porque o arquivo `theme` pode ainda não estar gravado. Um tema com papel próprio (Horizonte) passa pelo `switchwall.sh`, que já chama o script. Voltar ao Mosaic roda `switchwall.sh --noswitch`, que refaz as cores a partir do papel de parede atual.
+  - Com o tema Mosaic o script não faz nada.
+- **Neovim:** não precisou mudar. O `lua/config/autocmds.lua` já recarrega o `colorscheme matugen` quando a janela ganha foco e o arquivo mudou.
+
 **Widgets da área de trabalho:**
 - **Relógio:** nos temas brutais o `ClockWidget` usa o estilo `brutal` (`clock/BrutalClock.qml`), qualquer que seja o estilo configurado. É uma placa sólida com a hora em Space Grotesk Black 112, contorno creme de 3 px e sombra dura de 10 px. A data vem num **adesivo torto** (−4°) laranja colado no canto, e a marca Mosaic fica no topo. A cada minuto novo a placa faz "tum": afunda na sombra por 140 ms.
 - **Calendário, fotos e música:** viram placa sólida com contorno de 3 px e sombra dura de 8 px (`HardShadow { size: 8 }`).

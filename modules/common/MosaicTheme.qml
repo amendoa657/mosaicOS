@@ -182,9 +182,17 @@ color245 #3f372e`,
         stateFile.setText(id);
         root.paintHyprland();
         root.paintTerminal();
-        // a theme with its own wallpaper puts it up (dark mode: the theme is dark only)
+        // Neovim, the Mosaic Store and Zen (their Matugen templates):
+        // - a theme with its own wallpaper puts it up (dark mode: the theme is dark
+        //   only); switchwall.sh then runs theme-apps.sh, which paints them in the theme
+        // - another fixed theme: theme-apps.sh straight away
+        // - the Mosaic theme: Matugen again from the current wallpaper
         if (root.theme.wallpaper)
             wallpaperProc.running = true;
+        else if (root.theme.file)
+            Quickshell.execDetached([Quickshell.shellPath("scripts/colors/theme-apps.sh"), id]);
+        else
+            Quickshell.execDetached([Directories.wallpaperSwitchScriptPath, "--noswitch"]);
     }
     // The wallpaper script reloads Hyprland, which brings back the config's border
     // colours: once it is done, the theme's are painted again.
