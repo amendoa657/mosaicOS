@@ -123,6 +123,14 @@ Scope {
                 Rectangle { anchors.top: parent.top; width: parent.width; height: column.border.width; color: column.border.color }
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: column.border.width; color: column.border.color }
             }
+            // film grain (retro themes). It runs one radius past the screen edge, where
+            // the window cuts it, so only the inner corners are round, like the column.
+            Grain {
+                anchors.fill: undefined
+                width: column.width + column.radius
+                height: column.height
+                radius: column.radius
+            }
 
             ColumnLayout {
                 id: content

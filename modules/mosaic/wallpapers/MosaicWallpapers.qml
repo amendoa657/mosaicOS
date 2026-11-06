@@ -253,6 +253,7 @@ Scope {
                 }
                 scale: 0.94 + 0.06 * win.v
                 MouseArea { anchors.fill: parent } // clicks on the card don't close it
+                Grain { radius: card.radius } // film grain (retro themes)
 
                 // ----- left column -----
                 ColumnLayout {

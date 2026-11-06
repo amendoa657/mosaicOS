@@ -51,9 +51,26 @@ color6 #689d6a
 color14 #8ec07c
 color7 #a89984
 color15 #ebdbb2
-color253 #665c54
-color254 #7c6f64
-color255 #a89984`,
+color255 #fe8019
+color254 #af3a03
+color253 #b8bb26
+color252 #79740e
+color251 #83a598
+color250 #076678
+color249 #fb4934
+color248 #9d0006
+color232 #282828
+color233 #fbf1c7
+color234 #282828
+color235 #fbf1c7
+color236 #282828
+color237 #fbf1c7
+color238 #282828
+color239 #fbf1c7
+color240 #282828
+color243 #fe8019
+color244 #fb4934
+color245 #665c54`,
           hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)", rounding: 3 } },
         { id: "horizonte", name: "Horizonte", hint: "pôr do sol anos 70", file: Quickshell.shellPath("themes/horizonte.json"),
           swatches: ["#e8673a", "#f2c94c", "#79a5d4", "#f2ede4"], base: "#12100d", roundness: 0.6, style: "retro",
@@ -83,9 +100,26 @@ color6 #6fa3a0
 color14 #8cc0bb
 color7 #c8bdae
 color15 #f2ede4
-color253 #3f372e
-color254 #5c5348
-color255 #c8bdae`,
+color255 #e8673a
+color254 #7a2e14
+color253 #f2c94c
+color252 #6b5214
+color251 #79a5d4
+color250 #284766
+color249 #ef6f5e
+color248 #7d2620
+color232 #16110d
+color233 #fde6d8
+color234 #1a1408
+color235 #fff1c9
+color236 #0e1622
+color237 #dceaff
+color238 #16110d
+color239 #fde2dd
+color240 #16110d
+color243 #e8673a
+color244 #ef6f5e
+color245 #3f372e`,
           hypr: { active: "rgba(e8673aaa)", inactive: "rgba(332c2566)", background: "rgba(0e0c0aff)", rounding: 8 } }
     ]
     property string current: "mosaic"
@@ -144,6 +178,9 @@ color255 #c8bdae`,
         onExited: root.paintHyprland()
     }
 
+    // The 256-colour slots 232-255 carry the theme's Material roles, like the ii's
+    // Matugen template (255 primary, 252 secondary container...): the starship
+    // prompt paints its pills with them, so a theme sets them all.
     // The terminal (kitty): kitty.conf includes ~/.config/mosaic-os/terminal-theme.conf
     // AFTER the Matugen colours, and in kitty what comes later wins. A fixed theme
     // writes its palette there; the Mosaic theme leaves it empty. Then every open
