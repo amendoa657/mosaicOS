@@ -483,24 +483,30 @@ Configura a gravação de tela do botão **Gravar** da ilha: **Resolução** (Na
     O `record.sh` original juntava **todas** as fontes "monitor" do sistema (aqui eram três) e passava como um nome só, o que quebrava a gravação com som. Conferido com `ffprobe`: o vídeo sai com trilha `aac`.
 - Valem a partir da próxima gravação. IPC: `qs -c mosaic ipc call wallpaperSelector recording` abre direto nessa aba.
 
-### 11.2.3 As abas Aparência e Dock
-- **Aparência** (antes "Ilha") é a configuração geral dos **widgets**: vale para a ilha, as duas laterais e os widgets do fundo (calendário, fotos e música). Fica em `Config.options.mosaicWidgets`. A **dock** continua separada, na aba Dock (`Config.options.mosaicDock`). Os valores antigos de `mosaicIsland` foram copiados para `mosaicWidgets` uma vez, à mão, no `config.json`.
-- As duas abas usam a mesma página (`GlassPage`), com quatro controles (`TuneSlider`: o preenchimento segue o valor por mola; arrastar, clicar ou rolar muda):
+### 11.2.3 As abas Ilha, Aparência e Dock
+- Cada aba cuida de uma peça:
+  - **Ilha:** `Config.options.mosaicIsland`, só a ilha (e a bolha).
+  - **Aparência:** `Config.options.mosaicWidgets`, as duas laterais e os widgets do fundo (calendário, fotos e música).
+  - **Dock:** `Config.options.mosaicDock`.
+
+  A ilha já esteve dentro da Aparência e foi separada de novo; os valores dela foram copiados uma vez, à mão, no `config.json`.
+- As três abas usam a mesma página (`GlassPage`), com quatro controles (`TuneSlider`: o preenchimento segue o valor por mola; arrastar, clicar ou rolar muda):
   - **Potência do liquid glass** (0–200%, `glass`) e **Aberração cromática** (0–200%, `chroma`, as bordas de arco-íris) vão para o `MosaicGlass` (`modules/common/MosaicGlass.qml`). O hyprglass só aceita presets vindos da config do Hyprland, então o serviço:
-    - grava `~/.config/mosaic-os/glass.lua` com dois presets: `widgets` (base: o "vivo") e `doca` (base: o vidro forte da dock). `presetLua()` recebe uma lista de camadas: o `widgets` vai na ilha (`quickshell:island`, limiar 0,05) e nas duas laterais (`quickshell:sidebarLeft/Right`, 0,3). Os widgets do fundo moram na camada do papel de parede, que não tem vidro. Cada valor é a base vezes a potência, com tetos; a aberração usa o próprio multiplicador. Potência 0 desliga o vidro dessas camadas;
+    - grava `~/.config/mosaic-os/glass.lua` com três presets: `ilha` (base: o "vivo", na `quickshell:island`, limiar 0,05), `widgets` (mesma base, nas duas laterais `quickshell:sidebarLeft/Right`, 0,3) e `doca` (base: o vidro forte da dock). `presetLua()` recebe uma lista de camadas por preset. Os widgets do fundo moram na camada do papel de parede, que não tem vidro. Cada valor é a base vezes a potência, com tetos; a aberração usa o próprio multiplicador. Potência 0 desliga o vidro dessas camadas;
     - roda `hyprctl reload config-only`; o `hypr/mosaic.lua` executa esse arquivo no fim, por cima dos presets padrão;
-    - espera 700 ms depois da última mudança (`signature` junta os quatro valores), para arrastar um slider recarregar uma vez só;
-    - ignora as mudanças dos primeiros 4 s, que são só os valores salvos carregando;
+    - espera 700 ms depois da última mudança (`signature` junta os seis valores), para arrastar um slider recarregar uma vez só;
+    - ignora as mudanças dos primeiros 4 s, que são só os valores salvos carregando. Ao fim desses 4 s, compara o arquivo do disco com o texto que deveria ter e, se forem diferentes (estrutura nova, como a separação da ilha), grava uma vez;
     - depois do reload, repinta as cores de um tema fixo, que o reload apaga.
-  - **Transparência** (`opacity`, o inverso) e **Escuridão** (`darkness`) mudam na hora. `MosaicTheme.widgetFill(base)` puxa a cor para o preto (`base × (1 − escuridão)`) e usa a opacidade como alfa. É a cor das laterais e dos cartões do fundo; a ilha faz a mesma conta com `islandBase` e `islandAlpha`. Na dock, quem faz isso é o `glassFill`. Os temas brutais continuam com a placa sólida.
+  - **Transparência** (`opacity`, o inverso) e **Escuridão** (`darkness`) mudam na hora. `MosaicTheme.widgetFill(base)` puxa a cor para o preto (`base × (1 − escuridão)`) e usa a opacidade como alfa. É a cor das laterais e dos cartões do fundo; a ilha faz a mesma conta com `islandBase` e `islandAlpha`, lendo a aba Ilha. Na dock, quem faz isso é o `glassFill`. Os temas brutais continuam com a placa sólida.
 - **Granulado de filme** (só nos temas que têm, os `retro`, como o Horizonte): embaixo aparece o grupo "Granulado de filme", com um controle por parte, em duas colunas (0–200%, multiplicando o `MosaicTheme.grain` do tema):
-  - Aparência: `grainIsland` (ilha e bolha), `grainSidebars` (as duas laterais), `grainDesktop` (cartões do fundo) e `grainPicker` (a própria janela de temas);
+  - Ilha: `grain` (ilha e bolha);
+  - Aparência: `grainSidebars` (as duas laterais), `grainDesktop` (cartões do fundo) e `grainPicker` (a própria janela de temas);
   - Dock: `grain`.
 
   O `MosaicTheme` já entrega cada valor pronto (`grainIsland`, `grainSidebars`... = grão do tema × controle), e cada `Grain`/shader lê o seu. Com o tema retrô a página fica mais apertada (espaçamento 10 em vez de 22) para caber o grupo.
 - **Fica sem granulado:** o clima e os "dias juntos". São formas Material (pílula torta e flor), e o shader de granulado só recorta retângulos arredondados.
 - **Pegadinha:** componentes declarados no fim do arquivo (`component X: ...`) não enxergam os ids da janela (`side`, `pageTabs`). Por isso o posicionamento da `GlassPage` fica onde ela é usada.
-- IPC: `qs -c mosaic ipc call wallpaperSelector look|dock` (`island` continua funcionando e abre a Aparência).
+- IPC: `qs -c mosaic ipc call wallpaperSelector island|look|dock`.
 
 ### 11.2.4 A aba Apps (granulado em todos os apps)
 O shell não consegue desenhar por cima das janelas dos outros apps. Quem faz isso é o **Hyprland**, com um **shader de tela** (`decoration.screen_shader`): um programa de GPU que roda sobre a imagem final de cada monitor. O serviço é o `modules/common/MosaicScreenGrain.qml`, e a configuração fica em `Config.options.mosaicApps`.

@@ -143,7 +143,7 @@ Scope {
         function widgets(): void { root.startPage = "widgets"; GlobalStates.wallpaperSelectorOpen = true; }
         function recording(): void { root.startPage = "record"; GlobalStates.wallpaperSelectorOpen = true; }
         function look(): void { root.startPage = "look"; GlobalStates.wallpaperSelectorOpen = true; }
-        function island(): void { look(); } // the old name of the Aparência tab
+        function island(): void { root.startPage = "island"; GlobalStates.wallpaperSelectorOpen = true; }
         function dock(): void { root.startPage = "dock"; GlobalStates.wallpaperSelectorOpen = true; }
         function apps(): void { root.startPage = "apps"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
@@ -566,7 +566,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }]
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -837,18 +837,29 @@ Scope {
                     }
                 }
 
-                // ----- Aparência / Dock: glass, chromatic aberration, transparency, darkness -----
-                // Config.options.mosaicWidgets (the island, both sidebars and the desktop
-                // widgets) / mosaicDock. Transparency and darkness change them right
+                // ----- Ilha / Aparência / Dock: glass, chromatic aberration, transparency, darkness -----
+                // Config.options.mosaicIsland / mosaicWidgets (both sidebars and the
+                // desktop widgets) / mosaicDock. Transparency and darkness change them right
                 // away; glass and chromatic aberration rewrite their hyprglass presets
                 // and reload Hyprland (MosaicGlass). Retro themes add film grain sliders.
+                GlassPage {
+                    visible: win.page === "island"
+                    conf: Config.options.mosaicIsland
+                    where: "a ilha"
+                    grains: [{ key: "grain", title: "Ilha" }]
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18 + MosaicTheme.shadow
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 20
+                }
                 GlassPage {
                     visible: win.page === "look"
                     conf: Config.options.mosaicWidgets
                     where: "os widgets"
-                    intro: "Vale para a ilha, as duas laterais e os widgets do fundo. A dock tem a aba dela."
+                    intro: "Vale para as duas laterais e os widgets do fundo. A ilha e a dock têm abas próprias."
                     grains: [
-                        { key: "grainIsland", title: "Ilha" },
                         { key: "grainSidebars", title: "Laterais" },
                         { key: "grainDesktop", title: "Widgets do fundo" },
                         { key: "grainPicker", title: "Esta janela" }
@@ -1206,13 +1217,13 @@ Scope {
         }
     }
 
-    // The look settings page (Aparência and Dock tabs): one set of sliders for `conf`.
+    // The look settings page (Ilha, Aparência and Dock tabs): one set of sliders for `conf`.
     // With a retro theme (Horizonte), a "Granulado de filme" group follows, one
     // slider per part in `grains` ({ key: the conf property, title }), two per row.
     component GlassPage: Column {
         id: gp
         required property var conf
-        required property string where // "os widgets" / "a dock", for the texts
+        required property string where // "a ilha" / "os widgets" / "a dock", for the texts
         property string intro: ""
         property var grains: []
         spacing: MosaicTheme.retro ? 10 : 22 // tighter when the grain group needs the room

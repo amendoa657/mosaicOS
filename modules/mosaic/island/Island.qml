@@ -50,9 +50,9 @@ Scope {
     }
     // the island is dark, like the hyprdots one: the bar surface pushed 55% toward black
     // (brutal themes keep the theme's own background, solid)
-    // the Aparência tab sets how dark (darkness) and how solid (opacity) it is
-    readonly property color islandBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, Config.options.mosaicWidgets.darkness)
-    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : Config.options.mosaicWidgets.opacity
+    // the Ilha tab sets how dark (darkness) and how solid (opacity) it is
+    readonly property color islandBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, Config.options.mosaicIsland.darkness)
+    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : Config.options.mosaicIsland.opacity
     Component.onCompleted: MosaicGlass.load()
     // the outline: a hairline, or the thick cream line of brutal themes
     readonly property color outlineColor: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border

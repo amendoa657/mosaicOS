@@ -139,15 +139,15 @@ color245 #3f372e`,
     // The shell's own grain: none while the apps' grain (a Hyprland screen shader,
     // MosaicScreenGrain) is on, since that one already covers the shell too
     readonly property real shellGrain: MosaicScreenGrain.wanted ? 0 : root.grain
-    // ...and how much of it each part gets (Aparência and Dock tabs)
+    // ...and how much of it each part gets (Ilha, Aparência and Dock tabs)
     readonly property var widgets: Config.options?.mosaicWidgets
-    readonly property real grainIsland: root.shellGrain * (root.widgets?.grainIsland ?? 1)
+    readonly property real grainIsland: root.shellGrain * (Config.options?.mosaicIsland?.grain ?? 1)
     readonly property real grainSidebars: root.shellGrain * (root.widgets?.grainSidebars ?? 1)
     readonly property real grainDesktop: root.shellGrain * (root.widgets?.grainDesktop ?? 1)
     readonly property real grainPicker: root.shellGrain * (root.widgets?.grainPicker ?? 1)
     readonly property real grainDock: root.shellGrain * (Config.options?.mosaicDock?.grain ?? 1)
-    // The widgets' surface (island, sidebars, desktop widgets), from the Aparência
-    // tab: `base` pulled toward black by `darkness`, as solid as `opacity`.
+    // The widgets' surface (sidebars, desktop widgets), from the Aparência tab
+    // (the island does the same with its own Ilha tab): `base` pulled toward black by `darkness`, as solid as `opacity`.
     function widgetFill(base) {
         const d = root.widgets?.darkness ?? 0.55;
         return Qt.rgba(base.r * (1 - d), base.g * (1 - d), base.b * (1 - d), root.widgets?.opacity ?? 0.9);

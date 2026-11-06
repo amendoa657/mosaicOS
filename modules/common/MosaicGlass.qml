@@ -3,10 +3,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The liquid glass of the widgets and the dock (Aparência and Dock tabs:
-// Config.options.mosaicWidgets / mosaicDock, glass = strength, chroma = chromatic
-// aberration). The widgets' preset goes on the island and both sidebars (the
-// desktop widgets live in the wallpaper layer, which has no glass). hyprglass only takes presets from the Hyprland config, so this
+// The liquid glass of the island, the widgets and the dock (Ilha, Aparência and
+// Dock tabs: Config.options.mosaicIsland / mosaicWidgets / mosaicDock, glass =
+// strength, chroma = chromatic aberration). The widgets' preset goes on both
+// sidebars (the desktop widgets live in the wallpaper layer, which has no glass). hyprglass only takes presets from the Hyprland config, so this
 // writes both presets to ~/.config/mosaic-os/glass.lua (hypr/mosaic.lua runs it)
 // and reloads the config. It waits 700 ms after the last change, so dragging a
 // slider reloads once, not on every step. After a reload, a fixed theme's
@@ -14,10 +14,11 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property var island: Config.options?.mosaicWidgets
+    readonly property var island: Config.options?.mosaicIsland
+    readonly property var widgets: Config.options?.mosaicWidgets
     readonly property var dock: Config.options?.mosaicDock
     // one string with every value, so any change re-applies
-    readonly property string signature: `${island?.glass}/${island?.chroma}/${dock?.glass}/${dock?.chroma}`
+    readonly property string signature: `${island?.glass}/${island?.chroma}/${widgets?.glass}/${widgets?.chroma}/${dock?.glass}/${dock?.chroma}`
     readonly property string path: Quickshell.env("HOME") + "/.config/mosaic-os/glass.lua"
 
     function load() {} // called once so the singleton starts watching
@@ -48,14 +49,24 @@ Singleton {
     readonly property var dockBase: ({ blur: 0.22, refraction: 4.8, lens: 1.35, chroma: 1.9, fresnel: 2.4, specular: 4.2, saturation: 1.75, vibrancy: 0.75, edge: 0.16 })
 
     function fileText() {
-        return "-- written by the Mosaic OS Aparência and Dock tabs\nlocal hg = hl.plugin.hyprglass\n"
-            + root.presetLua("widgets", [["quickshell:island", 0.05], ["quickshell:sidebarLeft", 0.3], ["quickshell:sidebarRight", 0.3]], root.islandBase, root.island?.glass ?? 1, root.island?.chroma ?? 1)
+        return "-- written by the Mosaic OS Ilha, Aparência and Dock tabs\nlocal hg = hl.plugin.hyprglass\n"
+            + root.presetLua("ilha", [["quickshell:island", 0.05]], root.islandBase, root.island?.glass ?? 1, root.island?.chroma ?? 1)
+            + root.presetLua("widgets", [["quickshell:sidebarLeft", 0.3], ["quickshell:sidebarRight", 0.3]], root.islandBase, root.widgets?.glass ?? 1, root.widgets?.chroma ?? 1)
             + root.presetLua("doca", [["quickshell:dock", 0.12]], root.dockBase, root.dock?.glass ?? 1, root.dock?.chroma ?? 1);
     }
 
     // changes during startup are just the saved values being loaded: ignore them
     property bool ready: false
-    Timer { running: true; interval: 4000; onTriggered: root.ready = true }
+    Timer {
+        running: true
+        interval: 4000
+        onTriggered: {
+            root.ready = true;
+            // the file on disk is from an older layout or older values: write it once
+            if (file.text().trim() !== root.fileText().trim())
+                applyLater.restart();
+        }
+    }
     onSignatureChanged: if (root.ready) applyLater.restart()
     Timer {
         id: applyLater
