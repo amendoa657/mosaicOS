@@ -59,7 +59,7 @@ Item {
         id: searchBox
         width: parent.width
         height: 48
-        radius: 16
+        radius: MosaicTheme.r(16)
         color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.93)
         border.width: 1
         border.color: search.activeFocus ? ColorUtils.transparentize(Appearance.colors.colPrimary, 0.4) : "transparent"
@@ -150,7 +150,7 @@ Item {
                     required property int index
                     implicitWidth: chipRow.implicitWidth + 18
                     implicitHeight: 30
-                    radius: 10
+                    radius: MosaicTheme.r(10)
                     color: chipArea.containsMouse ? ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.86) : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.94)
                     Behavior on color { ColorAnimation { duration: 120 } }
                     // they pop in one after the other
@@ -231,7 +231,7 @@ Item {
                     Rectangle {
                         anchors.fill: parent
                         anchors.margins: 3
-                        radius: 14
+                        radius: MosaicTheme.r(14)
                         color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 1 - 0.08 * hov.value)
                     }
                     Column {
@@ -302,7 +302,7 @@ Item {
             parent: list.contentItem
             width: list.width
             height: menu.rowHeight - 4
-            radius: 14
+            radius: MosaicTheme.r(14)
             visible: list.count > 0
             color: ColorUtils.transparentize(Appearance.colors.colPrimary, 0.78)
             y: selSpring.value + 2

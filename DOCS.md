@@ -14,7 +14,7 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 9. [O que mudou nos arquivos herdados do ii](#9-o-que-mudou-no-ii)
 10. [Como testar sem quebrar a sessão](#10-como-testar)
 11. [Papéis de parede e o derramar: `modules/mosaic/wallpapers/`](#11-papéis-de-parede-e-o-derramar)
-12. [Temas: `services/MosaicTheme.qml`](#12-temas-servicesmosaicthemeqml-themes)
+12. [Temas: `modules/common/MosaicTheme.qml`](#12-temas-modulescommonmosaicthemeqml-themes)
 
 ---
 
@@ -469,8 +469,8 @@ Arquivo: `modules/mosaic/wallpapers/MosaicWallpapers.qml`, mais o script `script
 
 ---
 
-## 12. Temas (`services/MosaicTheme.qml`, `themes/`)
-Um **tema** é um conjunto de cores para o **Quickshell** e o **Hyprland** (bordas e fundo); os apps não mudam. Existem dois:
+## 12. Temas (`modules/common/MosaicTheme.qml`, `themes/`)
+Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (bordas, fundo e cantos das janelas); os apps não mudam. Existem dois:
 - **Mosaic:** as cores vêm do papel de parede. O Matugen é só a forma como esse tema consegue as cores.
 - **Gruvbox** (escuro médio): paleta fixa em `themes/gruvbox.json`. Primária laranja `#fe8019`, secundária verde `#b8bb26`, terciária azul `#83a598`, fundo `#282828` e texto `#ebdbb2`. Os containers usam os tons "faded" do Gruvbox.
 
@@ -480,7 +480,14 @@ Um **tema** é um conjunto de cores para o **Quickshell** e o **Hyprland** (bord
 3. **Hyprland:** o tema fixo manda as cores de borda e fundo ao vivo (`hyprctl eval 'hl.config({ general = { col = {...} } })'`). Voltar ao Mosaic recarrega a config, que traz de volta o `colors.lua` do Matugen. Depois de reiniciar, o tema salvo pinta o Hyprland de novo quando o shell liga.
 4. A escolha fica em `~/.config/mosaic-os/theme`.
 
+**Formato (`roundness`):** quanto as coisas arredondam. No Mosaic é 1 (pílulas macias); no **Gruvbox é 0,2**, tudo quadrado (uma curva de 20 px vira 4).
+- `MosaicTheme.r(px)` devolve um raio no formato do tema. **Todos os raios** dos módulos do Mosaic OS passam por ele (`radius: MosaicTheme.r(14)`), inclusive o recorte dos copos d'água e os blocos da bússola.
+- Os arredondamentos do ii (`Appearance.rounding.*`, usados nas laterais, na visão geral etc.) também são multiplicados. O "totalmente redondo" (`full`, 9999) vira uma quina de 6 px nos temas quadrados. O `MosaicTheme` mora em `modules/common`, ao lado do `Appearance`, justamente para os dois se enxergarem sem dependência circular.
+- **Ilha:** em repouso, raio = metade da altura × formato (pílula ou caixa). A **cúpula** da bússola depende de `formato²`: no Mosaic é a cúpula de sempre; no Gruvbox (0,04) vira uma caixa quase reta.
+- **Líquido:** o raio da bolha passa por `r()`, e o `fuse` (a curva da junção) encolhe até 35% nos temas quadrados. A notificação continua derretendo, só que com curvas mais justas.
+- **Hyprland:** o tema também manda `decoration.rounding` (3 no Gruvbox). Voltar ao Mosaic recarrega a config (22).
+
 **Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Pela IPC: `qs -c mosaic ipc call theme set gruvbox|mosaic` e `theme get`.
 
-**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão) e `hypr` (cores de borda e fundo).
+**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato) e `hypr` (cores de borda e fundo, e `rounding` das janelas).
 

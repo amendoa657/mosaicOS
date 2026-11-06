@@ -31,7 +31,7 @@ Item {
             property real d: 0
             width: index % 3 === 0 ? 4.5 : 3
             height: width
-            radius: width / 2
+            radius: MosaicTheme.r(width / 2)
             color: index % 2 ? burst.tint : Qt.lighter(burst.tint, 1.55)
             x: Math.cos(ang) * d - width / 2
             y: Math.sin(ang) * d - height / 2

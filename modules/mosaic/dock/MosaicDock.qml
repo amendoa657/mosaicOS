@@ -122,7 +122,7 @@ Scope {
                 anchors.bottomMargin: root.gap
                 height: root.dockHeight
                 width: row.implicitWidth + 20
-                radius: 20
+                radius: MosaicTheme.r(20)
                 color: root.glassFill
                 border.width: 1
                 border.color: root.glassEdge
@@ -256,7 +256,7 @@ Scope {
                                             delegate: Rectangle {
                                                 width: app.isActive ? 8 : 4
                                                 height: 4
-                                                radius: 2
+                                                radius: MosaicTheme.r(2)
                                                 color: app.isActive ? Appearance.colors.colPrimary : Qt.rgba(1, 1, 1, 0.55)
                                                 Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
                                             }
@@ -314,7 +314,7 @@ Scope {
                             anchors.centerIn: parent
                             width: parent.width - 4
                             height: 38
-                            radius: 13
+                            radius: MosaicTheme.r(13)
                             color: Qt.rgba(1, 1, 1, statusArea.containsMouse ? 0.10 : 0)
                             Behavior on color { ColorAnimation { duration: 160 } }
                         }

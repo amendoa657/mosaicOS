@@ -55,7 +55,7 @@ Item {
                 y: g[1] * root.unit + danceOffset
                 width: g[2] * root.unit
                 height: g[3] * root.unit
-                radius: Math.max(1.5, root.size * 0.05)
+                radius: MosaicTheme.r(Math.max(1.5, root.size * 0.05))
                 color: root.tones[index]
                 property real danceOffset: 0
                 Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
@@ -103,7 +103,7 @@ Item {
                 delegate: Rectangle {
                     width: root.size * 0.26
                     height: root.size * 0.34 * eyelid.open
-                    radius: width / 2
+                    radius: MosaicTheme.r(width / 2)
                     anchors.verticalCenter: parent.verticalCenter
                     color: "white"
                     border.width: Math.max(1, root.size * 0.03)
@@ -112,7 +112,7 @@ Item {
                         visible: eyelid.open > 0.4
                         width: parent.width * 0.55
                         height: width
-                        radius: width / 2
+                        radius: MosaicTheme.r(width / 2)
                         anchors.centerIn: parent
                         anchors.horizontalCenterOffset: root.mood === "dizzy" ? Math.sin(dizzySpin.angle) * parent.width * 0.2 : 0
                         anchors.verticalCenterOffset: root.mood === "dizzy" ? Math.cos(dizzySpin.angle) * parent.width * 0.2 : 0

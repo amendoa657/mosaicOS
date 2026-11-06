@@ -55,6 +55,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 55 | Bússola v3 (05/11) | ~~Pílula em carrossel~~ (não agradou) → **cúpula de volta, bem mais sutil**: 300×92, blocos pequenos e suaves, número discreto, **a marca em cima** como ponteiro. |
 | 56 | Notas (05/11) | Botão **Notas** nas ferramentas da ilha e **Super+Alt+N**: o cartão fundido à ilha com **abas** (cada uma um `.md` em `~/Documentos/Notas`), texto simples em que `* ` vira bolinha, salvando sozinho. |
 | 57 | Temas (05/11) | **Mosaic** (cores do papel de parede pelo Matugen) e **Gruvbox escuro médio** (fixo). Valem para o Quickshell e o Hyprland, não para os apps. O seletor fica no topo do seletor de papéis de parede. |
+| 58 | Formato no tema (05/11) | Tema também é **formato**: o Gruvbox é **quadrado** (ilha em caixa, bússola sem cúpula, blocos e janelas com quinas de poucos px); o Mosaic segue macio. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |

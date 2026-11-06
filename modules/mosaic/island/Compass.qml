@@ -99,7 +99,7 @@ Item {
             // the tile: a Mosaic block in its tone (soft when away, vivid when current)
             Rectangle {
                 anchors.fill: parent
-                radius: Math.round(tile.size * 0.28)
+                radius: MosaicTheme.r(Math.round(tile.size * 0.28))
                 // quiet: soft tones on the dark island, only the current one a little brighter
                 color: tile.isCurrent ? ColorUtils.mix(tile.tone, root.washBase, 0.7) : ColorUtils.mix(tile.tone, root.washBase, tile.windows.length > 0 ? 0.38 : 0.18)
                 border.width: tile.isCurrent ? 1 : 0
@@ -131,7 +131,7 @@ Item {
                 anchors.bottomMargin: -4
                 width: badge.implicitWidth + 8
                 height: 14
-                radius: 5
+                radius: MosaicTheme.r(5)
                 color: ColorUtils.mix(tile.tone, Appearance.colors.colLayer0, 0.9)
                 StyledText {
                     id: badge

@@ -261,7 +261,7 @@ Scope {
                         Rectangle {
                             implicitWidth: countText.implicitWidth + 12
                             implicitHeight: 20
-                            radius: 6
+                            radius: MosaicTheme.r(6)
                             color: Appearance.colors.colLayer1
                             StyledText {
                                 id: countText
@@ -312,7 +312,7 @@ Scope {
                                             y: modelData[1] * 26 / 88
                                             width: modelData[2] * 26 / 88
                                             height: modelData[3] * 26 / 88
-                                            radius: 2
+                                            radius: MosaicTheme.r(2)
                                             color: themeCard.swatches[index]
                                         }
                                     }
@@ -367,7 +367,7 @@ Scope {
                         Rectangle {
                             implicitWidth: 14
                             implicitHeight: 14
-                            radius: 4
+                            radius: MosaicTheme.r(4)
                             color: root.tones[root.baseName(win.selected)] ?? Appearance.colors.colLayer2
                         }
                         StyledText {
@@ -480,7 +480,7 @@ Scope {
                                     anchors.centerIn: parent
                                     width: 14
                                     height: 14
-                                    radius: 4 // a little Mosaic block
+                                    radius: MosaicTheme.r(4) // a little Mosaic block
                                     color: chip.modelData.color ?? "transparent"
                                 }
                                 MouseArea {
@@ -628,7 +628,7 @@ Scope {
                                 anchors.margins: 8
                                 width: 22
                                 height: 22
-                                radius: 7
+                                radius: MosaicTheme.r(7)
                                 color: Appearance.colors.colPrimary
                                 MaterialSymbol {
                                     anchors.centerIn: parent

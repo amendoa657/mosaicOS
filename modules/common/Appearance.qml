@@ -198,17 +198,18 @@ Singleton {
         property color colOnErrorContainer: m3colors.m3onErrorContainer
     }
 
+    // Mosaic OS: scaled by the theme's shape (MosaicTheme.roundness: Gruvbox is boxy)
     rounding: QtObject {
-        property int unsharpen: 2
-        property int unsharpenmore: 6
-        property int verysmall: 8
-        property int small: 12
-        property int normal: 17
-        property int large: 23
-        property int verylarge: 30
-        property int full: 9999
+        property int unsharpen: MosaicTheme.r(2)
+        property int unsharpenmore: MosaicTheme.r(6)
+        property int verysmall: MosaicTheme.r(8)
+        property int small: MosaicTheme.r(12)
+        property int normal: MosaicTheme.r(17)
+        property int large: MosaicTheme.r(23)
+        property int verylarge: MosaicTheme.r(30)
+        property int full: MosaicTheme.roundness >= 1 ? 9999 : MosaicTheme.r(30) // "fully round" becomes a small corner
         property int screenRounding: large
-        property int windowRounding: 18
+        property int windowRounding: MosaicTheme.r(18)
     }
 
     font: QtObject {

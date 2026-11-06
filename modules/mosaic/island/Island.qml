@@ -347,7 +347,7 @@ Scope {
                 readonly property string mode: compassOn ? "compass" : win.panelOpen ? "panel" : showEvent ? "event" : ""
                 readonly property real restHeight: 30
                 // floating like a pill: fully round while small, a 26 px curve when it grows
-                readonly property real cornerRadius: Math.min(height / 2, 26)
+                readonly property real cornerRadius: MosaicTheme.r(Math.min(height / 2, 26)) // a pill in Mosaic, a box in Gruvbox
                 readonly property real topGap: 6 // the space above it, under the screen edge
                 readonly property real compassHeight: 112 // as a compass it is a small dome (half oval), with the mark on top
                 readonly property real bandHeight: mode !== "event" ? restHeight
@@ -434,10 +434,10 @@ Scope {
                     fragmentShader: Qt.resolvedUrl("shaders/island.frag.qsb")
                     property vector2d size: Qt.vector2d(width, height)
                     property real rTop: notch.cornerRadius
-                    property real rBot: notch.cornerRadius + (width / 2 - notch.cornerRadius) * m
+                    property real rBot: notch.cornerRadius + (width / 2 - notch.cornerRadius) * m * Math.pow(MosaicTheme.roundness, 2) // boxy themes: (almost) no dome
                     // built taller than drawn while it is a compass: that is the squash
                     // built taller than drawn while it is a compass: that is the squash
-                    property real hu: height + (width / 2 + notch.cornerRadius - height) * m
+                    property real hu: height + (width / 2 + notch.cornerRadius - height) * m * Math.pow(MosaicTheme.roundness, 2)
                     property color stop0: root.opaque(root.washStop(0, notch.morph))
                     property color stop1: root.opaque(root.washStop(1, notch.morph))
                     property color stop2: root.opaque(root.washStop(2, notch.morph))
@@ -586,11 +586,11 @@ Scope {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 140
                         height: 6
-                        radius: 3
+                        radius: MosaicTheme.r(3)
                         color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.85)
                         Rectangle {
                             height: parent.height
-                            radius: 3
+                            radius: MosaicTheme.r(3)
                             width: parent.width * levelSpring.value
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
@@ -619,7 +619,7 @@ Scope {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 34
                         height: 34
-                        radius: 8
+                        radius: MosaicTheme.r(8)
                         color: Appearance.colors.colLayer1
                         Image {
                             anchors.fill: parent
@@ -729,7 +729,7 @@ Scope {
                                 anchors.centerIn: parent
                                 width: 40
                                 height: 40
-                                radius: 20
+                                radius: MosaicTheme.r(20)
                                 color: "transparent"
                                 border.width: 2
                                 border.color: callRow.tone
@@ -748,7 +748,7 @@ Scope {
                         }
                         Rectangle {
                             anchors.fill: parent
-                            radius: 20
+                            radius: MosaicTheme.r(20)
                             gradient: Gradient {
                                 GradientStop { position: 0; color: Qt.lighter(callRow.tone, 1.2) }
                                 GradientStop { position: 1; color: Qt.darker(callRow.tone, 1.5) }
@@ -828,7 +828,7 @@ Scope {
                             anchors.centerIn: parent
                             width: 22
                             height: 22
-                            radius: 11
+                            radius: MosaicTheme.r(11)
                             color: "transparent"
                             border.width: 1.5
                             border.color: Appearance.colors.colPrimary
@@ -944,8 +944,8 @@ Scope {
                     property vector4d twin: Qt.vector4d(bubble.cx, bubble.base - 4, bubble.mix(Math.max(12, Math.min(bubble.isleW - 44, 260) / 2), bubble.isleW / 2, bubble.mg), 4 + 4 * bubble.mg)
                     property vector4d body: Qt.vector4d(bubble.cx, bubble.by + bubble.bh / 2, bubble.bw / 2, bubble.bh / 2)
                     property real islandRadius: notch.cornerRadius * notch.scaleY
-                    property real bodyRadius: Math.min(22, bubble.bh / 2)
-                    property real fuse: 22 + 10 * bubble.mg
+                    property real bodyRadius: MosaicTheme.r(Math.min(22, bubble.bh / 2))
+                    property real fuse: (22 + 10 * bubble.mg) * Math.max(0.35, MosaicTheme.roundness) // boxy themes melt with tighter curves
                     property real islandLeft: bubble.cx - bubble.isleW / 2
                     property real islandWidth: bubble.isleW
                     property color stop0: root.opaque(root.washStop(0, 0))
@@ -1352,7 +1352,7 @@ Scope {
         Rectangle {
             id: glass
             anchors.fill: parent
-            radius: 8
+            radius: MosaicTheme.r(8)
             color: ColorUtils.transparentize(tile.tone, 0.85)
             border.width: 1
             border.color: ColorUtils.transparentize(tile.tone, 0.6)
@@ -1366,7 +1366,7 @@ Scope {
             onPaint: {
                 const ctx = getContext("2d");
                 ctx.reset();
-                const w = width, h = height, r = 7;
+                const w = width, h = height, r = MosaicTheme.r(7);
                 // glass shape as the clip
                 ctx.beginPath();
                 ctx.roundedRect(0, 0, w, h, r, r);

@@ -42,7 +42,7 @@ Item {
         id: shell
         width: bat.bodyW
         height: bat.height
-        radius: bat.height * 0.3
+        radius: MosaicTheme.r(bat.height * 0.3)
         color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.94)
         border.width: 1.6
         border.color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.68)
@@ -52,7 +52,7 @@ Item {
         anchors.verticalCenter: shell.verticalCenter
         width: bat.cap
         height: bat.height * 0.36
-        radius: width / 2
+        radius: MosaicTheme.r(width / 2)
         color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.68)
     }
 
@@ -99,7 +99,7 @@ Item {
                 required property int index
                 width: 2.5 + (index % 2)
                 height: width
-                radius: width / 2
+                radius: MosaicTheme.r(width / 2)
                 color: Qt.rgba(1, 1, 1, 0.55)
                 x: Math.min(well.width * bat.shown - 4, well.width * bat.shown * (index + 0.5) / 5)
                 y: well.height

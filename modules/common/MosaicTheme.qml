@@ -3,8 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Mosaic OS themes. A theme is a set of colours for the shell (Quickshell) and
-// Hyprland (borders, background); apps are left alone.
+// Mosaic OS themes. A theme is colours AND shapes, for the shell (Quickshell)
+// and Hyprland (borders, background, window corners); apps are left alone.
+// - roundness: how round things are. 1 = Mosaic (soft pills); Gruvbox is boxy
+//   (0.2: a 20 px curve becomes 4 px). Every radius in the shell goes through
+//   r(px), and Appearance.rounding (the ii's) is scaled by it too.
 // - "mosaic": the colours come from the wallpaper (Matugen), as before. Matugen
 //   is only the way this theme gets its colours.
 // - "gruvbox": a fixed palette (themes/gruvbox.json, Gruvbox dark medium).
@@ -15,14 +18,17 @@ Singleton {
 
     readonly property var themes: [
         // swatches: the four blocks of the Mosaic mark, in the theme's tones
-        { id: "mosaic", name: "Mosaic", hint: "cores do papel de parede", file: "" },
+        { id: "mosaic", name: "Mosaic", hint: "cores do papel de parede", file: "", roundness: 1 },
         { id: "gruvbox", name: "Gruvbox", hint: "escuro médio", file: Quickshell.shellPath("themes/gruvbox.json"),
-          swatches: ["#fe8019", "#b8bb26", "#83a598", "#ebdbb2"], base: "#282828",
-          hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)" } }
+          swatches: ["#fe8019", "#b8bb26", "#83a598", "#ebdbb2"], base: "#282828", roundness: 0.2,
+          hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)", rounding: 3 } }
     ]
     property string current: "mosaic"
     readonly property var theme: root.themes.find(t => t.id === root.current) ?? root.themes[0]
     readonly property string colorsFile: root.theme.file // "" = the Matugen file
+    readonly property real roundness: root.theme.roundness ?? 1
+    // a radius in this theme's shape (a soft Mosaic curve, a square Gruvbox corner)
+    function r(px) { return Math.max(0, Math.round(px * root.roundness)); }
 
     function set(id) {
         if (id === root.current || !root.themes.some(t => t.id === id))
@@ -37,7 +43,7 @@ Singleton {
     function paintHyprland() {
         const h = root.theme.hypr;
         if (h)
-            Quickshell.execDetached(["hyprctl", "eval", `hl.config({ general = { col = { active_border = "${h.active}", inactive_border = "${h.inactive}" } }, misc = { background_color = "${h.background}" } })`]);
+            Quickshell.execDetached(["hyprctl", "eval", `hl.config({ general = { col = { active_border = "${h.active}", inactive_border = "${h.inactive}" } }, misc = { background_color = "${h.background}" }, decoration = { rounding = ${h.rounding} } })`]);
         else
             Quickshell.execDetached(["hyprctl", "reload", "config-only"]);
     }
