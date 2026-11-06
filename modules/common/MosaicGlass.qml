@@ -3,9 +3,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The liquid glass of the island and the dock (Ilha and Dock tabs:
-// Config.options.mosaicIsland / mosaicDock, glass = strength, chroma = chromatic
-// aberration). hyprglass only takes presets from the Hyprland config, so this
+// The liquid glass of the widgets and the dock (Aparência and Dock tabs:
+// Config.options.mosaicWidgets / mosaicDock, glass = strength, chroma = chromatic
+// aberration). The widgets' preset goes on the island and both sidebars (the
+// desktop widgets live in the wallpaper layer, which has no glass). hyprglass only takes presets from the Hyprland config, so this
 // writes both presets to ~/.config/mosaic-os/glass.lua (hypr/mosaic.lua runs it)
 // and reloads the config. It waits 700 ms after the last change, so dragging a
 // slider reloads once, not on every step. After a reload, a fixed theme's
@@ -13,7 +14,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property var island: Config.options?.mosaicIsland
+    readonly property var island: Config.options?.mosaicWidgets
     readonly property var dock: Config.options?.mosaicDock
     // one string with every value, so any change re-applies
     readonly property string signature: `${island?.glass}/${island?.chroma}/${dock?.glass}/${dock?.chroma}`
@@ -24,9 +25,10 @@ Singleton {
     // base: the preset at strength 1; k: strength; c: chromatic aberration
     // multiplier. Everything grows with k (with ceilings); the rainbow edges
     // follow c on their own.
-    function presetLua(name, layer, base, k, c, threshold) {
+    // layers: [[namespace, mask threshold], ...], all with this preset
+    function presetLua(name, layers, base, k, c) {
         if (k <= 0.01)
-            return `hg.layer("${layer}", { enabled = 0 })\n`;
+            return layers.map(l => `hg.layer("${l[0]}", { enabled = 0 })\n`).join("");
         const v = (key, max) => Math.min(max, base[key] * k).toFixed(3);
         return `hg.preset("${name}", {
     enabled = 1,
@@ -40,16 +42,15 @@ Singleton {
     vibrancy = ${v("vibrancy", 1)},
     edge_thickness = ${v("edge", 0.24)},
 })
-hg.layer("${layer}", { preset = "${name}", mask_threshold = ${threshold} })
-`;
+` + layers.map(l => `hg.layer("${l[0]}", { preset = "${name}", mask_threshold = ${l[1]} })\n`).join("");
     }
     readonly property var islandBase: ({ blur: 0.35, refraction: 2.2, lens: 0.6, chroma: 0.9, fresnel: 1.2, specular: 2.6, saturation: 1.45, vibrancy: 0.4, edge: 0.08 })
     readonly property var dockBase: ({ blur: 0.22, refraction: 4.8, lens: 1.35, chroma: 1.9, fresnel: 2.4, specular: 4.2, saturation: 1.75, vibrancy: 0.75, edge: 0.16 })
 
     function fileText() {
-        return "-- written by the Mosaic OS Ilha and Dock tabs\nlocal hg = hl.plugin.hyprglass\n"
-            + root.presetLua("ilha", "quickshell:island", root.islandBase, root.island?.glass ?? 1, root.island?.chroma ?? 1, 0.05)
-            + root.presetLua("doca", "quickshell:dock", root.dockBase, root.dock?.glass ?? 1, root.dock?.chroma ?? 1, 0.12);
+        return "-- written by the Mosaic OS Aparência and Dock tabs\nlocal hg = hl.plugin.hyprglass\n"
+            + root.presetLua("widgets", [["quickshell:island", 0.05], ["quickshell:sidebarLeft", 0.3], ["quickshell:sidebarRight", 0.3]], root.islandBase, root.island?.glass ?? 1, root.island?.chroma ?? 1)
+            + root.presetLua("doca", [["quickshell:dock", 0.12]], root.dockBase, root.dock?.glass ?? 1, root.dock?.chroma ?? 1);
     }
 
     // changes during startup are just the saved values being loaded: ignore them

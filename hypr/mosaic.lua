@@ -45,7 +45,7 @@ end
 -- the dock's glass shows wherever its pane is even a little opaque
 hg.layer("quickshell:dock", { preset = "dock", mask_threshold = 0.12 })
 
--- the island's glass, written by the Ilha tab (~/.config/mosaic-os/glass.lua)
+-- the widgets' and the dock's glass, written by the Aparência and Dock tabs (~/.config/mosaic-os/glass.lua)
 do
     local f = os.getenv("HOME") .. "/.config/mosaic-os/glass.lua"
     local fh = io.open(f, "r")

@@ -107,7 +107,8 @@ Scope {
             width: root.sidebarWidth
             transform: Translate { x: column.offset }
             radius: Appearance.rounding.large
-            color: MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colLayer0
+            // the Aparência tab's surface (darkness and opacity), shared with the island
+            color: MosaicTheme.brutal ? MosaicTheme.slab : MosaicTheme.widgetFill(Appearance.colors.colLayer0)
             border.width: MosaicTheme.brutal ? MosaicTheme.border + 1 : 1
             border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
             focus: root.open
@@ -130,6 +131,7 @@ Scope {
                 width: column.width + column.radius
                 height: column.height
                 radius: column.radius
+                amount: MosaicTheme.grainSidebars
             }
 
             ColumnLayout {

@@ -136,7 +136,7 @@ Scope {
                 border.width: MosaicTheme.brutal ? MosaicTheme.border : 1
                 border.color: MosaicTheme.brutal ? MosaicTheme.ink : root.glassEdge
                 HardShadow {}
-                Grain { radius: dock.radius } // film grain (retro themes)
+                Grain { radius: dock.radius; amount: MosaicTheme.grainDock } // film grain (retro themes)
                 transform: Translate { y: (1 - showSpring.value) * (root.dockHeight + root.gap + 6) }
                 Behavior on width { NumberAnimation { duration: 320; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
 

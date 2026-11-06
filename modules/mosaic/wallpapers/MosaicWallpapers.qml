@@ -142,7 +142,8 @@ Scope {
         function toggle(): void { root.toggle(); }
         function widgets(): void { root.startPage = "widgets"; GlobalStates.wallpaperSelectorOpen = true; }
         function recording(): void { root.startPage = "record"; GlobalStates.wallpaperSelectorOpen = true; }
-        function island(): void { root.startPage = "island"; GlobalStates.wallpaperSelectorOpen = true; }
+        function look(): void { root.startPage = "look"; GlobalStates.wallpaperSelectorOpen = true; }
+        function island(): void { look(); } // the old name of the Aparência tab
         function dock(): void { root.startPage = "dock"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
             if (root.files.length === 0) {
@@ -253,7 +254,7 @@ Scope {
                 }
                 scale: 0.94 + 0.06 * win.v
                 MouseArea { anchors.fill: parent } // clicks on the card don't close it
-                Grain { radius: card.radius } // film grain (retro themes)
+                Grain { radius: card.radius; amount: MosaicTheme.grainPicker } // film grain (retro themes)
 
                 // ----- left column -----
                 ColumnLayout {
@@ -564,7 +565,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }]
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -835,14 +836,22 @@ Scope {
                     }
                 }
 
-                // ----- Ilha / Dock: glass, chromatic aberration, transparency, darkness -----
-                // Config.options.mosaicIsland / mosaicDock. Transparency and darkness
-                // change the island/dock right away; glass and chromatic aberration
-                // rewrite their hyprglass presets and reload Hyprland (MosaicGlass).
+                // ----- Aparência / Dock: glass, chromatic aberration, transparency, darkness -----
+                // Config.options.mosaicWidgets (the island, both sidebars and the desktop
+                // widgets) / mosaicDock. Transparency and darkness change them right
+                // away; glass and chromatic aberration rewrite their hyprglass presets
+                // and reload Hyprland (MosaicGlass). Retro themes add film grain sliders.
                 GlassPage {
-                    visible: win.page === "island"
-                    conf: Config.options.mosaicIsland
-                    where: "a ilha"
+                    visible: win.page === "look"
+                    conf: Config.options.mosaicWidgets
+                    where: "os widgets"
+                    intro: "Vale para a ilha, as duas laterais e os widgets do fundo. A dock tem a aba dela."
+                    grains: [
+                        { key: "grainIsland", title: "Ilha" },
+                        { key: "grainSidebars", title: "Laterais" },
+                        { key: "grainDesktop", title: "Widgets do fundo" },
+                        { key: "grainPicker", title: "Esta janela" }
+                    ]
                     anchors.left: side.right
                     anchors.leftMargin: 24
                     anchors.right: parent.right
@@ -854,6 +863,7 @@ Scope {
                     visible: win.page === "dock"
                     conf: Config.options.mosaicDock
                     where: "a dock"
+                    grains: [{ key: "grain", title: "Dock" }]
                     anchors.left: side.right
                     anchors.leftMargin: 24
                     anchors.right: parent.right
@@ -1149,12 +1159,25 @@ Scope {
         }
     }
 
-    // The glass settings page (Ilha and Dock tabs): one set of sliders for `conf`
+    // The look settings page (Aparência and Dock tabs): one set of sliders for `conf`.
+    // With a retro theme (Horizonte), a "Granulado de filme" group follows, one
+    // slider per part in `grains` ({ key: the conf property, title }), two per row.
     component GlassPage: Column {
         id: gp
         required property var conf
-        required property string where // "a ilha" / "a dock", for the texts
-        spacing: 22
+        required property string where // "os widgets" / "a dock", for the texts
+        property string intro: ""
+        property var grains: []
+        spacing: MosaicTheme.retro ? 10 : 22 // tighter when the grain group needs the room
+        StyledText {
+            visible: gp.intro !== ""
+            width: parent.width
+            wrapMode: Text.Wrap
+            text: gp.intro
+            font.pixelSize: 12
+            color: Appearance.colors.colOnLayer0
+            opacity: 0.8
+        }
         TuneSlider {
             title: "Potência do liquid glass"
             hint: "Lente, refração e brilho. 0 desliga o vidro."
@@ -1198,6 +1221,34 @@ Scope {
             font.pixelSize: 11
             color: Appearance.colors.colOnLayer0
             opacity: 0.65
+        }
+        // film grain: only themes that have it (retro, like Horizonte)
+        StyledText {
+            visible: MosaicTheme.retro
+            text: "Granulado de filme"
+            font.family: MosaicTheme.fontDisplay
+            font.pixelSize: 18
+            color: Appearance.colors.colOnLayer0
+        }
+        Grid {
+            visible: MosaicTheme.retro
+            width: parent.width
+            columns: 2
+            columnSpacing: 24
+            rowSpacing: 4
+            Repeater {
+                model: gp.grains
+                delegate: TuneSlider {
+                    required property var modelData
+                    width: (gp.width - 24) / 2
+                    title: modelData.title
+                    from: 0
+                    to: 2
+                    value: gp.conf[modelData.key]
+                    shown: Math.round(value * 100) + "%"
+                    onMoved: v => gp.conf[modelData.key] = v
+                }
+            }
         }
     }
 

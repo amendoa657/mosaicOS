@@ -50,9 +50,9 @@ Scope {
     }
     // the island is dark, like the hyprdots one: the bar surface pushed 55% toward black
     // (brutal themes keep the theme's own background, solid)
-    // the Ilha tab sets how dark (darkness) and how solid (opacity) it is
-    readonly property color islandBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, Config.options.mosaicIsland.darkness)
-    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : Config.options.mosaicIsland.opacity
+    // the Aparência tab sets how dark (darkness) and how solid (opacity) it is
+    readonly property color islandBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, Config.options.mosaicWidgets.darkness)
+    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : Config.options.mosaicWidgets.opacity
     Component.onCompleted: MosaicGlass.load()
     // the outline: a hairline, or the thick cream line of brutal themes
     readonly property color outlineColor: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
@@ -506,7 +506,7 @@ Scope {
                     property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
                     property color shadowColor: root.opaque(MosaicTheme.shadowColor)
                     property real shadowAlpha: MosaicTheme.brutal ? 1 : 0
-                    property real grain: MosaicTheme.grain
+                    property real grain: MosaicTheme.grainIsland
                 }
 
                 MouseArea {
@@ -1118,7 +1118,7 @@ Scope {
                     property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
                     property color shadowColor: root.opaque(MosaicTheme.shadowColor)
                     property real shadowAlpha: MosaicTheme.brutal ? 1 : 0
-                    property real grain: MosaicTheme.grain
+                    property real grain: MosaicTheme.grainIsland
                 }
 
                 // the notifications themselves, laid out at full width and revealed by the bubble

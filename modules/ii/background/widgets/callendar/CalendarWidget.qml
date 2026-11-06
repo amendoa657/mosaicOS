@@ -39,11 +39,13 @@ AbstractBackgroundWidget {
         implicitWidth: 300
         implicitHeight: contentColumn.implicitHeight + 40
         radius: Appearance.rounding.large
-        // Mosaic OS: brutal themes frame it as a solid slab with a thick outline and a hard shadow
-        color: MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colLayer0
+        // Mosaic OS: brutal themes frame it as a solid slab with a thick outline and a hard shadow;
+        // otherwise the Aparência tab's surface (darkness, opacity) and film grain (retro themes)
+        color: MosaicTheme.brutal ? MosaicTheme.slab : MosaicTheme.widgetFill(Appearance.colors.colLayer0)
         border.width: MosaicTheme.brutal ? 3 : 1
         border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
         HardShadow { size: 8 }
+        Grain { radius: parent.radius; amount: MosaicTheme.grainDesktop }
 
         ColumnLayout {
             id: contentColumn

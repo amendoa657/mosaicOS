@@ -136,6 +136,19 @@ color245 #3f372e`,
     //   the dock (`grain`: how strong), and serif titles
     readonly property bool retro: root.theme.style === "retro"
     readonly property real grain: root.retro ? 0.07 : 0
+    // ...and how much of it each part gets (Aparência and Dock tabs)
+    readonly property var widgets: Config.options?.mosaicWidgets
+    readonly property real grainIsland: root.grain * (root.widgets?.grainIsland ?? 1)
+    readonly property real grainSidebars: root.grain * (root.widgets?.grainSidebars ?? 1)
+    readonly property real grainDesktop: root.grain * (root.widgets?.grainDesktop ?? 1)
+    readonly property real grainPicker: root.grain * (root.widgets?.grainPicker ?? 1)
+    readonly property real grainDock: root.grain * (Config.options?.mosaicDock?.grain ?? 1)
+    // The widgets' surface (island, sidebars, desktop widgets), from the Aparência
+    // tab: `base` pulled toward black by `darkness`, as solid as `opacity`.
+    function widgetFill(base) {
+        const d = root.widgets?.darkness ?? 0.55;
+        return Qt.rgba(base.r * (1 - d), base.g * (1 - d), base.b * (1 - d), root.widgets?.opacity ?? 0.9);
+    }
     // Fonts: `fontUi` for text, `fontDisplay` for titles (the clock, headers).
     // A theme's display font is used only if it is installed (Fraunces comes from
     // the AUR: ttf-fraunces-variable); until then, a serif that is.

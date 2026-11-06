@@ -583,12 +583,18 @@ Singleton {
                 }
             }
 
-            // Mosaic OS: the island (Ilha tab of the wallpaper/theme window)
-            property JsonObject mosaicIsland: JsonObject {
-                property real glass: 1.0    // liquid glass strength: 0 off, 1 normal, 2 maximum
+            // Mosaic OS: the widgets' look (Aparência tab of the wallpaper/theme window):
+            // the island, both sidebars and the desktop widgets. The dock has its own.
+            property JsonObject mosaicWidgets: JsonObject {
+                property real glass: 1.0    // liquid glass strength: 0 off, 1 normal, 2 maximum (island and sidebars)
                 property real chroma: 1.0   // chromatic aberration (rainbow edges): 0 none, 1 normal, 2 maximum
-                property real opacity: 0.9  // how solid the island is (0 see-through, 1 solid)
+                property real opacity: 0.9  // how solid the surfaces are (0 see-through, 1 solid)
                 property real darkness: 0.55 // how far toward black (0 = the theme's surface, 1 = black)
+                // film grain of each part, times the theme's grain (only retro themes have any): 0 none, 1 normal, 2 double
+                property real grainIsland: 1.0
+                property real grainSidebars: 1.0
+                property real grainDesktop: 1.0
+                property real grainPicker: 1.0 // the wallpaper/theme window
             }
             // the same for the dock (Dock tab)
             property JsonObject mosaicDock: JsonObject {
@@ -596,6 +602,7 @@ Singleton {
                 property real chroma: 1.0
                 property real opacity: 0.25
                 property real darkness: 0.0
+                property real grain: 1.0
             }
 
             property JsonObject screenRecord: JsonObject {
