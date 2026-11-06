@@ -27,6 +27,30 @@ Scope {
 
     MosaicSpring { id: slide; response: 0.42; damping: 0.86; springBack: false; closeMs: 220; target: root.open ? 1 : 0 }
 
+    // Click outside closes it: a transparent window covering the screen, under
+    // the sidebar (Top layer; the sidebar is on Overlay). A click on it closes
+    // the sidebar. (Hyprland's focus grab was dropping on its own right after the
+    // sidebar opened, which closed it at the first click inside.)
+    PanelWindow {
+        visible: root.open
+        screen: panel.screen
+        anchors {
+            top: true
+            bottom: true
+            left: true
+            right: true
+        }
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        WlrLayershell.namespace: "quickshell:sidebarCatcher"
+        WlrLayershell.layer: WlrLayer.Top
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onPressed: GlobalStates.sidebarLeftOpen = false
+        }
+    }
+
     PanelWindow {
         id: panel
         visible: root.open || slide.value > 0.005
@@ -35,34 +59,12 @@ Scope {
         implicitWidth: root.sidebarWidth + MosaicTheme.shadow + 4
         color: "transparent"
         WlrLayershell.namespace: "quickshell:sidebarLeft"
+        WlrLayershell.layer: WlrLayer.Overlay // above the click catcher
         WlrLayershell.keyboardFocus: root.open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
         anchors {
             top: true
             left: true
             bottom: true
-        }
-        // Click outside closes it. Its own focus grab, switched on a moment after it
-        // opens: the ii's shared one (GlobalFocusGrab) rebuilds its window list as
-        // focus moves inside, and that dropped the grab on a click in the pages
-        // (the sidebar closed when clicked). Only this window counts as "inside".
-        property bool grabReady: false
-        Connections {
-            target: root
-            function onOpenChanged() {
-                panel.grabReady = false;
-                if (root.open)
-                    grabDelay.restart();
-            }
-        }
-        Timer {
-            id: grabDelay
-            interval: 250
-            onTriggered: panel.grabReady = root.open
-        }
-        HyprlandFocusGrab {
-            active: root.open && panel.grabReady
-            windows: [panel]
-            onCleared: GlobalStates.sidebarLeftOpen = false
         }
         mask: Region { item: column }
 

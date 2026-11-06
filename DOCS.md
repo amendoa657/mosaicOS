@@ -531,7 +531,8 @@ Substituem as laterais do ii, com os **mesmos atalhos e IPC**: `sidebarLeftToggl
 - **Entrada:** `slide` (`MosaicSpring`) leva a coluna de fora da tela até o lugar. A janela só existe enquanto está aberta ou animando.
 - **Cantos:** só os do lado de dentro são arredondados. Um retângulo da cor da coluna cobre os cantos que encostam na borda da tela.
 - **Brutal:** a sombra dura cai para **dentro** da tela, à esquerda da lateral direita e à direita da esquerda. Por isso é um retângulo próprio, não o `HardShadow`, que sempre desloca para baixo e para a direita.
-- Esc e clique fora fecham. Cada lateral tem **a sua própria** `HyprlandFocusGrab` (só a janela dela conta como "dentro"), ligada 250 ms depois de abrir. A captura compartilhada do ii (`GlobalFocusGrab`) remonta a lista de janelas conforme o foco anda dentro delas (`hasActive`), e isso soltava a captura num clique nas páginas: a lateral esquerda fechava a cada clique.
+- Esc e clique fora fecham. **O clique fora é uma janela transparente** (`quickshell:sidebarCatcher`, camada Top) cobrindo a tela atrás da lateral, que fica na camada **Overlay**, acima dela. Clicar na janela transparente fecha; clicar na lateral cai na lateral.
+  - **Por que não `HyprlandFocusGrab`:** um rastreador temporário (que registrou quem fechava a lateral e o caminho do código) mostrou que a captura do Hyprland **soltava sozinha** logo depois de abrir (`grab cleared`, com o Qt avisando que o teclado ficou sem dono). Isso fechava a lateral no primeiro clique dentro. Nem a captura compartilhada do ii nem uma captura própria resolveram; a janela transparente não depende do foco.
 
 ### 13.1 Direita (`MosaicSidebarRight.qml`)
 De cima para baixo:
