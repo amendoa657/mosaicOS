@@ -229,10 +229,21 @@ Scope {
                 width: Math.min(1120, win.width - 80)
                 height: Math.min(680, win.height - 100)
                 radius: Appearance.rounding.large
-                color: Appearance.colors.colLayer0
-                border.width: 1
-                border.color: Appearance.colors.colLayer0Border
+                color: MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colLayer0
+                border.width: MosaicTheme.brutal ? MosaicTheme.border : 1
+                border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
                 opacity: win.v
+                // brutal themes: a big hard shadow under the whole card
+                Rectangle {
+                    visible: MosaicTheme.brutal
+                    z: -1
+                    x: 8
+                    y: 8
+                    width: parent.width
+                    height: parent.height
+                    radius: parent.radius
+                    color: MosaicTheme.shadowColor
+                }
                 scale: 0.94 + 0.06 * win.v
                 MouseArea { anchors.fill: parent } // clicks on the card don't close it
 
@@ -252,7 +263,8 @@ Scope {
                             showFace: false
                         }
                         StyledText {
-                            text: "Papéis de parede"
+                            text: MosaicTheme.brutal ? "PAPÉIS DE PAREDE" : "Papéis de parede"
+                            font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
                             font.family: "Space Grotesk"
                             font.pixelSize: 16
                             font.weight: Font.DemiBold
@@ -262,7 +274,11 @@ Scope {
                             implicitWidth: countText.implicitWidth + 12
                             implicitHeight: 20
                             radius: MosaicTheme.r(6)
-                            color: Appearance.colors.colLayer1
+                            // brutal themes: a tilted sticker
+                            color: MosaicTheme.brutal ? Appearance.colors.colTertiaryContainer : Appearance.colors.colLayer1
+                            rotation: MosaicTheme.tilt * 1.6
+                            border.width: MosaicTheme.brutal ? 1.5 : 0
+                            border.color: MosaicTheme.ink
                             StyledText {
                                 id: countText
                                 anchors.centerIn: parent
@@ -292,7 +308,8 @@ Scope {
                                 radius: Appearance.rounding.small
                                 color: modelData.base ?? Appearance.colors.colLayer1
                                 border.width: on ? 2 : 1
-                                border.color: on ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
+                                border.color: MosaicTheme.brutal ? MosaicTheme.ink : on ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
+                                HardShadow { visible: MosaicTheme.brutal && themeCard.on }
                                 scale: themeArea.pressed ? 0.95 : themeArea.containsMouse ? 1.02 : 1
                                 Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
                                 Behavior on border.color { ColorAnimation { duration: 200 } }
@@ -384,9 +401,10 @@ Scope {
                         Layout.topMargin: 6
                         implicitHeight: 44
                         radius: Appearance.rounding.small
-                        color: Appearance.colors.colLayer1
-                        border.width: search.activeFocus ? 2 : 1
-                        border.color: search.activeFocus ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
+                        color: MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer1
+                        border.width: MosaicTheme.brutal ? MosaicTheme.border : search.activeFocus ? 2 : 1
+                        border.color: MosaicTheme.brutal ? MosaicTheme.ink : search.activeFocus ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
+                        HardShadow {}
                         MaterialSymbol {
                             id: searchIcon
                             x: 14
@@ -460,10 +478,12 @@ Scope {
                                 width: modelData.label ? chipText.implicitWidth + 24 : 34
                                 height: 34
                                 radius: Appearance.rounding.small
-                                color: on ? root.softBlockOf(Appearance.colors.colPrimary) : Appearance.colors.colLayer1
-                                border.width: on ? 1 : 0
-                                border.color: Appearance.colors.colPrimary
-                                scale: chipArea.pressed ? 0.92 : 1
+                                color: MosaicTheme.brutal ? (on ? Appearance.colors.colPrimaryContainer : MosaicTheme.slabRaised) : on ? root.softBlockOf(Appearance.colors.colPrimary) : Appearance.colors.colLayer1
+                                border.width: MosaicTheme.brutal ? (on ? MosaicTheme.border : 1) : on ? 1 : 0
+                                border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colPrimary
+                                transform: Translate { x: filterShadow.sinkShift; y: filterShadow.sinkShift }
+                                HardShadow { id: filterShadow; sink: chipArea.pressed || chip.on }
+                                scale: !MosaicTheme.brutal && chipArea.pressed ? 0.92 : 1
                                 Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
                                 Behavior on color { ColorAnimation { duration: 160 } }
                                 StyledText {
@@ -610,13 +630,24 @@ Scope {
                                     }
                                 }
                             }
-                            // selection outline in the accent
+                            // selection outline in the accent (brutal themes: a cream frame on a hard shadow)
+                            Rectangle {
+                                z: -1
+                                visible: MosaicTheme.brutal
+                                x: MosaicTheme.shadow + 2
+                                y: MosaicTheme.shadow + 2
+                                width: parent.width
+                                height: parent.height
+                                radius: Appearance.rounding.normal
+                                color: MosaicTheme.shadowColor
+                                opacity: cell.selected ? 1 : 0
+                            }
                             Rectangle {
                                 anchors.fill: parent
                                 radius: Appearance.rounding.normal
                                 color: "transparent"
-                                border.width: 2
-                                border.color: Appearance.colors.colPrimary
+                                border.width: MosaicTheme.brutal ? 3 : 2
+                                border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colPrimary
                                 opacity: cell.selected ? 1 : 0
                                 Behavior on opacity { NumberAnimation { duration: 140 } }
                             }
@@ -667,7 +698,12 @@ Scope {
             GradientStop { position: 0; color: btn.strong ? ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer1, 0.32) : Appearance.colors.colLayer1 }
             GradientStop { position: 1; color: btn.strong ? ColorUtils.mix(Appearance.colors.colSecondary, Appearance.colors.colLayer1, 0.32) : Appearance.colors.colLayer1 }
         }
-        scale: btnArea.pressed ? 0.95 : btnArea.containsMouse ? 1.02 : 1
+        // brutal themes: it sinks into its shadow instead of shrinking
+        border.width: MosaicTheme.border
+        border.color: MosaicTheme.ink
+        transform: Translate { x: btnShadow.sinkShift; y: btnShadow.sinkShift }
+        HardShadow { id: btnShadow; sink: btnArea.pressed }
+        scale: MosaicTheme.brutal ? 1 : btnArea.pressed ? 0.95 : btnArea.containsMouse ? 1.02 : 1
         Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
         RowLayout {
             id: btnRow

@@ -135,7 +135,12 @@ Item {
                 width: (editing ? nameEdit.implicitWidth + 24 : label.implicitWidth + 24) + (on ? 22 : 0)
                 height: 34
                 radius: MosaicTheme.r(12)
-                color: on ? ColorUtils.transparentize(Appearance.colors.colPrimary, 0.78) : ColorUtils.transparentize(Appearance.colors.colOnLayer0, tabArea.containsMouse ? 0.88 : 0.94)
+                color: MosaicTheme.brutal ? (on ? Appearance.colors.colPrimaryContainer : MosaicTheme.slabRaised)
+                    : on ? ColorUtils.transparentize(Appearance.colors.colPrimary, 0.78) : ColorUtils.transparentize(Appearance.colors.colOnLayer0, tabArea.containsMouse ? 0.88 : 0.94)
+                border.width: MosaicTheme.brutal ? (on ? MosaicTheme.border : 1) : 0
+                border.color: MosaicTheme.ink
+                // brutal themes: the current tab stands up with its shadow, the others lie flat
+                HardShadow { visible: MosaicTheme.brutal && tab.on }
                 Behavior on color { ColorAnimation { duration: 140 } }
                 Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
                 // tabs pop in one after the other
@@ -223,8 +228,12 @@ Item {
             width: 34
             height: 34
             radius: MosaicTheme.r(12)
-            color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, addArea.containsMouse ? 0.86 : 0.94)
-            scale: addArea.pressed ? 0.9 : 1
+            color: MosaicTheme.brutal ? Appearance.colors.colSecondaryContainer : ColorUtils.transparentize(Appearance.colors.colOnLayer0, addArea.containsMouse ? 0.86 : 0.94)
+            border.width: MosaicTheme.border
+            border.color: MosaicTheme.ink
+            transform: Translate { x: addShadow.sinkShift; y: addShadow.sinkShift }
+            HardShadow { id: addShadow; sink: addArea.pressed }
+            scale: !MosaicTheme.brutal && addArea.pressed ? 0.9 : 1
             Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
             MaterialSymbol {
                 anchors.centerIn: parent
@@ -246,9 +255,13 @@ Item {
         anchors.top: tabs.bottom
         anchors.topMargin: 10
         anchors.bottom: parent.bottom
-        width: parent.width
+        anchors.bottomMargin: MosaicTheme.shadow
         radius: MosaicTheme.r(16)
-        color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.95)
+        color: MosaicTheme.brutal ? MosaicTheme.slabRaised : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.95)
+        border.width: MosaicTheme.border
+        border.color: MosaicTheme.ink
+        width: parent.width - MosaicTheme.shadow
+        HardShadow {}
 
         Flickable {
             id: page

@@ -18,15 +18,32 @@ Singleton {
 
     readonly property var themes: [
         // swatches: the four blocks of the Mosaic mark, in the theme's tones
-        { id: "mosaic", name: "Mosaic", hint: "cores do papel de parede", file: "", roundness: 1 },
+        { id: "mosaic", name: "Mosaic", hint: "cores do papel de parede", file: "", roundness: 1, style: "soft" },
         { id: "gruvbox", name: "Gruvbox", hint: "escuro médio", file: Quickshell.shellPath("themes/gruvbox.json"),
-          swatches: ["#fe8019", "#b8bb26", "#83a598", "#ebdbb2"], base: "#282828", roundness: 0.2,
+          swatches: ["#fe8019", "#b8bb26", "#83a598", "#ebdbb2"], base: "#282828", roundness: 0.2, style: "brutal",
+          // neo-brutalist: cream outlines, a hard orange shadow, flat colours
+          ink: "#ebdbb2", shadowColor: "#d65d0e",
           hypr: { active: "rgba(fe8019aa)", inactive: "rgba(50494566)", background: "rgba(1d2021ff)", rounding: 3 } }
     ]
     property string current: "mosaic"
     readonly property var theme: root.themes.find(t => t.id === root.current) ?? root.themes[0]
     readonly property string colorsFile: root.theme.file // "" = the Matugen file
     readonly property real roundness: root.theme.roundness ?? 1
+    // The style of the shapes:
+    // - "soft" (Mosaic): glass, gradients, thin hairlines, soft curves
+    // - "brutal" (Gruvbox): flat colours, thick outlines (`border` px in `ink`),
+    //   a hard shadow offset by `shadow` px (no blur), things sink into their
+    //   shadow when pressed, and a few labels tilt like stickers (`tilt` degrees)
+    readonly property bool brutal: root.theme.style === "brutal"
+    readonly property real border: root.brutal ? 2 : 0
+    readonly property real shadow: root.brutal ? 4 : 0
+    readonly property color ink: root.theme.ink ?? "transparent"
+    readonly property color shadowColor: root.theme.shadowColor ?? "transparent"
+    readonly property real tilt: root.brutal ? -2.5 : 0
+    // brutal themes paint solid surfaces (the ii layers are see-through and let
+    // the wallpaper tint them): the theme's background, and a raised one
+    readonly property color slab: Appearance.m3colors.m3background
+    readonly property color slabRaised: Appearance.m3colors.m3surfaceContainer
     // a radius in this theme's shape (a soft Mosaic curve, a square Gruvbox corner)
     function r(px) { return Math.max(0, Math.round(px * root.roundness)); }
 

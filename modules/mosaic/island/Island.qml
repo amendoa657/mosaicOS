@@ -37,19 +37,23 @@ Scope {
     signal jumpRequested()
 
     // Soft colors: the Matugen tones mixed into the bar surface, so neighbors blend
-    function softBlock(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.32); }
+    // brutal themes (Gruvbox): stronger, flat colours instead of the soft blend
+    function softBlock(c) { return MosaicTheme.brutal ? ColorUtils.mix(c, MosaicTheme.slab, 0.5) : ColorUtils.mix(c, Appearance.colors.colLayer1, 0.32); }
     function softTone(c) { return ColorUtils.mix(c, Appearance.colors.colLayer1, 0.72); }
     // The island's soft Mosaic wash: left, middle and right colours of its gradient.
     // Resting it is a light touch of the tones; as a compass (morph 1) a stronger one.
     function washStop(i, morph) {
         const c = Appearance.colors;
         const tone = [c.colPrimary, c.colSecondary, c.colTertiary][i];
-        const amount = (0.10 + 0.06 * morph) * (i === 1 ? 0.62 : 1); // the compass only a touch more coloured
+        const amount = MosaicTheme.brutal ? 0 : (0.10 + 0.06 * morph) * (i === 1 ? 0.62 : 1); // the compass only a touch more coloured; brutal: flat
         return ColorUtils.mix(tone, root.islandBase, amount);
     }
     // the island is dark, like the hyprdots one: the bar surface pushed 55% toward black
-    readonly property color islandBase: ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
-    readonly property real islandAlpha: Math.max(0.9, Appearance.colors.colLayer0.a)
+    // (brutal themes keep the theme's own background, solid)
+    readonly property color islandBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
+    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : Math.max(0.9, Appearance.colors.colLayer0.a)
+    // the outline: a hairline, or the thick cream line of brutal themes
+    readonly property color outlineColor: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
     // shaders mix colours themselves, so they get them opaque and the alpha apart
     function opaque(c) { return Qt.rgba(c.r, c.g, c.b, 1); }
 
@@ -429,21 +433,27 @@ Scope {
                 ShaderEffect {
                     id: surface
                     readonly property real m: Math.max(0, Math.min(1, notch.morph))
-                    anchors.fill: parent
+                    // bigger than the island by the hard shadow (brutal themes)
+                    width: notch.width + MosaicTheme.shadow
+                    height: notch.height + MosaicTheme.shadow
                     opacity: bubble.living ? 0 : 1
                     fragmentShader: Qt.resolvedUrl("shaders/island.frag.qsb")
                     property vector2d size: Qt.vector2d(width, height)
+                    property vector2d shapeSize: Qt.vector2d(notch.width, notch.height)
                     property real rTop: notch.cornerRadius
-                    property real rBot: notch.cornerRadius + (width / 2 - notch.cornerRadius) * m * Math.pow(MosaicTheme.roundness, 2) // boxy themes: (almost) no dome
+                    property real rBot: notch.cornerRadius + (notch.width / 2 - notch.cornerRadius) * m * Math.pow(MosaicTheme.roundness, 2) // boxy themes: (almost) no dome
                     // built taller than drawn while it is a compass: that is the squash
-                    // built taller than drawn while it is a compass: that is the squash
-                    property real hu: height + (width / 2 + notch.cornerRadius - height) * m * Math.pow(MosaicTheme.roundness, 2)
+                    property real hu: notch.height + (notch.width / 2 + notch.cornerRadius - notch.height) * m * Math.pow(MosaicTheme.roundness, 2)
                     property color stop0: root.opaque(root.washStop(0, notch.morph))
                     property color stop1: root.opaque(root.washStop(1, notch.morph))
                     property color stop2: root.opaque(root.washStop(2, notch.morph))
                     property real fillAlpha: root.islandAlpha
-                    property color strokeColor: root.opaque(Appearance.colors.colLayer0Border)
-                    property real strokeAlpha: Appearance.colors.colLayer0Border.a
+                    property color strokeColor: root.opaque(root.outlineColor)
+                    property real strokeAlpha: root.outlineColor.a
+                    property real strokeWidth: MosaicTheme.brutal ? MosaicTheme.border : 1
+                    property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
+                    property color shadowColor: root.opaque(MosaicTheme.shadowColor)
+                    property real shadowAlpha: MosaicTheme.brutal ? 1 : 0
                 }
 
                 MouseArea {
@@ -555,7 +565,7 @@ Scope {
                     readonly property real implicitHeight: loader.item ? loader.item.implicitHeight : 0
                     x: 12
                     y: notch.restHeight + 2
-                    width: notch.width - 24
+                    width: notch.width - 24 // (the blocks leave room for their hard shadow in brutal themes)
                     height: notch.height - notch.restHeight - 8
                     clip: true
                     opacity: notch.mode === "panel" ? 1 : 0
@@ -952,8 +962,12 @@ Scope {
                     property color stop1: root.opaque(root.washStop(1, 0))
                     property color stop2: root.opaque(root.washStop(2, 0))
                     property real fillAlpha: root.islandAlpha
-                    property color strokeColor: root.opaque(Appearance.colors.colLayer0Border)
-                    property real strokeAlpha: Appearance.colors.colLayer0Border.a
+                    property color strokeColor: root.opaque(root.outlineColor)
+                    property real strokeAlpha: root.outlineColor.a
+                    property real strokeWidth: MosaicTheme.brutal ? MosaicTheme.border : 1
+                    property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
+                    property color shadowColor: root.opaque(MosaicTheme.shadowColor)
+                    property real shadowAlpha: MosaicTheme.brutal ? 1 : 0
                 }
 
                 // the notifications themselves, laid out at full width and revealed by the bubble
@@ -1007,7 +1021,9 @@ Scope {
             Component {
                 id: panelView
                 ColumnLayout {
-                    spacing: 6
+                    spacing: 6 + MosaicTheme.shadow
+                    // brutal themes: leave room on the right and bottom for the hard shadows
+                    width: parent ? parent.width - MosaicTheme.shadow : implicitWidth
 
                     // time (primary block) + weather (tertiary block)
                     RowLayout {
@@ -1275,13 +1291,16 @@ Scope {
     component Block: Rectangle {
         id: block
         property color tint: Appearance.colors.colLayer1
-        property color tint2: tint // the tone it flows into, left to right
+        property color tint2: tint // the tone it flows into, left to right (flat in brutal themes)
         radius: Appearance.rounding.small
+        border.width: MosaicTheme.border
+        border.color: MosaicTheme.ink
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0; color: block.tint }
-            GradientStop { position: 1; color: block.tint2 }
+            GradientStop { position: 1; color: MosaicTheme.brutal ? block.tint : block.tint2 }
         }
+        HardShadow {}
     }
 
     // A round quick tool with a caption under it: fixed cell, icon truly centered
@@ -1301,7 +1320,7 @@ Scope {
             width: 42
             height: 42
             padding: 0
-            buttonRadius: 21
+            buttonRadius: MosaicTheme.brutal ? MosaicTheme.r(21) : 21 // brutal themes: square keys
             toggled: tool.toggled
             colBackground: Appearance.colors.colLayer2
             onClicked: tool.clicked()

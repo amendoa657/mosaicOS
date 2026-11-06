@@ -41,7 +41,7 @@ Item {
     function toneFor(id) { return root.tones[(id - 1) % 4]; }
 
     // the dark island surface: the soft blocks are mixed toward it
-    readonly property color washBase: ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
+    readonly property color washBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, 0.55)
     // windows per workspace, worked out once per change (not once per block)
     readonly property var windowsByWs: {
         const map = {};
@@ -101,9 +101,10 @@ Item {
                 anchors.fill: parent
                 radius: MosaicTheme.r(Math.round(tile.size * 0.28))
                 // quiet: soft tones on the dark island, only the current one a little brighter
-                color: tile.isCurrent ? ColorUtils.mix(tile.tone, root.washBase, 0.7) : ColorUtils.mix(tile.tone, root.washBase, tile.windows.length > 0 ? 0.38 : 0.18)
-                border.width: tile.isCurrent ? 1 : 0
-                border.color: ColorUtils.mix(Appearance.colors.colOnLayer0, tile.tone, 0.5)
+                color: tile.isCurrent ? ColorUtils.mix(tile.tone, root.washBase, MosaicTheme.brutal ? 1 : 0.7) : ColorUtils.mix(tile.tone, root.washBase, tile.windows.length > 0 ? (MosaicTheme.brutal ? 0.6 : 0.38) : 0.18)
+                border.width: MosaicTheme.brutal ? MosaicTheme.border : tile.isCurrent ? 1 : 0
+                border.color: MosaicTheme.brutal ? MosaicTheme.ink : ColorUtils.mix(Appearance.colors.colOnLayer0, tile.tone, 0.5)
+                HardShadow { visible: MosaicTheme.brutal && tile.isCurrent }
                 Behavior on color { ColorAnimation { duration: 220 } }
             }
             IconImage {

@@ -11,6 +11,10 @@
 // `hu` pixels tall and drawn `size.y` tall, which turns the half circle into a
 // half oval.
 //
+// Brutal themes (Gruvbox) add a thick outline (strokeWidth) and a hard shadow:
+// the same shape again, moved by shadowOffset and painted flat underneath.
+// The effect is bigger than the shape by that offset (shapeSize = the shape).
+//
 // Build: /usr/lib/qt6/bin/qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o island.frag.qsb island.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -19,7 +23,8 @@ layout(location = 0) out vec4 fragColor;
 layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
-    vec2 size;     // drawn size (px)
+    vec2 size;     // effect size (px): the shape plus room for the shadow
+    vec2 shapeSize;// the island itself
     float rTop;    // top corners
     float rBot;    // bottom corners (width / 2 = half circle)
     float hu;      // height the shape is built at, before the squash
@@ -29,6 +34,10 @@ layout(std140, binding = 0) uniform buf {
     float fillAlpha;
     vec4 strokeColor;
     float strokeAlpha;
+    float strokeWidth;
+    vec2 shadowOffset;
+    vec4 shadowColor;
+    float shadowAlpha;
 };
 
 float sdBox(vec2 p, vec2 c, vec2 b, float r) {
@@ -37,22 +46,35 @@ float sdBox(vec2 p, vec2 c, vec2 b, float r) {
     return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0) - r;
 }
 
+float shapeD(vec2 p) {
+    float sq = shapeSize.y / max(hu, 1.0);      // the squash (1 = none)
+    vec2 q = vec2(p.x, p.y / max(sq, 0.001));   // back into the unsquashed shape
+    float w = shapeSize.x;
+    float big = 4096.0;
+    // top box: from 0 down past the bottom; bottom box: from far above down to hu
+    float dTop = sdBox(q, vec2(w * 0.5, big * 0.5), vec2(w * 0.5, big * 0.5), rTop);
+    float dBot = sdBox(q, vec2(w * 0.5, hu - big * 0.5), vec2(w * 0.5, big * 0.5), rBot);
+    return max(dTop, dBot) * min(1.0, sq);
+}
+
 void main() {
     vec2 p = qt_TexCoord0 * size;
-    float sq = size.y / max(hu, 1.0);      // the squash (1 = none)
-    vec2 q = vec2(p.x, p.y / max(sq, 0.001)); // back into the unsquashed shape
-    float w = size.x;
-    float big = 4096.0;
+    float w = shapeSize.x;
+    float d = shapeD(p);
 
-    // top box: from 0 down past the bottom; bottom box: from far above down to hu
-    float dTop = sdBox(q, vec2(w * 0.5, (big) * 0.5), vec2(w * 0.5, big * 0.5), rTop);
-    float dBot = sdBox(q, vec2(w * 0.5, hu - big * 0.5), vec2(w * 0.5, big * 0.5), rBot);
-    float d = max(dTop, dBot) * min(1.0, sq);
+    // the hard shadow, under everything
+    vec4 shade = vec4(0.0);
+    if (shadowAlpha > 0.0) {
+        float dS = shapeD(p - shadowOffset);
+        float aaS = max(fwidth(dS), 0.0001);
+        float inS = 1.0 - smoothstep(-aaS, aaS, dS);
+        shade = vec4(shadowColor.rgb * shadowAlpha, shadowAlpha) * inS * qt_Opacity;
+    }
 
     float aa = max(fwidth(d), 0.0001);
     float inside = 1.0 - smoothstep(-aa, aa, d);
     if (inside <= 0.0) {
-        fragColor = vec4(0.0);
+        fragColor = shade;
         return;
     }
 
@@ -60,10 +82,11 @@ void main() {
     vec3 rgb = t < 0.5 ? mix(stop0.rgb, stop1.rgb, t * 2.0) : mix(stop1.rgb, stop2.rgb, (t - 0.5) * 2.0);
     float alpha = fillAlpha;
 
-    float band = smoothstep(-1.0 - aa, -1.0 + aa, d);
+    float band = smoothstep(-strokeWidth - aa, -strokeWidth + aa, d);
     rgb = mix(rgb, strokeColor.rgb, band * strokeAlpha);
     alpha = mix(alpha, max(alpha, strokeAlpha), band);
 
     alpha *= inside * qt_Opacity;
-    fragColor = vec4(rgb * alpha, alpha);
+    vec4 face = vec4(rgb * alpha, alpha);
+    fragColor = face + shade * (1.0 - face.a);
 }

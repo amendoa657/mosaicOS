@@ -60,9 +60,10 @@ Item {
         width: parent.width
         height: 48
         radius: MosaicTheme.r(16)
-        color: ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.93)
-        border.width: 1
-        border.color: search.activeFocus ? ColorUtils.transparentize(Appearance.colors.colPrimary, 0.4) : "transparent"
+        color: MosaicTheme.brutal ? MosaicTheme.slabRaised : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.93)
+        border.width: MosaicTheme.brutal ? MosaicTheme.border : 1
+        border.color: MosaicTheme.brutal ? MosaicTheme.ink : search.activeFocus ? ColorUtils.transparentize(Appearance.colors.colPrimary, 0.4) : "transparent"
+        HardShadow {}
         MaterialSymbol {
             id: searchIcon
             x: 16
@@ -151,7 +152,12 @@ Item {
                     implicitWidth: chipRow.implicitWidth + 18
                     implicitHeight: 30
                     radius: MosaicTheme.r(10)
-                    color: chipArea.containsMouse ? ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.86) : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.94)
+                    color: MosaicTheme.brutal ? (chipArea.containsMouse ? Appearance.colors.colSecondaryContainer : MosaicTheme.slabRaised)
+                        : chipArea.containsMouse ? ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.86) : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.94)
+                    border.width: MosaicTheme.brutal ? 1.5 : 0
+                    border.color: MosaicTheme.ink
+                    transform: Translate { x: chipShadow.sinkShift; y: chipShadow.sinkShift }
+                    HardShadow { id: chipShadow; sink: chipArea.pressed }
                     Behavior on color { ColorAnimation { duration: 120 } }
                     // they pop in one after the other
                     property real born: 0
@@ -203,12 +209,14 @@ Item {
             anchors.top: chips.bottom
             anchors.topMargin: 14
             x: 4
-            text: "Recentes"
+            text: MosaicTheme.brutal ? "RECENTES" : "Recentes"
             font.family: "Space Grotesk"
             font.pixelSize: 12
-            font.weight: Font.DemiBold
-            color: Appearance.colors.colOnLayer0
-            opacity: 0.6
+            font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
+            font.letterSpacing: MosaicTheme.brutal ? 1.5 : 0
+            color: MosaicTheme.brutal ? Appearance.colors.colPrimary : Appearance.colors.colOnLayer0
+            opacity: MosaicTheme.brutal ? 1 : 0.6
+            rotation: MosaicTheme.tilt
         }
         Grid {
             id: recentGrid
@@ -300,12 +308,15 @@ Item {
         Rectangle {
             id: selection
             parent: list.contentItem
-            width: list.width
             height: menu.rowHeight - 4
             radius: MosaicTheme.r(14)
             visible: list.count > 0
-            color: ColorUtils.transparentize(Appearance.colors.colPrimary, 0.78)
+            color: MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : ColorUtils.transparentize(Appearance.colors.colPrimary, 0.78)
+            border.width: MosaicTheme.border
+            border.color: MosaicTheme.ink
+            width: list.width - MosaicTheme.shadow
             y: selSpring.value + 2
+            HardShadow {}
             MosaicSpring { id: selSpring; response: 0.26; damping: 0.82; epsilon: 0.3; target: Math.max(0, list.currentIndex) * menu.rowHeight }
         }
         delegate: Item {

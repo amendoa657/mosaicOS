@@ -487,7 +487,22 @@ Um **tema** é **cores e formato** para o **Quickshell** e o **Hyprland** (borda
 - **Líquido:** o raio da bolha passa por `r()`, e o `fuse` (a curva da junção) encolhe até 35% nos temas quadrados. A notificação continua derretendo, só que com curvas mais justas.
 - **Hyprland:** o tema também manda `decoration.rounding` (3 no Gruvbox). Voltar ao Mosaic recarrega a config (22).
 
+**Estilo (`style`):** além de cor e formato, o tema escolhe a *linguagem visual*.
+- **`soft`** (Mosaic): vidro, degradês, contornos finos e curvas macias.
+- **`brutal`** (Gruvbox): **neo-brutalista quente**.
+  - **Superfícies chapadas e sólidas:** `MosaicTheme.slab` (o fundo do tema) e `slabRaised`. As camadas do ii são translúcidas e deixavam o papel de parede tingir tudo de marrom.
+  - **Contorno grosso creme:** `border` = 2 px, na cor `ink` (`#ebdbb2`).
+  - **Sombra dura laranja:** `shadowColor` = `#d65d0e`, deslocada `shadow` = 4 px para baixo e para a direita, sem desfoque.
+  - **Botões que afundam:** ao apertar, o botão anda para dentro da própria sombra (chips, +, Aplicar/Aleatório, filtro ligado).
+  - **Etiquetas tortas como adesivo:** `tilt` = −2,5° no contador do seletor e no "RECENTES".
+  - **Títulos** em maiúsculas com espaçamento.
+- **`HardShadow.qml`:** a sombra dura reutilizável. É um `Rectangle` com `z: -1` (filho com z negativo é desenhado **atrás** do pai), na forma do pai, deslocado. Com `sink: pressed`, ela devolve `sinkShift`, e o pai anda isso (`transform: Translate`); a sombra fica no lugar e o botão parece afundar.
+- **Ilha e bolha:** os shaders `island.frag` e `goo.frag` ganharam `strokeWidth`, `shadowOffset`, `shadowColor` e `shadowAlpha`. A sombra é **a mesma forma SDF calculada de novo em `p − offset`** e pintada por baixo, então até o pescoço líquido e a cúpula têm sombra dura. A `ShaderEffect` da ilha ficou 4 px maior para caber a sombra (`shapeSize` é a ilha, `size` é a ilha mais a sombra).
+- **Painel:** os blocos (`Block`) ficam com cor chapada mais forte (`softBlock` mistura 50% com o fundo, sem degradê), contorno e sombra. O layout deixa 4 px à direita e embaixo para a sombra não ser cortada, e as teclas das ferramentas ficam quadradas.
+- **Bússola:** blocos em cor cheia com contorno; a área atual ganha sombra dura.
+- **Dock, menu, notas e seletor de papéis:** placa sólida com contorno e sombra. A seleção do menu, a aba atual e a miniatura escolhida "levantam" sobre a sombra; o cartão do seletor tem uma sombra de 8 px.
+
 **Onde escolher:** no topo do **seletor de papéis de parede** há um cartão por tema, com uma marca Mosaic pintada nos quatro tons do tema (no Mosaic, os tons atuais do papel de parede). Pela IPC: `qs -c mosaic ipc call theme set gruvbox|mosaic` e `theme get`.
 
-**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato) e `hypr` (cores de borda e fundo, e `rounding` das janelas).
+**Criar um tema novo:** copie `themes/gruvbox.json` com as 49 chaves e acrescente uma entrada em `themes` no `MosaicTheme.qml`, com `id`, `name`, `hint`, `file`, `swatches` (4 cores da marca), `base` (fundo do cartão), `roundness` (formato), `style` (`soft` ou `brutal`; no brutal, também `ink` e `shadowColor`) e `hypr` (cores de borda e fundo, e `rounding` das janelas).
 

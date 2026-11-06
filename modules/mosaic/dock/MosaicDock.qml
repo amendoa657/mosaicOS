@@ -123,14 +123,17 @@ Scope {
                 height: root.dockHeight
                 width: row.implicitWidth + 20
                 radius: MosaicTheme.r(20)
-                color: root.glassFill
-                border.width: 1
-                border.color: root.glassEdge
+                // brutal themes: a solid slab with a thick outline and a hard shadow instead of glass
+                color: MosaicTheme.brutal ? MosaicTheme.slab : root.glassFill
+                border.width: MosaicTheme.brutal ? MosaicTheme.border : 1
+                border.color: MosaicTheme.brutal ? MosaicTheme.ink : root.glassEdge
+                HardShadow {}
                 transform: Translate { y: (1 - showSpring.value) * (root.dockHeight + root.gap + 6) }
                 Behavior on width { NumberAnimation { duration: 320; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
 
                 // light from above: a soft sheen on the top half of the glass
                 Rectangle {
+                    visible: !MosaicTheme.brutal
                     anchors.fill: parent
                     anchors.margins: 1
                     radius: parent.radius - 1
@@ -347,7 +350,7 @@ Scope {
         Layout.alignment: Qt.AlignVCenter
         implicitWidth: 1
         implicitHeight: 26
-        color: Qt.rgba(1, 1, 1, 0.16)
+        color: MosaicTheme.brutal ? MosaicTheme.ink : Qt.rgba(1, 1, 1, 0.16)
     }
 
     component StatusIcon: MaterialSymbol {

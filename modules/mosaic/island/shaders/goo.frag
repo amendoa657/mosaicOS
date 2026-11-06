@@ -31,6 +31,10 @@ layout(std140, binding = 0) uniform buf {
     float fillAlpha;
     vec4 strokeColor;
     float strokeAlpha;
+    float strokeWidth;
+    vec2 shadowOffset; // brutal themes: a hard shadow of the whole shape
+    vec4 shadowColor;
+    float shadowAlpha;
 };
 
 float sdRoundBox(vec2 p, vec4 r, float rad) {
@@ -44,19 +48,29 @@ float smin(float a, float b, float k) {
     return max(k, min(a, b)) - length(max(vec2(k) - vec2(a, b), vec2(0.0)));
 }
 
-void main() {
-    vec2 p = qt_TexCoord0 * size;
-
+float shapeD(vec2 p) {
     float dI = sdRoundBox(p, island, islandRadius);
     float dT = sdRoundBox(p, twin, 4.0);
     float dB = sdRoundBox(p, body, bodyRadius);
-    float d = smin(dI, smin(dT, dB, max(fuse, 0.001)), 10.0);
+    return smin(dI, smin(dT, dB, max(fuse, 0.001)), min(10.0, fuse));
+}
+
+void main() {
+    vec2 p = qt_TexCoord0 * size;
+    float d = shapeD(p);
+
+    vec4 shade = vec4(0.0);
+    if (shadowAlpha > 0.0) {
+        float dS = shapeD(p - shadowOffset);
+        float aaS = max(fwidth(dS), 0.0001);
+        shade = vec4(shadowColor.rgb * shadowAlpha, shadowAlpha) * (1.0 - smoothstep(-aaS, aaS, dS)) * qt_Opacity;
+    }
 
     // one pixel of anti-aliasing at any scale (an SDF changes 1 per pixel)
     float aa = max(fwidth(d), 0.0001);
     float inside = 1.0 - smoothstep(-aa, aa, d);
     if (inside <= 0.0) {
-        fragColor = vec4(0.0);
+        fragColor = shade;
         return;
     }
 
@@ -65,10 +79,11 @@ void main() {
     float alpha = fillAlpha;
 
     // the outline follows the whole silhouette, neck included
-    float band = smoothstep(-1.0 - aa, -1.0 + aa, d);
+    float band = smoothstep(-strokeWidth - aa, -strokeWidth + aa, d);
     rgb = mix(rgb, strokeColor.rgb, band * strokeAlpha);
     alpha = mix(alpha, max(alpha, strokeAlpha), band);
 
     alpha *= inside * qt_Opacity;
-    fragColor = vec4(rgb * alpha, alpha);
+    vec4 face = vec4(rgb * alpha, alpha);
+    fragColor = face + shade * (1.0 - face.a);
 }
