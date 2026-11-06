@@ -189,7 +189,14 @@ rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
 Em repouso e nos eventos a marca fica à esquerda; no painel e na bússola ela desliza para o meio. A posição é uma **mistura** entre os dois lugares, com `c` animado por mola, em vez de um `Behavior` no `x` (que travaria, porque `x` também depende da largura, que está sempre mudando). Na bússola, a marca cresce e gira 90° por área. Como `offset` já é animado com mola (seção 6), o giro sai com mola de graça. Cutucar só funciona no modo painel.
 
 ### 5.7 O conteúdo
-- **Linha de repouso (`restRow`):** hora (Space Grotesk 14, negrito) e clima (ícone + temperatura em JetBrains Mono). `fullWidth` soma o espaço da marca, e a ilha se ajusta em volta das três coisas. Some (opacidade) fora do repouso.
+- **Linha de repouso (`restRow`):** a hora (Space Grotesk 14, negrito) e, à direita, um `Loader` (`rightSlot`) que escolhe, nesta ordem:
+  - **gravando:** um ponto vermelho que respira e o tempo correndo (`recSlot`);
+  - **música tocando:** quatro barrinhas pulando, cada uma no seu ritmo (`playingSlot`);
+  - **senão:** o clima (`weatherSlot`).
+
+  `fullWidth` soma o espaço da marca e o que estiver à direita, então a ilha se ajusta em volta. A linha some (opacidade) fora do repouso.
+- **Capa da música:** em repouso, com música tocando e capa disponível (`showCover`), a marca encolhe e some, e a capa (18 px, cantos do tema) aparece no lugar dela com um pulinho.
+- **Gravação:** `recording` é "o `wf-recorder` está rodando", conferido a cada 1,5 s com `pgrep`. Assim vale para gravações começadas por qualquer lugar (botão, atalhos do ii). O tempo é contado a partir de quando a gravação foi percebida. O botão **Gravar** das ferramentas (no lugar do Print) roda o `record.sh` do ii: clique grava uma área com som (escolhida com o mouse), clique direito grava a tela inteira com som, e gravando qualquer um dos dois para (`pkill -INT wf-recorder`, que fecha o arquivo direito).
 - **Bandeja:** o `SysTray` do ii fica **no bloco da hora, do lado direito**, só com o painel aberto (`invertSide: false`: menus para baixo). Ele só aparece se algum app tiver ícone de bandeja (`SystemTray.items`). Enquanto um menu dela está aberto (`trayBusy`), o clique-fora e a saída do mouse não fecham o painel; senão, clicar no menu fecharia tudo.
 - **Bateria do celular:** só aparece com um número de verdade (o KDE Connect dá `NaN` com o celular longe).
 - **Linha de evento (`eventLoader`):** um `Loader` que escolhe o conteúdo pelo tipo de evento (5.9).
@@ -197,7 +204,7 @@ Em repouso e nos eventos a marca fica à esquerda; no painel e na bússola ela d
 - **panelView** (`ColumnLayout`):
   1. hora e data (bloco primária→secundária) + clima (secundária→terciária, `Weather.data`, `Icons.getWeatherIcon`);
   2. música (terciária→primária, só se `hasPlayer`), com anterior/tocar/próxima via `MprisController`;
-  3. ferramentas (`QuickTool`): Print, Cor (hyprpicker), Silêncio (`Notifications.silent`), LED (abre o `LedPopup` do ii) e a bateria do celular (KDE Connect);
+  3. ferramentas (`QuickTool`, com clique direito via `altClicked`): Gravar, Cor (hyprpicker), Silêncio (`Notifications.silent`), LED (abre o `LedPopup` do ii) e a bateria do celular (KDE Connect);
   4. desempenho: 2×2 `FillTile` (CPU, RAM, GPU, swap).
 - **GPU:** `FileView` lê `/sys/class/drm/card1/device/gpu_busy_percent` a cada 2 s, **só com o painel aberto**.
 

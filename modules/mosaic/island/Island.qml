@@ -214,6 +214,46 @@ Scope {
             }
         }
     }
+    // ---------- screen recording (the ii's record.sh, i.e. wf-recorder) ----------
+    // Recording is "wf-recorder is running", however it was started (the tools
+    // button, the ii keybinds...). Checked every 1.5 s with pgrep, which is cheap.
+    property bool recording: false
+    property real recordStart: 0
+    property int recordSeconds: 0
+    readonly property string recordScript: Quickshell.shellPath("scripts/videos/record.sh")
+    Process {
+        id: recCheck
+        command: ["pgrep", "-x", "wf-recorder"]
+        onExited: code => {
+            const now = code === 0;
+            if (now && !root.recording)
+                root.recordStart = Date.now();
+            root.recording = now;
+        }
+    }
+    Timer {
+        running: true
+        repeat: true
+        interval: 1500
+        onTriggered: recCheck.running = true
+    }
+    Timer { // the elapsed time, only while recording
+        running: root.recording
+        repeat: true
+        triggeredOnStart: true
+        interval: 1000
+        onTriggered: root.recordSeconds = Math.floor((Date.now() - root.recordStart) / 1000)
+    }
+    // click: record a region with sound (select it with the mouse); right click:
+    // the whole screen with sound; while recording, either one stops it
+    function toggleRecording(fullscreen) {
+        if (root.recording)
+            Quickshell.execDetached(["pkill", "-INT", "-x", "wf-recorder"]);
+        else
+            Quickshell.execDetached(["bash", "-c", `sleep 0.3; '${root.recordScript}' --sound${fullscreen ? " --fullscreen" : ""}`]);
+        recCheck.running = true;
+    }
+
     // ---------- the phone, through KDE Connect (PhoneLink.qml) ----------
     PhoneLink { id: phone }
     Connections {
@@ -480,6 +520,11 @@ Scope {
                     rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
                     Behavior on rotation { enabled: notch.mode !== "compass"; NumberAnimation { duration: 300 } }
                     baseMood: root.playing ? "dance" : "idle"
+                    // resting with music on: the album cover sits where the mark is
+                    opacity: notch.showCover ? 0 : 1
+                    scale: notch.showCover ? 0.6 : 1
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
+                    Behavior on scale { NumberAnimation { duration: 260; easing.type: Easing.OutBack } }
                     Connections {
                         target: root
                         function onJumpRequested() { mascot.jump(); }
@@ -490,6 +535,31 @@ Scope {
                         anchors.margins: -4
                         enabled: notch.mode === "panel"
                         onClicked: mascot.poke()
+                    }
+                }
+
+                // the album cover, in the mark's place while music plays (resting only)
+                readonly property bool showCover: mode === "" && root.playing && (MprisController.activePlayer?.trackArtUrl ?? "") !== ""
+                ClippingRectangle {
+                    x: mascot.x - 1
+                    y: mascot.y - 1
+                    width: 18
+                    height: 18
+                    radius: MosaicTheme.r(5)
+                    color: Appearance.colors.colLayer1
+                    opacity: notch.showCover ? 1 : 0
+                    scale: notch.showCover ? 1 : 0.5
+                    visible: opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
+                    Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
+                    border.width: MosaicTheme.brutal ? 1.5 : 0
+                    border.color: MosaicTheme.ink
+                    Image {
+                        anchors.fill: parent
+                        source: MprisController.activePlayer?.trackArtUrl ?? ""
+                        fillMode: Image.PreserveAspectCrop
+                        sourceSize: Qt.size(36, 36)
+                        asynchronous: true
                     }
                 }
 
@@ -505,7 +575,7 @@ Scope {
                     opacity: notch.mode === "" ? 1 : 0
                     visible: opacity > 0
                     Behavior on opacity { NumberAnimation { duration: 160 } }
-                    readonly property real fullWidth: lead + timeText.implicitWidth + spacing + weatherRow.implicitWidth
+                    readonly property real fullWidth: lead + timeText.implicitWidth + spacing + rightSlot.implicitWidth
                     StyledText {
                         id: timeText
                         anchors.verticalCenter: parent.verticalCenter
@@ -515,9 +585,18 @@ Scope {
                         font.weight: Font.Bold
                         color: Appearance.colors.colOnLayer0
                     }
+                    // the right slot: recording, else music playing, else the weather
+                    Loader {
+                        id: rightSlot
+                        anchors.verticalCenter: parent.verticalCenter
+                        sourceComponent: root.recording ? recSlot : root.playing ? playingSlot : weatherSlot
+                    }
+                }
+
+                Component {
+                    id: weatherSlot
                     Row {
                         id: weatherRow
-                        anchors.verticalCenter: parent.verticalCenter
                         spacing: 3
                         StyledText {
                             anchors.verticalCenter: parent.verticalCenter
@@ -533,6 +612,64 @@ Scope {
                             iconSize: 16
                             fill: 1
                             color: Appearance.colors.colOnLayer0
+                        }
+                    }
+                }
+                // recording: a red dot that breathes and the time running
+                Component {
+                    id: recSlot
+                    Row {
+                        spacing: 6
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 9
+                            height: 9
+                            radius: MosaicTheme.r(4.5)
+                            color: Appearance.colors.colError
+                            SequentialAnimation on opacity {
+                                running: true
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.25; duration: 700; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
+                            }
+                        }
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: {
+                                const t = root.recordSeconds;
+                                return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+                            }
+                            font.family: "JetBrains Mono"
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colError
+                        }
+                    }
+                }
+                // music playing: four little bars bouncing, each at its own pace
+                Component {
+                    id: playingSlot
+                    Row {
+                        spacing: 2
+                        height: 14
+                        Repeater {
+                            model: 4
+                            delegate: Rectangle {
+                                id: bar
+                                required property int index
+                                anchors.bottom: parent.bottom
+                                width: 3
+                                radius: MosaicTheme.r(1.5)
+                                color: Appearance.colors.colPrimary
+                                height: 4
+                                SequentialAnimation on height {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 6 + (bar.index * 5 % 8); duration: 260 + bar.index * 70; easing.type: Easing.OutQuad }
+                                    NumberAnimation { to: 13 - bar.index * 2; duration: 220 + bar.index * 50; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { to: 3; duration: 300 + bar.index * 40; easing.type: Easing.InQuad }
+                                }
+                            }
                         }
                     }
                 }
@@ -1196,11 +1333,17 @@ Scope {
                                 anchors.rightMargin: 6
                                 spacing: 0
                                 QuickTool {
-                                    icon: "screenshot_region"
-                                    label: "Print"
+                                    // record the screen (click: a region; right click: the whole screen)
+                                    icon: root.recording ? "stop_circle" : "screen_record"
+                                    label: root.recording ? "Parar" : "Gravar"
+                                    toggled: root.recording
                                     onClicked: {
                                         win.setOpen(false);
-                                        Quickshell.execDetached(["qs", "-p", Quickshell.shellPath(""), "ipc", "call", "region", "screenshot"]);
+                                        root.toggleRecording(false);
+                                    }
+                                    onAltClicked: {
+                                        win.setOpen(false);
+                                        root.toggleRecording(true);
                                     }
                                 }
                                 QuickTool {
@@ -1311,6 +1454,7 @@ Scope {
         required property string label
         property bool toggled: false
         signal clicked()
+        signal altClicked() // right click
         Layout.fillWidth: true
         implicitWidth: 52
         implicitHeight: 66
@@ -1325,6 +1469,7 @@ Scope {
             toggled: tool.toggled
             colBackground: Appearance.colors.colLayer2
             onClicked: tool.clicked()
+            altAction: () => tool.altClicked()
             contentItem: Item {
                 MaterialSymbol {
                     anchors.centerIn: parent
