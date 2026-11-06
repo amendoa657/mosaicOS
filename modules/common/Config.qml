@@ -588,6 +588,7 @@ Singleton {
                 // Mosaic OS (the Gravação tab of the wallpaper/theme window):
                 property string resolution: "native" // "native" | "1440" | "1080" | "720" (height; the width follows)
                 property int fps: 60 // a constant frame rate
+                property string audio: "system" // "system" (what the PC plays) | "mic" | "none"
             }
 
             property JsonObject screenSnip: JsonObject {

@@ -16,8 +16,15 @@ fi
 getdate() {
     date '+%Y-%m-%d_%H.%M.%S'
 }
+# Mosaic OS: the sound to record (Gravação tab: screenRecord.audio)
+# - system: what the default output is playing (its .monitor). The ii listed every
+#   monitor source and passed them all as one name, which broke recording with sound.
+# - mic: the default input
 getaudiooutput() {
-    pactl list sources | grep 'Name' | grep 'monitor' | cut -d ' ' -f2
+    case "$AUDIO_MODE" in
+        mic) pactl get-default-source ;;
+        *) echo "$(pactl get-default-sink).monitor" ;;
+    esac
 }
 getactivemonitor() {
     hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .name'
@@ -26,6 +33,7 @@ getactivemonitor() {
 # Mosaic OS: resolution and fps from the Gravação tab (config.json, screenRecord)
 RES=$(jq -r '.screenRecord.resolution // "native"' "$CONFIG_FILE" 2>/dev/null)
 FPS=$(jq -r '.screenRecord.fps // 60' "$CONFIG_FILE" 2>/dev/null)
+AUDIO_MODE=$(jq -r '.screenRecord.audio // "system"' "$CONFIG_FILE" 2>/dev/null)
 EXTRA=()
 [[ "$FPS" =~ ^[0-9]+$ ]] && (( FPS > 0 )) && EXTRA+=(-r "$FPS")
 [[ "$RES" =~ ^[0-9]+$ ]] && EXTRA+=(-F "scale=-2:$RES") # -2: the width follows the height, kept even
@@ -47,7 +55,7 @@ for ((i=0;i<${#ARGS[@]};i++)); do
             exit 1
         fi
     elif [[ "${ARGS[i]}" == "--sound" ]]; then
-        SOUND_FLAG=1
+        [[ "$AUDIO_MODE" != "none" ]] && SOUND_FLAG=1 # "Sem som" in the Gravação tab wins
     elif [[ "${ARGS[i]}" == "--fullscreen" ]]; then
         FULLSCREEN_FLAG=1
     fi

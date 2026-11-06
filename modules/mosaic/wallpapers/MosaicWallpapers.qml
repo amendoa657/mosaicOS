@@ -777,6 +777,17 @@ Scope {
                             current: recordPage.conf.fps
                             onPicked: value => recordPage.conf.fps = value
                         }
+                        RecordGroup {
+                            title: "Som"
+                            hint: "O que entra no áudio do vídeo."
+                            options: [
+                                { value: "system", label: "PC", sub: "o que está tocando" },
+                                { value: "mic", label: "Mic", sub: "microfone" },
+                                { value: "none", label: "Mudo", sub: "sem som" }
+                            ]
+                            current: recordPage.conf.audio
+                            onPicked: value => recordPage.conf.audio = value
+                        }
                         // where the videos go, and how to record
                         Rectangle {
                             width: parent.width - MosaicTheme.shadow
@@ -808,7 +819,7 @@ Scope {
                                 StyledText {
                                     width: parent.width
                                     wrapMode: Text.Wrap
-                                    text: "Para gravar: o botão Gravar da ilha (clique: uma área; clique direito: a tela inteira). As mudanças valem a partir da próxima gravação."
+                                    text: "Para gravar: o botão Gravar no painel da ilha grava a tela inteira; clique de novo para parar. As mudanças valem a partir da próxima gravação."
                                     font.pixelSize: 11
                                     color: Appearance.colors.colOnLayer0
                                     opacity: 0.7

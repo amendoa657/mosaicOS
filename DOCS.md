@@ -469,12 +469,18 @@ No topo da área da direita há duas abas: **Papéis** (a grade) e **Widgets**. 
 - IPC: `qs -c mosaic ipc call wallpaperSelector widgets` abre o seletor já na aba Widgets.
 
 ### 11.2.2 A aba Gravação
-Configura a gravação de tela do botão **Gravar** da ilha: **Resolução** (Nativa, 1440p, 1080p, 720p) e **Quadros por segundo** (30, 60, 120, 144). A pasta dos vídeos aparece embaixo.
+Configura a gravação de tela do botão **Gravar** da ilha: **Resolução** (Nativa, 1440p, 1080p, 720p), **Quadros por segundo** (30, 60, 120, 144) e **Som** (PC, Mic, Mudo). A pasta dos vídeos aparece embaixo.
 - As escolhas vão para `Config.options.screenRecord.resolution` e `.fps` (campos novos no `Config.qml`).
 - O `scripts/videos/record.sh` lê as duas com `jq` e passa ao `wf-recorder`:
   - `-r <fps>`, que fixa a taxa de quadros;
   - `-F scale=-2:<altura>`, um filtro do ffmpeg que muda a altura; o `-2` faz a largura seguir a proporção e ficar par, como o codificador exige.
   - Na Nativa, não há filtro.
+  - **Som** (`screenRecord.audio`):
+    - `system` grava o que a saída padrão está tocando: `$(pactl get-default-sink).monitor`;
+    - `mic` grava a entrada padrão (`pactl get-default-source`);
+    - `none` desliga o som mesmo quando a gravação pede `--sound`.
+
+    O `record.sh` original juntava **todas** as fontes "monitor" do sistema (aqui eram três) e passava como um nome só, o que quebrava a gravação com som. Conferido com `ffprobe`: o vídeo sai com trilha `aac`.
 - Valem a partir da próxima gravação. IPC: `qs -c mosaic ipc call wallpaperSelector recording` abre direto nessa aba.
 
 ### 11.3 O derramar (`pour`)
