@@ -160,7 +160,7 @@ Um único texto decide tudo, por prioridade: bússola > painel > evento > repous
   ```
   Crescendo rápido, a ilha estica para os lados e achata; freando, faz o contrário. Ao parar, a velocidade é 0 e ela volta ao normal. O limite de 7% evita exageros.
 - **Toque:** mais três molas multiplicam a escala: `hoverSpring` (+2,8% com o mouse em cima), `pressSpring` (−3,5% apertando) e `peekSpring` (+4% por 90 ms a cada evento, o "pulinho"). O `Scale` tem origem no **meio do topo**, então ela cresce para baixo e para os lados, sem descolar da borda.
-- **Tela cheia:** `fullscreenHere` procura em `HyprlandData.windowList` uma janela da área atual desse monitor com `fullscreen > 0`. Se achar e a ilha estiver em repouso, `hideY` a sobe para fora da tela (300 ms `OutCubic`).
+- **Tela cheia:** `fullscreenHere` procura em `HyprlandData.windowList` uma janela da área atual desse monitor com `fullscreen >= 2`. No Hyprland, 1 é **maximizada** e 2 é tela cheia de verdade; com `> 0`, a ilha sumia a cada janela maximizada. Se achar e a ilha estiver em repouso, `hideY` a sobe para fora da tela (300 ms `OutCubic`).
 
 ### 5.5 A superfície: pílula, cartão e cúpula (`shaders/island.frag`)
 A ilha flutua 6 px abaixo da borda (`topGap`) e é escura como a do hyprdots: `islandBase` é a superfície da barra 55% puxada para o preto, com opacidade mínima de 0,9. O desenho é um shader, porque precisa de cantos diferentes em cima e embaixo e de um achatamento:

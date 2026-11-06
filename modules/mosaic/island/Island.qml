@@ -401,7 +401,8 @@ Scope {
                 // full screen on this monitor: the resting island hides above the edge
                 // (the top edge sensor still opens the panel)
                 readonly property int workspaceId: Hyprland.monitorFor(win.screen)?.activeWorkspace?.id ?? -1
-                readonly property bool fullscreenHere: HyprlandData.windowList.some(w => w.workspace.id === notch.workspaceId && w.fullscreen > 0)
+                // Hyprland's fullscreen: 0 normal, 1 maximized, 2 real full screen. Only 2 hides it
+                readonly property bool fullscreenHere: HyprlandData.windowList.some(w => w.workspace.id === notch.workspaceId && w.fullscreen >= 2)
                 property real hideY: fullscreenHere && mode === "" ? -height - topGap - 6 : 0
                 Behavior on hideY { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
                 transform: [
