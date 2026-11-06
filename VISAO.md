@@ -62,7 +62,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 62 | Laterais v2 (05/11) | As duas laterais reescritas como **colunas inteiras coladas na borda**, no estilo do tema. **Esquerda:** Tradutor, Tarefas e IA. **Direita:** botões rápidos, sliders, celular (KDE Connect), calendário e notificações. |
 | 63 | Gravar e música na ilha (05/11) | O **Print** virou **Gravar** (sempre a **tela inteira**; gravando, o botão fica vermelho pulsando com o tempo). Gravando, o clima dá lugar ao **indicador** (ponto vermelho + tempo). Com música tocando, a **marca vira a capa** e o clima vira **barrinhas tocando**. |
 | 64 | Config de gravação (05/11) | Aba **Gravação** na janela de temas/papéis: **resolução** (Nativa, 1440p, 1080p, 720p), **fps** (30, 60, 120, 144) e **som** (PC, Mic, Mudo). |
-| 65 | Vidro forte e aba Ilha (06/11) | A dock ganhou um **liquid glass muito potente** (sem a barra cinza do brilho antigo). Aba **Ilha** na janela de temas: **potência do vidro**, **transparência** e **escuridão**. |
+| 65 | Vidro forte e aba Ilha (06/11) | A dock ganhou um **liquid glass muito potente** (sem a barra cinza do brilho antigo). Abas **Ilha** e **Dock** na janela de temas: **potência do vidro**, **aberração cromática**, **transparência** e **escuridão**. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |

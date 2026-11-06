@@ -34,7 +34,11 @@ Scope {
     // the glass: a light, see-through pane (alpha above 0.3, so hyprglass bends it)
     // a thin tint: the strong liquid glass behind it (hypr/mosaic.lua, preset "dock")
     // does the work; the sheen that used to sit on top read as a grey bar
-    readonly property color glassFill: ColorUtils.transparentize(ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.08), 0.72)
+    // Dock tab: darkness (toward black) and opacity (how solid the tint is)
+    readonly property color glassFill: {
+        const tint = ColorUtils.mix("#000000", ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.08), Config.options.mosaicDock.darkness);
+        return Qt.rgba(tint.r, tint.g, tint.b, Config.options.mosaicDock.opacity);
+    }
     readonly property color glassEdge: Qt.rgba(1, 1, 1, 0.16)
 
     // Icons that Matugen repaints with the wallpaper colours (the Mosaic Store one

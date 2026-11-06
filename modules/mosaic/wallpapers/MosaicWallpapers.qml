@@ -143,6 +143,7 @@ Scope {
         function widgets(): void { root.startPage = "widgets"; GlobalStates.wallpaperSelectorOpen = true; }
         function recording(): void { root.startPage = "record"; GlobalStates.wallpaperSelectorOpen = true; }
         function island(): void { root.startPage = "island"; GlobalStates.wallpaperSelectorOpen = true; }
+        function dock(): void { root.startPage = "dock"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
             if (root.files.length === 0) {
                 lister.running = true;
@@ -559,7 +560,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }]
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -830,56 +831,31 @@ Scope {
                     }
                 }
 
-                // ----- Ilha: the island's glass, transparency and darkness -----
-                // Config.options.mosaicIsland: darkness and opacity change the island
-                // right away; the glass strength rewrites its hyprglass preset and
-                // reloads Hyprland (MosaicGlass), so it lands about a second later.
-                Column {
-                    id: islandPage
+                // ----- Ilha / Dock: glass, chromatic aberration, transparency, darkness -----
+                // Config.options.mosaicIsland / mosaicDock. Transparency and darkness
+                // change the island/dock right away; glass and chromatic aberration
+                // rewrite their hyprglass presets and reload Hyprland (MosaicGlass).
+                GlassPage {
                     visible: win.page === "island"
+                    conf: Config.options.mosaicIsland
+                    where: "a ilha"
                     anchors.left: side.right
                     anchors.leftMargin: 24
                     anchors.right: parent.right
                     anchors.rightMargin: 18 + MosaicTheme.shadow
                     anchors.top: pageTabs.bottom
                     anchors.topMargin: 20
-                    spacing: 26
-                    readonly property var conf: Config.options.mosaicIsland
-                    TuneSlider {
-                        title: "Potência do liquid glass"
-                        hint: "Lente, refração, bordas de arco-íris e brilho. 0 desliga o vidro."
-                        from: 0
-                        to: 2
-                        value: islandPage.conf.glass
-                        shown: Math.round(value * 100) + "%"
-                        onMoved: v => islandPage.conf.glass = v
-                    }
-                    TuneSlider {
-                        title: "Transparência"
-                        hint: "Quanto dá para ver através da ilha."
-                        from: 0
-                        to: 1
-                        value: 1 - islandPage.conf.opacity
-                        shown: Math.round(value * 100) + "%"
-                        onMoved: v => islandPage.conf.opacity = 1 - v
-                    }
-                    TuneSlider {
-                        title: "Escuridão"
-                        hint: "De a cor do tema até o preto."
-                        from: 0
-                        to: 1
-                        value: islandPage.conf.darkness
-                        shown: Math.round(value * 100) + "%"
-                        onMoved: v => islandPage.conf.darkness = v
-                    }
-                    StyledText {
-                        width: parent.width
-                        wrapMode: Text.Wrap
-                        text: "A ilha muda na hora (olhe lá em cima). A potência do vidro leva cerca de 1 s: o Hyprland recarrega para aplicar."
-                        font.pixelSize: 11
-                        color: Appearance.colors.colOnLayer0
-                        opacity: 0.65
-                    }
+                }
+                GlassPage {
+                    visible: win.page === "dock"
+                    conf: Config.options.mosaicDock
+                    where: "a dock"
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18 + MosaicTheme.shadow
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 20
                 }
 
                 // ----- the grid -----
@@ -1166,6 +1142,58 @@ Scope {
                 onPositionChanged: mouse => { if (pressed) set(mouse.x); }
                 onWheel: wheel => tune.moved(Math.max(tune.from, Math.min(tune.to, tune.value + (wheel.angleDelta.y > 0 ? 1 : -1) * (tune.to - tune.from) / 20)))
             }
+        }
+    }
+
+    // The glass settings page (Ilha and Dock tabs): one set of sliders for `conf`
+    component GlassPage: Column {
+        id: gp
+        required property var conf
+        required property string where // "a ilha" / "a dock", for the texts
+        spacing: 22
+        TuneSlider {
+            title: "Potência do liquid glass"
+            hint: "Lente, refração e brilho. 0 desliga o vidro."
+            from: 0
+            to: 2
+            value: gp.conf.glass
+            shown: Math.round(value * 100) + "%"
+            onMoved: v => gp.conf.glass = v
+        }
+        TuneSlider {
+            title: "Aberração cromática"
+            hint: "As bordas de arco-íris do vidro."
+            from: 0
+            to: 2
+            value: gp.conf.chroma
+            shown: Math.round(value * 100) + "%"
+            onMoved: v => gp.conf.chroma = v
+        }
+        TuneSlider {
+            title: "Transparência"
+            hint: `Quanto dá para ver através d${gp.where}.`
+            from: 0
+            to: 1
+            value: 1 - gp.conf.opacity
+            shown: Math.round(value * 100) + "%"
+            onMoved: v => gp.conf.opacity = 1 - v
+        }
+        TuneSlider {
+            title: "Escuridão"
+            hint: "Da cor do tema até o preto."
+            from: 0
+            to: 1
+            value: gp.conf.darkness
+            shown: Math.round(value * 100) + "%"
+            onMoved: v => gp.conf.darkness = v
+        }
+        StyledText {
+            width: parent.width
+            wrapMode: Text.Wrap
+            text: `Transparência e escuridão mudam ${gp.where} na hora. Vidro e aberração levam cerca de 1 s: o Hyprland recarrega para aplicar.`
+            font.pixelSize: 11
+            color: Appearance.colors.colOnLayer0
+            opacity: 0.65
         }
     }
 

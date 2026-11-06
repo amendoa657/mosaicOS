@@ -3,52 +3,63 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The island's liquid glass strength (Ilha tab, Config.options.mosaicIsland.glass).
-// hyprglass only takes presets from the Hyprland config, so this writes the
-// island's preset to ~/.config/mosaic-os/glass.lua (hypr/mosaic.lua runs it) and
-// reloads the config. It waits 700 ms after the last change, so dragging the
+// The liquid glass of the island and the dock (Ilha and Dock tabs:
+// Config.options.mosaicIsland / mosaicDock, glass = strength, chroma = chromatic
+// aberration). hyprglass only takes presets from the Hyprland config, so this
+// writes both presets to ~/.config/mosaic-os/glass.lua (hypr/mosaic.lua runs it)
+// and reloads the config. It waits 700 ms after the last change, so dragging a
 // slider reloads once, not on every step. After a reload, a fixed theme's
 // Hyprland colours are painted again (the reload brings back the config ones).
 Singleton {
     id: root
 
-    readonly property real strength: Config.options?.mosaicIsland?.glass ?? 1
+    readonly property var island: Config.options?.mosaicIsland
+    readonly property var dock: Config.options?.mosaicDock
+    // one string with every value, so any change re-applies
+    readonly property string signature: `${island?.glass}/${island?.chroma}/${dock?.glass}/${dock?.chroma}`
     readonly property string path: Quickshell.env("HOME") + "/.config/mosaic-os/glass.lua"
 
     function load() {} // called once so the singleton starts watching
 
-    // the "vivo" preset (hypr/mosaic.lua) scaled by the strength: the lens,
-    // refraction, rainbow edges and shine grow; blur grows a little less
-    function presetLua(k) {
+    // base: the preset at strength 1; k: strength; c: chromatic aberration
+    // multiplier. Everything grows with k (with ceilings); the rainbow edges
+    // follow c on their own.
+    function presetLua(name, layer, base, k, c, threshold) {
         if (k <= 0.01)
-            return `hl.plugin.hyprglass.layer("quickshell:island", { enabled = 0 })\n`;
-        const v = (base, max) => Math.min(max, base * k).toFixed(3);
-        return `-- written by the Mosaic OS Ilha tab (glass strength ${k.toFixed(2)})
-local hg = hl.plugin.hyprglass
-hg.preset("ilha", {
+            return `hg.layer("${layer}", { enabled = 0 })\n`;
+        const v = (key, max) => Math.min(max, base[key] * k).toFixed(3);
+        return `hg.preset("${name}", {
     enabled = 1,
-    blur_strength = ${v(0.35, 0.8)},
-    refraction_strength = ${v(2.2, 6)},
-    lens_distortion = ${v(0.6, 1.6)},
-    chromatic_aberration = ${v(0.9, 2.4)},
-    fresnel_strength = ${v(1.2, 3)},
-    specular_strength = ${v(2.6, 5.5)},
-    saturation = ${(1 + 0.45 * k).toFixed(3)},
-    vibrancy = ${v(0.4, 0.9)},
-    edge_thickness = ${v(0.08, 0.2)},
+    blur_strength = ${v("blur", 0.8)},
+    refraction_strength = ${v("refraction", 7)},
+    lens_distortion = ${v("lens", 2)},
+    chromatic_aberration = ${Math.min(3.5, base.chroma * c).toFixed(3)},
+    fresnel_strength = ${v("fresnel", 3.5)},
+    specular_strength = ${v("specular", 6)},
+    saturation = ${(1 + (base.saturation - 1) * k).toFixed(3)},
+    vibrancy = ${v("vibrancy", 1)},
+    edge_thickness = ${v("edge", 0.24)},
 })
-hg.layer("quickshell:island", { preset = "ilha", mask_threshold = 0.05 })
+hg.layer("${layer}", { preset = "${name}", mask_threshold = ${threshold} })
 `;
     }
+    readonly property var islandBase: ({ blur: 0.35, refraction: 2.2, lens: 0.6, chroma: 0.9, fresnel: 1.2, specular: 2.6, saturation: 1.45, vibrancy: 0.4, edge: 0.08 })
+    readonly property var dockBase: ({ blur: 0.22, refraction: 4.8, lens: 1.35, chroma: 1.9, fresnel: 2.4, specular: 4.2, saturation: 1.75, vibrancy: 0.75, edge: 0.16 })
 
-    // changes during startup are just the saved value being loaded: ignore them
+    function fileText() {
+        return "-- written by the Mosaic OS Ilha and Dock tabs\nlocal hg = hl.plugin.hyprglass\n"
+            + root.presetLua("ilha", "quickshell:island", root.islandBase, root.island?.glass ?? 1, root.island?.chroma ?? 1, 0.05)
+            + root.presetLua("doca", "quickshell:dock", root.dockBase, root.dock?.glass ?? 1, root.dock?.chroma ?? 1, 0.12);
+    }
+
+    // changes during startup are just the saved values being loaded: ignore them
     property bool ready: false
     Timer { running: true; interval: 4000; onTriggered: root.ready = true }
-    onStrengthChanged: if (root.ready) applyLater.restart()
+    onSignatureChanged: if (root.ready) applyLater.restart()
     Timer {
         id: applyLater
         interval: 700
-        onTriggered: file.setText(root.presetLua(root.strength))
+        onTriggered: file.setText(root.fileText())
     }
     FileView {
         id: file
