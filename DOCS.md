@@ -371,7 +371,7 @@ readonly property bool shown: emptyWorkspace || hovering
 - **Lição aprendida:** a janela precisa de `color: "transparent"`. Sem isso, o fundo padrão branco aparece (foi a "barra branca").
 
 ### 8.2 O vidro e as três partes
-- **O vidro:** `glassFill` é a superfície clareada com 10% de branco e com metade da opacidade. Fica acima de 0,3, o limite do hyprglass, então o liquid glass entorta o que está atrás. O contorno é branco a 16%, e um degradê branco de 10% → 0 na metade de cima imita a luz batendo por cima. Raio 20, altura 58.
+- **O vidro:** `glassFill` é uma película fina (a superfície com 8% de branco e 28% da opacidade); quem faz o efeito é o liquid glass **bem forte** do preset `dock` em `hypr/mosaic.lua` (refração 4,8, lente 1,35, arco-íris 1,9, brilho 4,2; `mask_threshold` 0,12 para o vidro aparecer mesmo com a película fina). O brilho branco que ficava no topo foi removido: sobre o vidro escuro ele parecia uma **barra cinza**. (Antes: Fica acima de 0,3, o limite do hyprglass, então o liquid glass entorta o que está atrás. O contorno é branco a 16%, e um degradê branco de 10% → 0 na metade de cima imita a luz batendo por cima. Raio 20, altura 58.
 - **Marca:** o `Mascot` (logo novo) sem bloco atrás. O clique abre o menu iniciar (5.10.1) e o mascote pula; o botão direito abre a lateral esquerda.
 - **Apps:** um `Repeater` sobre `ScriptModel { objectProp: "appId"; values: TaskbarApps.apps }`. O `objectProp` reaproveita o item de cada app quando a lista muda. Cada app:
   - **pontinhos:** um por janela, até 3; os do app em foco são mais longos e na cor de destaque;
@@ -482,6 +482,17 @@ Configura a gravação de tela do botão **Gravar** da ilha: **Resolução** (Na
 
     O `record.sh` original juntava **todas** as fontes "monitor" do sistema (aqui eram três) e passava como um nome só, o que quebrava a gravação com som. Conferido com `ffprobe`: o vídeo sai com trilha `aac`.
 - Valem a partir da próxima gravação. IPC: `qs -c mosaic ipc call wallpaperSelector recording` abre direto nessa aba.
+
+### 11.2.3 A aba Ilha
+Três controles (`TuneSlider`: o preenchimento segue o valor por mola; arrastar, clicar ou rolar muda), gravados em `Config.options.mosaicIsland`:
+- **Potência do liquid glass** (0–200%, `glass`): vai para o `MosaicGlass` (`modules/common/MosaicGlass.qml`). O hyprglass só aceita presets vindos da config do Hyprland, então o serviço:
+  - grava `~/.config/mosaic-os/glass.lua` com o preset `ilha` (o "vivo" multiplicado pela potência, com tetos; 0 desliga o vidro);
+  - roda `hyprctl reload config-only`; o `hypr/mosaic.lua` executa esse arquivo no fim;
+  - espera 700 ms depois da última mudança, para arrastar o slider recarregar uma vez só;
+  - ignora as mudanças dos primeiros 4 s, que são só o valor salvo carregando;
+  - depois do reload, repinta as cores de um tema fixo (Gruvbox), que o reload apaga.
+- **Transparência** (`opacity`, o inverso) e **Escuridão** (`darkness`): mudam a ilha na hora (`islandAlpha` e `islandBase`, quanto a superfície vai para o preto).
+- IPC: `qs -c mosaic ipc call wallpaperSelector island`.
 
 ### 11.3 O derramar (`pour`)
 1. `apply(path, item)` pega o centro da miniatura clicada em coordenadas de tela (`mapToItem(null, ...)`), fecha o seletor e chama `pour()`.

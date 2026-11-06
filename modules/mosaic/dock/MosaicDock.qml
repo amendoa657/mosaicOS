@@ -32,7 +32,9 @@ Scope {
     readonly property real iconSize: 34
 
     // the glass: a light, see-through pane (alpha above 0.3, so hyprglass bends it)
-    readonly property color glassFill: ColorUtils.transparentize(ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.1), 0.5)
+    // a thin tint: the strong liquid glass behind it (hypr/mosaic.lua, preset "dock")
+    // does the work; the sheen that used to sit on top read as a grey bar
+    readonly property color glassFill: ColorUtils.transparentize(ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.08), 0.72)
     readonly property color glassEdge: Qt.rgba(1, 1, 1, 0.16)
 
     // Icons that Matugen repaints with the wallpaper colours (the Mosaic Store one
@@ -130,18 +132,6 @@ Scope {
                 HardShadow {}
                 transform: Translate { y: (1 - showSpring.value) * (root.dockHeight + root.gap + 6) }
                 Behavior on width { NumberAnimation { duration: 320; easing.type: Easing.OutBack; easing.overshoot: 1.1 } }
-
-                // light from above: a soft sheen on the top half of the glass
-                Rectangle {
-                    visible: !MosaicTheme.brutal
-                    anchors.fill: parent
-                    anchors.margins: 1
-                    radius: parent.radius - 1
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.10) }
-                        GradientStop { position: 0.45; color: Qt.rgba(1, 1, 1, 0.0) }
-                    }
-                }
 
                 RowLayout {
                     id: row

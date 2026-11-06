@@ -21,12 +21,35 @@ hg.preset("vivo", {
     edge_thickness = 0.08,
 })
 
+-- the dock: liquid glass turned way up (strong lens, refraction, rainbow edges and shine)
+hg.preset("dock", {
+    enabled = 1,
+    blur_strength = 0.22,
+    refraction_strength = 4.8,
+    lens_distortion = 1.35,
+    chromatic_aberration = 1.9,
+    fresnel_strength = 2.4,
+    specular_strength = 4.2,
+    saturation = 1.75,
+    vibrancy = 0.75,
+    edge_thickness = 0.16,
+})
+
 for _, ns in ipairs({
-    "quickshell:bar", "quickshell:dock", "quickshell:sidebarRight", "quickshell:sidebarLeft",
+    "quickshell:bar", "quickshell:sidebarRight", "quickshell:sidebarLeft",
     "quickshell:notificationPopup", "quickshell:cheatsheet", "quickshell:overview",
     "quickshell:overlay", "quickshell:session", "quickshell:island", "quickshell:mosaicWallpapers",
 }) do
     hg.layer(ns, { preset = "vivo", mask_threshold = 0.3 })
+end
+-- the dock's glass shows wherever its pane is even a little opaque
+hg.layer("quickshell:dock", { preset = "dock", mask_threshold = 0.12 })
+
+-- the island's glass, written by the Ilha tab (~/.config/mosaic-os/glass.lua)
+do
+    local f = os.getenv("HOME") .. "/.config/mosaic-os/glass.lua"
+    local fh = io.open(f, "r")
+    if fh then fh:close(); dofile(f) end
 end
 
 -- Notas da ilha (Super+N e Super+Shift+N já são usados no ii)

@@ -142,6 +142,7 @@ Scope {
         function toggle(): void { root.toggle(); }
         function widgets(): void { root.startPage = "widgets"; GlobalStates.wallpaperSelectorOpen = true; }
         function recording(): void { root.startPage = "record"; GlobalStates.wallpaperSelectorOpen = true; }
+        function island(): void { root.startPage = "island"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
             if (root.files.length === 0) {
                 lister.running = true;
@@ -558,7 +559,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }]
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -829,6 +830,58 @@ Scope {
                     }
                 }
 
+                // ----- Ilha: the island's glass, transparency and darkness -----
+                // Config.options.mosaicIsland: darkness and opacity change the island
+                // right away; the glass strength rewrites its hyprglass preset and
+                // reloads Hyprland (MosaicGlass), so it lands about a second later.
+                Column {
+                    id: islandPage
+                    visible: win.page === "island"
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18 + MosaicTheme.shadow
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 20
+                    spacing: 26
+                    readonly property var conf: Config.options.mosaicIsland
+                    TuneSlider {
+                        title: "Potência do liquid glass"
+                        hint: "Lente, refração, bordas de arco-íris e brilho. 0 desliga o vidro."
+                        from: 0
+                        to: 2
+                        value: islandPage.conf.glass
+                        shown: Math.round(value * 100) + "%"
+                        onMoved: v => islandPage.conf.glass = v
+                    }
+                    TuneSlider {
+                        title: "Transparência"
+                        hint: "Quanto dá para ver através da ilha."
+                        from: 0
+                        to: 1
+                        value: 1 - islandPage.conf.opacity
+                        shown: Math.round(value * 100) + "%"
+                        onMoved: v => islandPage.conf.opacity = 1 - v
+                    }
+                    TuneSlider {
+                        title: "Escuridão"
+                        hint: "De a cor do tema até o preto."
+                        from: 0
+                        to: 1
+                        value: islandPage.conf.darkness
+                        shown: Math.round(value * 100) + "%"
+                        onMoved: v => islandPage.conf.darkness = v
+                    }
+                    StyledText {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: "A ilha muda na hora (olhe lá em cima). A potência do vidro leva cerca de 1 s: o Hyprland recarrega para aplicar."
+                        font.pixelSize: 11
+                        color: Appearance.colors.colOnLayer0
+                        opacity: 0.65
+                    }
+                }
+
                 // ----- the grid -----
                 GridView {
                     id: grid
@@ -1039,6 +1092,79 @@ Scope {
                         onClicked: group.picked(opt.modelData.value)
                     }
                 }
+            }
+        }
+    }
+
+    // A labelled slider with its value on the right (the Ilha tab). The fill
+    // follows the value on a spring; drag, click or scroll to change it.
+    component TuneSlider: Column {
+        id: tune
+        required property string title
+        property string hint: ""
+        property real from: 0
+        property real to: 1
+        property real value: 0
+        property string shown: ""
+        signal moved(real v)
+        width: parent ? parent.width : 0
+        spacing: 8
+        readonly property real frac: Math.max(0, Math.min(1, (value - from) / (to - from)))
+        Row {
+            width: parent.width
+            StyledText {
+                width: parent.width - valueText.width
+                text: MosaicTheme.brutal ? tune.title.toUpperCase() : tune.title
+                font.family: "Space Grotesk"
+                font.pixelSize: 15
+                font.weight: MosaicTheme.brutal ? Font.Black : Font.DemiBold
+                font.letterSpacing: MosaicTheme.brutal ? 1.2 : 0
+                color: Appearance.colors.colOnLayer0
+            }
+            StyledText {
+                id: valueText
+                text: tune.shown
+                font.family: "JetBrains Mono"
+                font.pixelSize: 14
+                font.weight: Font.Bold
+                color: Appearance.colors.colPrimary
+            }
+        }
+        StyledText {
+            visible: tune.hint !== ""
+            text: tune.hint
+            font.pixelSize: 11
+            color: Appearance.colors.colOnLayer0
+            opacity: 0.65
+        }
+        Item {
+            width: parent.width
+            height: 32
+            Rectangle {
+                id: tuneTrack
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width
+                height: MosaicTheme.brutal ? 18 : 12
+                radius: MosaicTheme.r(6)
+                color: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.86)
+                border.width: MosaicTheme.brutal ? 1.5 : 0
+                border.color: MosaicTheme.ink
+                Rectangle {
+                    height: parent.height
+                    radius: parent.radius
+                    width: Math.max(height, parent.width * tuneFill.value)
+                    color: Appearance.colors.colPrimary
+                    border.width: parent.border.width
+                    border.color: parent.border.color
+                    MosaicSpring { id: tuneFill; response: 0.25; damping: 0.85; epsilon: 0.002; target: tune.frac; Component.onCompleted: settle(target) }
+                }
+            }
+            MouseArea {
+                anchors.fill: parent
+                function set(mx) { tune.moved(tune.from + Math.max(0, Math.min(1, mx / width)) * (tune.to - tune.from)); }
+                onPressed: mouse => set(mouse.x)
+                onPositionChanged: mouse => { if (pressed) set(mouse.x); }
+                onWheel: wheel => tune.moved(Math.max(tune.from, Math.min(tune.to, tune.value + (wheel.angleDelta.y > 0 ? 1 : -1) * (tune.to - tune.from) / 20)))
             }
         }
     }
