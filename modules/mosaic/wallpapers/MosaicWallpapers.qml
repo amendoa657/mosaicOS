@@ -145,6 +145,7 @@ Scope {
         function look(): void { root.startPage = "look"; GlobalStates.wallpaperSelectorOpen = true; }
         function island(): void { look(); } // the old name of the Aparência tab
         function dock(): void { root.startPage = "dock"; GlobalStates.wallpaperSelectorOpen = true; }
+        function apps(): void { root.startPage = "apps"; GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void {
             if (root.files.length === 0) {
                 lister.running = true;
@@ -565,7 +566,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }]
+                        model: [{ id: "papers", label: "Papéis", icon: "wallpaper" }, { id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -870,6 +871,52 @@ Scope {
                     anchors.rightMargin: 18 + MosaicTheme.shadow
                     anchors.top: pageTabs.bottom
                     anchors.topMargin: 20
+                }
+
+                // ----- Apps: film grain on every app, terminal included -----
+                // Config.options.mosaicApps, drawn by Hyprland (MosaicScreenGrain)
+                Column {
+                    id: appsPage
+                    visible: win.page === "apps"
+                    readonly property var conf: Config.options.mosaicApps
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18 + MosaicTheme.shadow
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 20
+                    spacing: 22
+                    StyledText {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: MosaicTheme.grain > 0
+                            ? "Granulado de filme em todos os apps: terminal, navegador, Steam... É o Hyprland que passa o grão na tela inteira. Enquanto ele estiver ligado, o shell desliga o grão dele, para não ficar dobrado."
+                            : "Só os temas com granulado de filme (como o Horizonte) usam esta aba."
+                        font.pixelSize: 12
+                        color: Appearance.colors.colOnLayer0
+                        opacity: 0.8
+                    }
+                    TuneSlider {
+                        visible: MosaicTheme.grain > 0
+                        title: "Granulado dos apps"
+                        hint: "0 desliga e devolve o grão próprio do shell."
+                        from: 0
+                        to: 2
+                        value: appsPage.conf.grain
+                        shown: Math.round(value * 100) + "%"
+                        onMoved: v => appsPage.conf.grain = v
+                    }
+                    RecordGroup {
+                        visible: MosaicTheme.grain > 0
+                        title: "Em tela cheia"
+                        hint: "Jogos e vídeo em tela cheia. Sem o grão, a imagem vai direto da GPU para o monitor, o que é mais leve em jogo."
+                        options: [
+                            { value: true, label: "Desliga", sub: "volta ao sair" },
+                            { value: false, label: "Fica", sub: "sempre" }
+                        ]
+                        current: appsPage.conf.fullscreenOff
+                        onPicked: value => appsPage.conf.fullscreenOff = value
+                    }
                 }
 
                 // ----- the grid -----
@@ -1229,6 +1276,15 @@ Scope {
             font.family: MosaicTheme.fontDisplay
             font.pixelSize: 18
             color: Appearance.colors.colOnLayer0
+        }
+        // with the apps' grain on, the shell's own grain steps aside (no double grain)
+        StyledText {
+            visible: MosaicTheme.retro && MosaicScreenGrain.wanted
+            width: parent.width
+            wrapMode: Text.Wrap
+            text: "Pausado: o granulado dos apps (aba Apps) já cobre a tela toda. Ponha ele em 0 para usar estes."
+            font.pixelSize: 11
+            color: Appearance.colors.colPrimary
         }
         Grid {
             visible: MosaicTheme.retro

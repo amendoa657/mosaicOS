@@ -596,6 +596,11 @@ Singleton {
                 property real grainDesktop: 1.0
                 property real grainPicker: 1.0 // the wallpaper/theme window
             }
+            // Mosaic OS: every app, terminal included (Apps tab): film grain by a Hyprland screen shader
+            property JsonObject mosaicApps: JsonObject {
+                property real grain: 1.0          // times the theme's grain (only retro themes have any): 0 none, 2 double
+                property bool fullscreenOff: true // no grain while a window is in real full screen (games, video)
+            }
             // the same for the dock (Dock tab)
             property JsonObject mosaicDock: JsonObject {
                 property real glass: 1.0

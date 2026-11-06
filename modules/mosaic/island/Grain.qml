@@ -6,7 +6,7 @@ import qs.modules.common
 // when the theme has no grain.
 ShaderEffect {
     property real radius: 0
-    property real amount: MosaicTheme.grain
+    property real amount: MosaicTheme.shellGrain
     anchors.fill: parent
     visible: amount > 0
     fragmentShader: Qt.resolvedUrl("shaders/grain.frag.qsb")

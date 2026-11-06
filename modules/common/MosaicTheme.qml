@@ -136,13 +136,16 @@ color245 #3f372e`,
     //   the dock (`grain`: how strong), and serif titles
     readonly property bool retro: root.theme.style === "retro"
     readonly property real grain: root.retro ? 0.07 : 0
+    // The shell's own grain: none while the apps' grain (a Hyprland screen shader,
+    // MosaicScreenGrain) is on, since that one already covers the shell too
+    readonly property real shellGrain: MosaicScreenGrain.wanted ? 0 : root.grain
     // ...and how much of it each part gets (Aparência and Dock tabs)
     readonly property var widgets: Config.options?.mosaicWidgets
-    readonly property real grainIsland: root.grain * (root.widgets?.grainIsland ?? 1)
-    readonly property real grainSidebars: root.grain * (root.widgets?.grainSidebars ?? 1)
-    readonly property real grainDesktop: root.grain * (root.widgets?.grainDesktop ?? 1)
-    readonly property real grainPicker: root.grain * (root.widgets?.grainPicker ?? 1)
-    readonly property real grainDock: root.grain * (Config.options?.mosaicDock?.grain ?? 1)
+    readonly property real grainIsland: root.shellGrain * (root.widgets?.grainIsland ?? 1)
+    readonly property real grainSidebars: root.shellGrain * (root.widgets?.grainSidebars ?? 1)
+    readonly property real grainDesktop: root.shellGrain * (root.widgets?.grainDesktop ?? 1)
+    readonly property real grainPicker: root.shellGrain * (root.widgets?.grainPicker ?? 1)
+    readonly property real grainDock: root.shellGrain * (Config.options?.mosaicDock?.grain ?? 1)
     // The widgets' surface (island, sidebars, desktop widgets), from the Aparência
     // tab: `base` pulled toward black by `darkness`, as solid as `opacity`.
     function widgetFill(base) {
