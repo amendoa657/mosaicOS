@@ -283,13 +283,15 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
 
         Item {
             // Messages
+            id: messagesArea
             Layout.fillWidth: true
             Layout.fillHeight: true
             layer.enabled: true
             layer.effect: OpacityMask {
                 maskSource: Rectangle {
-                    width: swipeView.width
-                    height: swipeView.height
+                    // Mosaic OS: its own size (it used the ii sidebar's swipeView, which the Mosaic sidebar doesn't have)
+                    width: messagesArea.width
+                    height: messagesArea.height
                     radius: Appearance.rounding.small
                 }
             }

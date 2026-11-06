@@ -531,7 +531,7 @@ Substituem as laterais do ii, com os **mesmos atalhos e IPC**: `sidebarLeftToggl
 - **Entrada:** `slide` (`MosaicSpring`) leva a coluna de fora da tela até o lugar. A janela só existe enquanto está aberta ou animando.
 - **Cantos:** só os do lado de dentro são arredondados. Um retângulo da cor da coluna cobre os cantos que encostam na borda da tela.
 - **Brutal:** a sombra dura cai para **dentro** da tela, à esquerda da lateral direita e à direita da esquerda. Por isso é um retângulo próprio, não o `HardShadow`, que sempre desloca para baixo e para a direita.
-- Esc e clique fora fecham (`GlobalFocusGrab`, como no ii).
+- Esc e clique fora fecham. Cada lateral tem **a sua própria** `HyprlandFocusGrab` (só a janela dela conta como "dentro"), ligada 250 ms depois de abrir. A captura compartilhada do ii (`GlobalFocusGrab`) remonta a lista de janelas conforme o foco anda dentro delas (`hasActive`), e isso soltava a captura num clique nas páginas: a lateral esquerda fechava a cada clique.
 
 ### 13.1 Direita (`MosaicSidebarRight.qml`)
 De cima para baixo:
@@ -551,6 +551,7 @@ De cima para baixo:
 6. **Notificações:** a `NotificationList` do ii (histórico, limpar tudo, silêncio), ocupando o resto da altura.
 
 ### 13.2 Esquerda (`MosaicSidebarLeft.qml`)
+- O `AiChat` do ii recortava a área de mensagens com uma máscara do tamanho do `swipeView` da lateral original. Na lateral do Mosaic esse `swipeView` não existe, a máscara ficava com tamanho zero e a aba IA aparecia vazia; agora a máscara usa o tamanho da própria área (`messagesArea`).
 - Três abas: **Tradutor** (o `Translator` do ii), **Tarefas** (o `TodoWidget` do ii, que saiu da direita) e **IA** (o `AiChat` do ii). A aba Anime saiu.
 - Cada página é criada só na primeira vez que a aba é aberta (`Loader` com `wanted`) e fica viva depois; trocar de aba faz fade com um deslize de 24 px.
 - IPC: `qs -c mosaic ipc call sidebarLeft tab 0|1|2` abre direto numa aba.

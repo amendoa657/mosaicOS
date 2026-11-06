@@ -41,10 +41,28 @@ Scope {
             left: true
             bottom: true
         }
-        onVisibleChanged: visible ? GlobalFocusGrab.addDismissable(panel) : GlobalFocusGrab.removeDismissable(panel)
+        // Click outside closes it. Its own focus grab, switched on a moment after it
+        // opens: the ii's shared one (GlobalFocusGrab) rebuilds its window list as
+        // focus moves inside, and that dropped the grab on a click in the pages
+        // (the sidebar closed when clicked). Only this window counts as "inside".
+        property bool grabReady: false
         Connections {
-            target: GlobalFocusGrab
-            function onDismissed() { GlobalStates.sidebarLeftOpen = false; }
+            target: root
+            function onOpenChanged() {
+                panel.grabReady = false;
+                if (root.open)
+                    grabDelay.restart();
+            }
+        }
+        Timer {
+            id: grabDelay
+            interval: 250
+            onTriggered: panel.grabReady = root.open
+        }
+        HyprlandFocusGrab {
+            active: root.open && panel.grabReady
+            windows: [panel]
+            onCleared: GlobalStates.sidebarLeftOpen = false
         }
         mask: Region { item: column }
 
