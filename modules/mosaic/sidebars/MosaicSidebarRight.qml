@@ -73,7 +73,18 @@ Scope {
             right: true
             bottom: true
         }
-        mask: Region { item: column }
+        // What takes the mouse: a still item the size of the column. The column itself
+        // slides in with a transform, and Region doesn't follow transforms: masking
+        // the column left the input region where the column was born (off the
+        // screen), so clicks went through the sidebar to the catcher and closed it.
+        Item {
+            id: hitArea
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: root.sidebarWidth
+        }
+        mask: Region { item: hitArea }
 
         // brutal themes: the hard shadow falls on the inside (left) of the column
         Rectangle {
