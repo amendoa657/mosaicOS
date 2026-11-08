@@ -25,6 +25,7 @@ import qs.modules.ii.wallpaperSelector
 import qs.modules.mosaic.dock
 import qs.modules.mosaic.island
 import qs.modules.mosaic.sidebars
+import qs.modules.mosaic.topbar
 import qs.modules.mosaic.wallpapers
 
 Scope {
@@ -62,4 +63,6 @@ Scope {
     PanelLoader { component: MosaicSettings {} }
     // Mosaic OS
     PanelLoader { component: Island {} }
+    // Mosaic OS: the reserved top band (workspaces on the left, states on the right)
+    PanelLoader { component: MosaicTopBar {} }
 }
