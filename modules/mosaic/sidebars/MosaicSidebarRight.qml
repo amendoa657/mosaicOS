@@ -18,7 +18,7 @@ import qs.modules.ii.sidebarRight.notifications
 // The Mosaic OS right sidebar: a full-height column glued to the right edge
 // (Super+N, the dock's status), in the theme's style (glass in Mosaic, a solid
 // brutalist slab in Gruvbox). Top to bottom:
-// - greeting + date, settings and power buttons
+// - greeting + date, and buttons for the wallpaper carousel, the Mosaic settings (themes), the ii settings and power
 // - quick toggles (Wi-Fi, Bluetooth, do not disturb, night light, caffeine, mic)
 // - volume and brightness sliders
 // - the phone (KDE Connect): battery, ring it, ping, send a file
@@ -169,6 +169,22 @@ Scope {
                             font.pixelSize: 12
                             color: Appearance.colors.colOnLayer0
                             opacity: 0.7
+                        }
+                    }
+                    IconKey {
+                        icon: "wallpaper"
+                        tip: "Trocar papel de parede"
+                        onClicked: {
+                            GlobalStates.sidebarRightOpen = false;
+                            GlobalStates.wallpaperSelectorOpen = true;
+                        }
+                    }
+                    IconKey {
+                        icon: "palette"
+                        tip: "Temas e aparência do Mosaic"
+                        onClicked: {
+                            GlobalStates.sidebarRightOpen = false;
+                            Quickshell.execDetached(["qs", "-c", "mosaic", "ipc", "call", "mosaicSettings", "toggle"]);
                         }
                     }
                     IconKey {

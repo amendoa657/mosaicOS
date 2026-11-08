@@ -38,7 +38,7 @@ hg.preset("dock", {
 for _, ns in ipairs({
     "quickshell:bar", "quickshell:sidebarRight", "quickshell:sidebarLeft",
     "quickshell:notificationPopup", "quickshell:cheatsheet", "quickshell:overview",
-    "quickshell:overlay", "quickshell:session", "quickshell:island", "quickshell:mosaicWallpapers",
+    "quickshell:overlay", "quickshell:session", "quickshell:island", "quickshell:mosaicSettings",
 }) do
     hg.layer(ns, { preset = "vivo", mask_threshold = 0.3 })
 end
@@ -54,3 +54,4 @@ end
 
 -- Notas da ilha (Super+N e Super+Shift+N já são usados no ii)
 hl.bind("SUPER + ALT + N", hl.dsp.global("quickshell:mosaicNotesToggle"), { description = "Mosaic OS: notas" })
+hl.bind("SUPER + ALT + T", hl.dsp.global("quickshell:mosaicSettingsToggle"), { description = "Mosaic OS: configurações e temas" })

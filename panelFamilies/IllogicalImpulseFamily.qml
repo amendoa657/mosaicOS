@@ -54,9 +54,12 @@ Scope {
     // PanelLoader { component: SidebarRight {} }
     PanelLoader { component: MosaicSidebarRight {} }
     // PanelLoader { extraCondition: Config.options.bar.vertical; component: VerticalBar {} }
-    // Mosaic OS: the wallpaper picker is modules/mosaic/wallpapers (same shortcuts)
+    // Mosaic OS: the wallpaper carousel and its transition, and the settings window
+    // (modules/mosaic/wallpapers; same wallpaper shortcuts)
     // PanelLoader { component: WallpaperSelector {} }
-    PanelLoader { component: MosaicWallpapers {} }
+    PanelLoader { component: MosaicCarousel {} }
+    PanelLoader { component: MosaicWallFx {} }
+    PanelLoader { component: MosaicSettings {} }
     // Mosaic OS
     PanelLoader { component: Island {} }
 }
