@@ -21,8 +21,9 @@ import qs.modules.mosaic.island
 //   the pixel colonies.
 // - Smoothness: every slot has the same fixed width, so scrolling never lays
 //   anything out again; each card only changes scale and opacity, worked out
-//   from its distance to the middle. The cards show the 480x300 thumbnails
-//   (scripts/wallpaper-index.sh), never the originals.
+//   from its distance to the middle.
+// - Sharpness: each card shows the 480x300 thumbnail at once; the middle one and
+//   its neighbours then fade in the original, decoded at the card's size.
 // - Slant: a shear (Matrix4x4) on the card, which clips to the slanted shape;
 //   the picture inside gets the opposite shear, so it stands straight.
 // - Theme: thin glass edges (soft), a cream outline on a hard shadow (brutal),
@@ -248,16 +249,36 @@ Scope {
                                 anchors.fill: parent
                                 color: Appearance.colors.colLayer1
                             }
-                            // the picture, sheared back so it stands straight, wide enough to cover the corners
-                            Image {
+                            // the picture, sheared back so it stands straight, wide enough to cover the corners.
+                            // The 480 px thumbnail shows at once; the original, decoded at the card's own
+                            // size (sharp, without decoding a 6K image at full size), fades in over it.
+                            Item {
                                 width: parent.width + win.cardH * Math.abs(win.skew) + 4
                                 height: parent.height
                                 x: -(win.cardH * Math.abs(win.skew) + 4) / 2
-                                source: MosaicWalls.thumbFor(slot.modelData)
-                                fillMode: Image.PreserveAspectCrop
-                                asynchronous: true
-                                sourceSize: Qt.size(480, 300)
                                 transform: Matrix4x4 { matrix: Qt.matrix4x4(1, -win.skew, 0, win.skew * win.cardH / 2, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1) }
+                                Image {
+                                    anchors.fill: parent
+                                    source: MosaicWalls.thumbFor(slot.modelData)
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    sourceSize: Qt.size(480, 300)
+                                    visible: sharp.status !== Image.Ready
+                                }
+                                Image {
+                                    id: sharp
+                                    anchors.fill: parent
+                                    // only the middle card and its neighbours: images are decoded one at a
+                                    // time, and a dozen 6K originals queued the thumbnails behind them
+                                    source: slot.dist < 1.6 ? "file://" + slot.modelData : ""
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    smooth: true
+                                    mipmap: true
+                                    sourceSize: Qt.size(Math.ceil(parent.width), Math.ceil(parent.height))
+                                    opacity: status === Image.Ready ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: 180 } }
+                                }
                             }
                             Grain { radius: 0; amount: MosaicTheme.grainPicker }
                             // the edge: thin glass (soft) or a thick cream line (brutal); the selected one in the accent
