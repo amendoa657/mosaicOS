@@ -32,7 +32,11 @@ My first rice.
   - left: translator, to-do list and AI chat;
   - right: quick toggles, sliders, phone, calendar and notifications.
 - **Screen recorder:** full screen with system audio, mic or no sound, plus a live recording indicator in the island.
-- **Wallpaper and theme window:** wallpapers with search and color filters, desktop widget toggles, recording settings, plus glass, transparency, darkness and grain for the widgets, the dock and every app.
+- **Top band:** a reserved strip with the workspaces on the left (the active one is a pill that stretches like a worm between them) and a few states on the right: recording, caffeine, updates, do not disturb, Bluetooth, offline, muted.
+- **Wallpaper carousel:** slanted cards over the selected wallpaper, blurred, with search and color filters. The new wallpaper comes in as **pixel colonies** that light up in its own color.
+- **Workspace map** (<kbd>Super</kbd> <kbd>Tab</kbd>) with the real windows, and a **Stage Manager** on the left edge.
+- **Launcher modes** in the start menu: `#` clipboard, `>` actions, `@` open windows, timers (`5m tea`), math, and apps ranked by how often you open them.
+- **Settings window:** themes, desktop widget toggles, recording settings, plus glass, transparency, darkness and grain for the island, the widgets, the dock and every app.
 - **Liquid glass** on the island, dock and sidebars through the hyprglass plugin, adjustable from the UI.
 
 ## Themes
@@ -106,6 +110,9 @@ git clone https://github.com/amendoa657/mosaicOS ~/.config/quickshell/mosaic
 | <kbd>Super</kbd> | Start menu (hold it for the workspace compass) |
 | <kbd>Ctrl</kbd> <kbd>Super</kbd> <kbd>M</kbd> | Switch between Mosaic OS and illogical-impulse |
 | <kbd>Super</kbd> <kbd>Alt</kbd> <kbd>N</kbd> | Quick notes |
+| <kbd>Super</kbd> <kbd>Tab</kbd> | Workspace map |
+| <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>Tab</kbd> | Stage Manager on/off |
+| <kbd>Super</kbd> <kbd>Alt</kbd> <kbd>T</kbd> | Settings and themes |
 
 Everything also has an IPC, for example:
 
@@ -122,6 +129,7 @@ qs -c mosaic ipc call theme set horizonte
 
 - [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) (illogical-impulse): the shell Mosaic OS started from. Its services and many of its widgets are still underneath.
 - hyprdots: ideas for the floating island and the wallpaper index.
+- [pocket-dots](https://github.com/diegoMalagrida/pocket-dots) (GPL-3.0): ideas for the wallpaper carousel, the pixel-colony transition, the top band, the Stage Manager and the launcher modes.
 - hyprglass: the liquid glass.
 - **Wallpapers** belong to their authors. The Horizonte wallpaper is the hero image from Anthropic's Claude Opus 5.5 page.
 

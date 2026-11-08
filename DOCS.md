@@ -13,9 +13,13 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 8. [O dock: `modules/mosaic/dock/MosaicDock.qml`](#8-o-dock)
 9. [O que mudou nos arquivos herdados do ii](#9-o-que-mudou-no-ii)
 10. [Como testar sem quebrar a sessão](#10-como-testar)
-11. [Papéis de parede e o derramar: `modules/mosaic/wallpapers/`](#11-papéis-de-parede-e-o-derramar)
+11. [Papéis de parede, carrossel e configurações: `modules/mosaic/wallpapers/`](#11-papéis-de-parede-carrossel-e-configurações)
 12. [Temas: `modules/common/MosaicTheme.qml`](#12-temas-modulescommonmosaicthemeqml-themes)
 13. [As laterais: `modules/mosaic/sidebars/`](#13-as-laterais-modulesmosaicsidebars)
+14. [A faixa do topo: `modules/mosaic/topbar/`](#14-a-faixa-do-topo-modulesmosaictopbar)
+15. [O Stage Manager: `modules/mosaic/stage/`](#15-o-stage-manager-modulesmosaicstage)
+16. [O mapa de workspaces (Super+Tab)](#16-o-mapa-de-workspaces-supertab)
+17. [O launcher com modos](#17-o-launcher-com-modos)
 
 ---
 
@@ -407,8 +411,10 @@ O Matugen repinta dois ícones com as cores do papel de parede: o do Mosaic Stor
 Arquivos herdados que foram alterados (o resto é igual ao ii):
 - `panelFamilies/IllogicalImpulseFamily.qml`:
   - comentados: `Bar`, `Dock`, `VerticalBar`, `NotificationPopup`, `OnScreenDisplay` (volume/brilho foram para a ilha) e `WallpaperSelector` do ii;
-  - adicionados: `Island`, `MosaicDock`, `MosaicWallpapers`, `MosaicSidebarLeft` e `MosaicSidebarRight` (as laterais do ii foram comentadas).
-- `hypr/mosaic.lua`: a camada `quickshell:mosaicWallpapers` (o cartão do seletor) ganhou o liquid glass.
+  - adicionados: `Island`, `MosaicDock`, `MosaicCarousel`, `MosaicWallFx`, `MosaicSettings`, `MosaicSidebarLeft`, `MosaicSidebarRight`, `MosaicTopBar` e `MosaicStage` (as laterais do ii foram comentadas).
+- `hypr/mosaic.lua`: a camada `quickshell:mosaicSettings` (o cartão de configurações) ganhou o liquid glass. Atalhos: Super+Alt+T (configurações), Super+Shift+Tab (Stage Manager), Super+Alt+N (notas).
+- `modules/ii/overview/Overview.qml` e `OverviewWidget.qml`: o mapa de workspaces (seção 16).
+- `services/LauncherSearch.qml` e os prefixos em `modules/common/Config.qml`: o launcher com modos (seção 17).
 
 Arquivos do sistema, fora do projeto:
 - `~/.config/hypr/custom/env.lua`: lê o shell salvo (seção 3);
@@ -435,31 +441,34 @@ Também no projeto: `services/Battery.qml` (o serviço do ii que foi adaptado pa
 
 ---
 
-## 11. Papéis de parede e o derramar
-Arquivo: `modules/mosaic/wallpapers/MosaicWallpapers.qml`, mais o script `scripts/wallpaper-index.sh` e o shader `shaders/pour.frag`. Ele substitui o seletor do ii com os **mesmos atalhos**: `wallpaperSelectorToggle`, `wallpaperSelectorRandom` e a IPC `wallpaperSelector toggle|random`. Layout e efeito vieram do hyprdots, no estilo Mosaic.
+## 11. Papéis de parede, carrossel e configurações
+Os papéis de parede saíram da janela de configuração e ganharam um **carrossel** próprio. São quatro arquivos em `modules/mosaic/wallpapers/`:
+- `MosaicWalls.qml`: os dados (singleton);
+- `MosaicCarousel.qml`: o carrossel;
+- `MosaicWallFx.qml` e `shaders/colonies.frag`: a transição;
+- `MosaicSettings.qml`: a janela de configuração.
 
-### 11.1 Lendo a pasta
+O carrossel e a transição são ideias das [pocket-dots](https://github.com/diegoMalagrida/pocket-dots) (GPL-3.0), reescritas no estilo Mosaic. Os atalhos continuam os mesmos: `wallpaperSelectorToggle`, `wallpaperSelectorRandom` e a IPC `wallpaperSelector toggle|random`.
+
+### 11.1 Os papéis (`MosaicWalls.qml`)
+Um **singleton**, ou seja, um objeto único que o carrossel e a transição compartilham.
 - A pasta é a do papel de parede atual (`Config.options.background.wallpaperPath`).
-- Ao abrir, o `Process` `lister` roda um `find` e lista as imagens. Depois o `indexer` roda `wallpaper-index.sh`, que para **cada imagem nova**:
-  - cria a miniatura de 480×300 com o `vipsthumbnail` (rápido), ou com o `magick` se ele faltar;
-  - tira a cor média, reduzindo a imagem a **1 pixel** com o `magick` (`-resize 1x1!`).
+- `refresh()`: o `Process` `lister` roda um `find` e lista as imagens. Depois o `indexer` roda `wallpaper-index.sh`, que para **cada imagem nova**:
+  - cria a miniatura de 480×300 com o `vipsthumbnail` (ou com o `magick`, se ele faltar);
+  - tira a cor média, reduzindo a imagem a 1 pixel.
 
-  Tudo fica em `~/.cache/mosaic-os/wallpapers`. Imagens já vistas vêm do cache, e o script roda com `nice -n 19` (prioridade mínima).
-- `colors.tsv` (nome → cor) é lido por um `FileView`. `hueOf(hex)` converte a cor em família: cinza se tiver pouca saturação, senão pela matiz (vermelho < 15°, laranja < 45°...).
-- O histórico (`history`) ganha uma linha a cada papel aplicado; "Recentes" lê de trás para frente, sem repetir.
+  Tudo fica em `~/.cache/mosaic-os/wallpapers`, e o script roda com `nice -n 19`.
+- `colors.tsv` (nome → cor) é lido por um `FileView`. `hueOf(hex)` converte a cor em família (cinza se tiver pouca saturação, senão pela matiz) para os filtros de cor.
+- `history` ganha uma linha a cada papel aplicado; "Recentes" lê de trás para frente, sem repetir.
+- `apply(path)` **não troca o papel na hora**: põe o caminho em `pending`, e a transição (11.4) cuida do resto. `random()` sorteia um papel diferente do atual; se a lista ainda não carregou, lê a pasta e sorteia quando ela chegar. `commit(path)` é a troca de verdade: o script do ii (`Wallpapers.select`, que roda o Matugen) mais a linha no histórico.
+- **Papéis das pocket-dots:** os 20 do repo delas estão em `~/Imagens/Wallpapers/pocket-*`, com o `pocket-SOURCES.md`. Segundo o próprio autor, só 2 têm licença clara (pinturas do Met em domínio público); os outros não têm origem registrada. Por isso eles **não entram no repo**.
 
-### 11.2 A janela
-- `LazyLoader`: a janela só existe aberta (ou enquanto fecha). Uma `PanelWindow` na tela inteira, camada Overlay, com teclado exclusivo.
-- O fundo escurece com opacidade 0,25, **abaixo do limite de 0,3 do hyprglass**. Assim só o cartão vira vidro. Clicar no fundo fecha.
+### 11.2 A janela de configuração (`MosaicSettings.qml`)
+Era a janela de papéis de parede. Agora tem só os **temas** à esquerda e uma aba por parte: Widgets, Gravação, Ilha, Aparência, Dock, Apps e Áreas.
+- **Abrir:** o botão de paleta na lateral direita, Super+Alt+T (`mosaicSettingsToggle`) ou a IPC `qs -c mosaic ipc call mosaicSettings toggle|widgets|recording|island|look|dock|apps|areas`.
+- O estado aberto é da própria janela (`root.open`). O `GlobalStates.wallpaperSelectorOpen` passou para o carrossel.
+- `LazyLoader`: a janela só existe aberta (ou enquanto fecha). Uma `PanelWindow` na tela inteira, camada Overlay. O fundo escurece com 0,25, abaixo do limite de 0,3 do hyprglass, então só o cartão vira vidro. Clicar no fundo ou Esc fecha.
 - O cartão abre por `openSpring` (escala 0,94 → 1 e opacidade) e fecha deslizando em 200 ms.
-- **Coluna esquerda:**
-  - a marca e o contador (`mostrados / total`);
-  - o nome e a cor do selecionado;
-  - a busca (um `TextInput`, que também dirige a grade pelo teclado);
-  - os filtros: Todos, Recentes e 8 blocos de cor;
-  - os botões Aplicar e Aleatório (`PickerButton`, com pulinho no clique).
-- **Grade (`GridView`, 3 colunas, 16:10):** cada miniatura entra em **cascata**: um `Timer` de `60 + min(índice, 12) × 28` ms liga `born`, que anima opacidade, escala e um deslize de 18 px com `OutBack`. O mouse em cima seleciona, e uma mola (`lift`) cresce 3,5% e mostra o nome. A borda na cor de destaque marca a seleção, e um ✓ marca o papel em uso.
-- **Teclado:** setas movem (`grid.columns` por linha), Enter aplica, Tab e Shift+Tab trocam o filtro, Esc fecha.
 
 ### 11.2.1 A aba Widgets
 No topo da área da direita há duas abas: **Papéis** (a grade) e **Widgets**. A aba Widgets tem um cartão por widget da área de trabalho: relógio, calendário, clima, música, fotos, fotos 2 e dias juntos.
@@ -519,20 +528,39 @@ O shell não consegue desenhar por cima das janelas dos outros apps. Quem faz is
 - **Não aparece em print:** a captura de tela do Hyprland (`grim`, wf-recorder) pega a imagem **antes** do shader de tela, então o grão dos apps não sai em print nem em gravação. Isso foi testado: prints com e sem o shader saíram idênticos pixel a pixel.
 - IPC: `qs -c mosaic ipc call wallpaperSelector apps`.
 
-### 11.3 O derramar (`pour`)
-1. `apply(path, item)` pega o centro da miniatura clicada em coordenadas de tela (`mapToItem(null, ...)`), fecha o seletor e chama `pour()`.
-2. Uma `PanelWindow` por monitor na camada **Bottom** (acima do papel de parede, abaixo das janelas, sem receber cliques) carrega a imagem nova. Quando ela está pronta, `pourRun` leva `pourProgress` de 0 a 1 em 1,7 s.
-3. **O shader `pour.frag`**, para cada pixel:
-   - mede a distância `r` até o ponto de origem (`sink`);
-   - calcula o raio da poça, `R = (1 - (1-e)^1.7) · rmax`: começa rápido e freia;
-   - soma uma **ondulação** na borda (`sin(ângulo·5 + e·7)` mais `sin(ângulo·9 - e·11)`, mais forte no meio do caminho);
-   - perto da borda, **desloca a imagem para fora** (refração), com ondinhas;
-   - desenha um **menisco**, a linha clara da borda, iluminada de cima à esquerda e tingida com a cor de destaque;
-   - fora da poça, um brilho fraco enquanto ela se move.
-4. No fim, `commit()` chama `Wallpapers.select(path)`, o script do ii que troca o papel de verdade e roda o Matugen (cores novas), e grava o histórico.
-5. Quando o `wallpaperPath` da configuração muda para o novo, espera 0,9 s (o fundo carregar), apaga a poça em 320 ms e destrói as janelas. Há proteções: se a imagem não carregar em 2,5 s, aplica direto; se o fundo não confirmar em 8 s, apaga a poça assim mesmo.
-- Nos outros monitores, a poça começa do meio do topo.
-- **Aleatório:** sorteia um papel diferente do atual e derrama a partir do centro.
+### 11.2.5 A aba Áreas
+- **Stage Manager:** ligado ou desligado (`Config.options.mosaicStage.enabled`), seção 15.
+- Um lembrete do mapa de workspaces (Super+Tab), seção 16.
+
+### 11.3 O carrossel (`MosaicCarousel.qml`)
+Abre pelo botão "Trocar papel de parede" da lateral direita, pelo atalho de sempre ou pela IPC.
+- **Fundo imersivo:** a tela inteira mostra a miniatura do papel selecionado, borrada (`MultiEffect`, `blur 1`, `blurMax 48`) e escurecida. São duas camadas (`bgA` e `bgB`) que se revezam: a nova seleção entra numa enquanto a outra some, num crossfade de 380 ms.
+- **A fileira:** um `ListView` horizontal com `StrictlyEnforceRange`. O item atual fica sempre no meio (`preferredHighlightBegin = largura/2 − vaga/2`), e trocar de item desliza a fileira em 320 ms.
+  - **Fluidez:** toda vaga tem a mesma largura fixa (`slotW`), então rolar nunca recalcula layout. Cada cartão só muda `scale` e `opacity`, calculados pela distância até o meio, em vagas: `dist = |x do cartão − contentX + vaga/2 − largura/2| / vaga`. Escala `1 − 0,17·dist` (mínimo 0,5), opacidade `1 − 0,24·dist`, e o `z` cai com a distância, para o do meio ficar na frente.
+  - **O paralelogramo:** o cartão leva uma transformação `Matrix4x4` com cisalhamento (shear) `skew = −0,32`: cada linha é empurrada de lado proporcionalmente à altura. O `clip: true` de um item transformado recorta no formato transformado, então o cartão vira um paralelogramo de verdade. A imagem dentro leva o cisalhamento **oposto**, para ficar reta, e é mais larga que o cartão (`+ altura × |skew|`), para cobrir os cantos.
+  - As miniaturas vêm do cache (480×300), nunca do original.
+- **Começa no papel em uso:** sempre que a lista muda e você ainda não mexeu (`touched`), o índice vai para o papel em uso, com `Qt.callLater`. Definido antes de o `ListView` pegar a lista nova, o índice voltava a 0. A pasta é relida ao abrir e chega como uma lista nova, por isso não basta fazer isso uma vez só.
+- **Controles:** setas ou roda do mouse navegam, Enter (ou clique no cartão do meio) aplica, digitar filtra pelo nome, Tab troca o filtro de cor, Esc fecha. Os chips: Todos, Recentes, 8 cores e Aleatório.
+- **Tema:**
+  - soft: borda fina de vidro, a selecionada na cor de destaque;
+  - brutal: contorno creme de 3 px e uma sombra dura também inclinada;
+  - retro: granulado (`grainPicker`) nos cartões e no fundo, e o nome em `fontDisplay`.
+
+### 11.4 A transição por colônias (`MosaicWallFx.qml`, `shaders/colonies.frag`)
+Substitui o antigo "derramar".
+1. `MosaicWalls.pending` recebe um caminho e, para cada monitor, nasce uma `PanelWindow` na camada **Bottom**: acima do papel, abaixo das janelas, sem receber cliques.
+2. Quando a imagem carrega, `progress` vai de 0 a 1 em 1,6 s (`InOutSine`).
+3. **O shader:** a tela é dividida em células de 8 px (proporcional à altura da tela). Para cada célula, ele calcula o **tempo de chegada**:
+   - 5 focos com posição sorteada por `hash(seed, i)`; cada foco começa um pouco depois do anterior (`start = i/5 × 0,3`);
+   - a chegada é o menor `start + distância até o foco / diagonal × 2,4`, mais um ruído de até 0,06, para a frente ficar irregular e não redonda;
+   - enquanto `progress × 1,3` não passa da chegada, a célula fica transparente (aparece o papel antigo, que está embaixo);
+   - quando chega, a célula **acende** na cor do papel novo e esfria para a imagem em 0,08 do tempo;
+   - perto do fim (`progress ≥ 0,995`), tudo aparece de uma vez, para nenhuma célula longe dos focos ficar para trás.
+
+   Diferente das pocket-dots, que pré-calculam esse mapa num script Python, aqui ele é calculado no próprio shader.
+4. A cor que acende é a cor média do papel novo (do `colors.tsv`), com a saturação puxada para no mínimo 0,7.
+5. No fim, `commit()` troca o papel de verdade. Quando o `wallpaperPath` confirma, espera 0,9 s, apaga a camada em 320 ms e limpa `pending`. Proteções: se a imagem não carregar em 2,5 s, troca direto; se o fundo não confirmar em 8 s, apaga a camada assim mesmo.
+- **Como testei sem mexer na tela:** um shell de teste (`qs -p`) com uma `PanelWindow` na camada **Background**, atrás do papel de parede. Ela renderiza o shader em 4 momentos, salva cada um com `grabToImage` e fecha. O modo offscreen do Qt não serve: ele cai num renderizador sem shaders.
 
 ---
 
@@ -626,7 +654,7 @@ Substituem as laterais do ii, com os **mesmos atalhos e IPC**: `sidebarLeftToggl
 
 ### 13.1 Direita (`MosaicSidebarRight.qml`)
 De cima para baixo:
-1. **Saudação** (Bom dia/Boa tarde/Boa noite, pela hora), data, **Configurações** (`settings.qml` do ii) e **Desligar** (a tela de sessão do ii).
+1. **Saudação** (Bom dia/Boa tarde/Boa noite, pela hora) e data, que cortam com reticências se faltar espaço. Quatro botões juntos: **Trocar papel de parede** (o carrossel), **Temas e aparência** (`MosaicSettings`), **Configurações** (`settings.qml` do ii) e **Desligar** (a tela de sessão do ii).
 2. **Botões rápidos** (`Toggle`, 3×2):
    - Wi-Fi (`Network.toggleWifi`, com o nome da rede);
    - Bluetooth (`Bluetooth.defaultAdapter.enabled`);
@@ -646,4 +674,58 @@ De cima para baixo:
 - Três abas: **Tradutor** (o `Translator` do ii), **Tarefas** (o `TodoWidget` do ii, que saiu da direita) e **IA** (o `AiChat` do ii). A aba Anime saiu.
 - Cada página é criada só na primeira vez que a aba é aberta (`Loader` com `wanted`) e fica viva depois; trocar de aba faz fade com um deslize de 24 px.
 - IPC: `qs -c mosaic ipc call sidebarLeft tab 0|1|2` abre direto numa aba.
+
+---
+
+## 14. A faixa do topo (`modules/mosaic/topbar/`)
+Arquivo: `MosaicTopBar.qml`. Uma faixa reservada no topo de cada tela, com os workspaces à esquerda e alguns estados à direita. O meio continua sendo da ilha, que em repouso fica dentro da faixa. Ideia da barra das pocket-dots (GPL-3.0).
+- **A janela:** uma `PanelWindow` por tela, ancorada no topo, transparente, com `exclusiveZone: 40` (6 px acima da ilha + os 30 dela + 4). O Hyprland reserva esses 40 px e as janelas começam abaixo (`hyprctl monitors` mostra `reserved=[0,40,0,0]`).
+  - A ilha tem `ExclusionMode.Ignore`, então não é empurrada. As laterais (`exclusiveZone: 0`) passam a começar logo abaixo da faixa.
+  - A máscara (`Region`) cobre só os dois grupos; o resto da faixa não pega cliques.
+  - Com uma janela em tela cheia de verdade (`fullscreen ≥ 2`) no workspace ativo daquela tela, tudo some (opacidade 0).
+- **Workspaces:** os da tela (`Hyprland.workspaces` filtrados pelo monitor, que só mantém os que têm janela), mais o ativo.
+  - Cada um é uma bolinha de 7 px (quadrada nos temas brutais). Clique vai até lá (`hl.dsp.focus({ workspace = N })`, a sintaxe da config em Lua); a roda passa de um para o outro.
+  - **A minhoca:** o ativo é uma pílula de 20 px cujas pontas são **duas `MosaicSpring`**, uma para a borda esquerda e outra para a direita. A ponta da frente usa `response` 0,2 (rápida) e a de trás 0,42 (lenta), e `goingRight` diz qual é qual. No caminho a ponta da frente sai na hora e a de trás segura e depois solta, então a pílula **estica**; ao chegar, a de trás alcança e ela encolhe com um tremidinho (`damping` 0,78). A espessura afina um pouco com o esticão.
+- **Estados** (`StateIcon`): cada ícone só aparece enquanto é verdade, e a largura anima de 0 até o tamanho dele em 200 ms.
+  - gravando: um `pgrep` a cada 2 s; pisca uma vez a cada 2 s em vez de pulsar sem parar;
+  - café (`Idle.inhibit`), clique desliga;
+  - atualizações (`Updates`), vermelho quando muito recomendado;
+  - não perturbe (`Notifications.silent`), com o número de notificações; clique desliga;
+  - Bluetooth conectado (`BluetoothStatus.connected`);
+  - sem internet (sem cabo e Wi-Fi diferente de "connected");
+  - mudo (`Audio.sink.audio.muted`), clique desmuta.
+
+  Os glifos levam `style: Text.Outline` escuro, para ler sobre qualquer papel. Nos temas brutais viram teclas com contorno.
+
+## 15. O Stage Manager (`modules/mosaic/stage/`)
+Arquivo: `MosaicStage.qml`. Encostar o mouse na borda esquerda faz entrar uma coluna com os **outros workspaces daquela tela**, cada um como uma pilha das janelas reais, como no macOS. Ideia do Stage Manager das pocket-dots (GPL-3.0).
+- **A borda:** uma `PanelWindow` de 2 px na esquerda de cada tela (camada Overlay). O mouse precisa ficar 250 ms nela (`dwell`), então passar por ali a caminho de outra coisa não abre nada. Some com o Stage desligado, com a coluna aberta ou em tela cheia.
+- **As pilhas:** as janelas de `HyprlandData.windowList` agrupadas por workspace (menos o ativo), de cada monitor, ordenadas pela mais recente (`focusHistoryID`, 0 = a última usada), no máximo 3.
+  - A da frente fica inteira; as de trás ficam menores, deslocadas para cima e para a direita, mais apagadas. Com o mouse em cima, a pilha se abre um pouco (mola `lift`).
+  - Cada janela é um `ScreencopyView` do toplevel, a mesma captura do mapa do ii, ao vivo só enquanto a coluna está aberta. Com captura única (`live: false`), as miniaturas saíam vazias: a captura acontecia antes de estar pronta.
+  - O toplevel é achado pelo endereço: `0x${toplevel.HyprlandToplevel.address}` igual ao `address` da janela.
+  - Embaixo vão o ícone do app (`AppSearch.guessIcon` da classe) e o número do workspace.
+- **Uso:** clique vai até o workspace e fecha. Sair da coluna fecha depois de 300 ms (`HoverHandler`). Cada pilha entra um pouco depois da de cima.
+- **Liga e desliga:** a aba Áreas, Super+Shift+Tab (`mosaicStageToggle`) e `Config.options.mosaicStage.enabled`, ligado por padrão.
+- IPC: `qs -c mosaic ipc call stage open|openOn <tela>|close|toggleEnabled`.
+
+## 16. O mapa de workspaces (Super+Tab)
+É a visão geral do ii (`modules/ii/overview/`), que já tinha a grade com as janelas reais e o arrastar de uma janela para outro workspace. O Super+Tab já estava ligado a ela (`overviewWorkspacesToggle`). As mudanças do Mosaic:
+- **Não fechava na hora:** ela usava o `GlobalFocusGrab` (a captura de foco do Hyprland), que se solta sozinha e fechava o mapa logo depois de abrir, como já tinha acontecido nas laterais. Agora, com o mapa aberto, a janela inteira pega cliques (`catcher`), e clicar fora da grade fecha. Esc também fecha.
+- A grade fica **no meio da tela**, e a busca do ii some (no Mosaic a busca é o menu Iniciar da ilha).
+- **Tema** (`OverviewWidget.qml`): moldura do workspace ativo na cor de destaque (creme nos temas brutais); nos brutais o fundo vira placa sólida com contorno e sombra dura de 8 px; nos retrô ganha granulado.
+
+## 17. O launcher com modos
+O menu Iniciar da ilha usa a busca do ii (`services/LauncherSearch.qml`). Ela ganhou os modos das pocket-dots (GPL-3.0):
+- **Prefixos novos** (padrões no `Config.qml`, e trocados também no `config.json`):
+  - `#` área de transferência (antes `;`);
+  - `>` ações (antes `/`);
+  - o prefixo de apps virou `!`, porque os apps já aparecem sem prefixo nenhum.
+- **`@` janelas:** lista as janelas abertas (`HyprlandData.windowList`), filtradas pelo texto no título ou na classe, com o ícone do app e o workspace. Enter foca a escolhida (`hl.dsp.focus({window = "address:…"})`).
+- **Timers** (`services/MosaicTimers.qml`): `5m chá`, `timer 90s`, `1h20m pizza`.
+  - `parse()` usa uma expressão regular que aceita horas, minutos e segundos, com um rótulo opcional depois. O resultado "Timer" aparece em primeiro.
+  - `start()` cria um `Timer` do Qt e manda uma notificação de começo. No fim, outra notificação (urgente) diz que acabou, e a ilha mostra como qualquer notificação.
+- **Contas** continuam sem prefixo: começando com número, o ii calcula.
+- **Apps por uso** (`services/MosaicLauncherUsage.qml`): cada app aberto pelo menu soma 1 em `~/.local/state/mosaic-os/launcher-usage.json`. Na busca, cada app tem `nota = posição na busca aproximada − log₂(1 + vezes aberto) × 2`, e a lista sai em ordem de nota. Assim, quem você mais abre sobe sem atropelar uma correspondência bem melhor.
+- Os chips do menu vazio ganharam "janelas" (`@`) e "timer" (`5m `).
 
