@@ -152,8 +152,11 @@ Scope {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: 0
                         StyledText {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                             text: {
                                 const h = DateTime.clock.date.getHours();
                                 const g = h < 5 ? "Boa madrugada" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
@@ -165,12 +168,17 @@ Scope {
                             color: Appearance.colors.colOnLayer0
                         }
                         StyledText {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                             text: DateTime.longDate
                             font.pixelSize: 12
                             color: Appearance.colors.colOnLayer0
                             opacity: 0.7
                         }
                     }
+                    // the header's buttons, close together
+                    RowLayout {
+                    spacing: 2
                     IconKey {
                         icon: "wallpaper"
                         tip: "Trocar papel de parede"
@@ -202,6 +210,7 @@ Scope {
                             GlobalStates.sidebarRightOpen = false;
                             GlobalStates.sessionOpen = true;
                         }
+                    }
                     }
                 }
 

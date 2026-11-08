@@ -28,7 +28,14 @@ Scope {
         color: "transparent"
 
         mask: Region {
-            item: GlobalStates.overviewOpen ? columnLayout : null
+            item: GlobalStates.overviewOpen ? catcher : null
+        }
+        // Mosaic OS: the whole screen takes clicks while the map is open; outside the grid they close it
+        MouseArea {
+            id: catcher
+            anchors.fill: parent
+            visible: GlobalStates.overviewOpen
+            onClicked: GlobalStates.overviewOpen = false
         }
 
         anchors {
@@ -41,25 +48,19 @@ Scope {
         Connections {
             target: GlobalStates
             function onOverviewOpenChanged() {
+                // Mosaic OS: no Hyprland focus grab (it lets go by itself and closed the
+                // map right away); a click outside the grid closes it instead (catcher)
                 if (!GlobalStates.overviewOpen) {
                     searchWidget.disableExpandAnimation();
                     overviewScope.dontAutoCancelSearch = false;
-                    GlobalFocusGrab.dismiss();
                 } else {
                     if (!overviewScope.dontAutoCancelSearch) {
                         searchWidget.cancelSearch();
                     }
-                    GlobalFocusGrab.addDismissable(panelWindow);
                 }
             }
         }
 
-        Connections {
-            target: GlobalFocusGrab
-            function onDismissed() {
-                GlobalStates.overviewOpen = false;
-            }
-        }
         implicitWidth: columnLayout.implicitWidth
         implicitHeight: columnLayout.implicitHeight
 
@@ -71,10 +72,9 @@ Scope {
         Column {
             id: columnLayout
             visible: GlobalStates.overviewOpen
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
-            }
+            focus: GlobalStates.overviewOpen
+            // Mosaic OS: the map sits in the middle of the screen (the search lives in the island)
+            anchors.centerIn: parent
             spacing: -8
 
             Keys.onPressed: event => {
@@ -85,6 +85,7 @@ Scope {
 
             SearchWidget {
                 id: searchWidget
+                visible: false // Mosaic OS: the search is the island's start menu
                 anchors.horizontalCenter: parent.horizontalCenter
                 Synchronizer on searchingText {
                     property alias source: panelWindow.searchingText

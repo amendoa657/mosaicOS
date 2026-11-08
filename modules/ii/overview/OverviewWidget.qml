@@ -10,6 +10,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import qs.modules.mosaic.island
 
 Item {
     id: root
@@ -26,7 +27,8 @@ Item {
     property var windowAddresses: HyprlandData.addresses
     property var monitorData: HyprlandData.monitors.find(m => m.id === root.monitor?.id)
     property real scale: Config.options.overview.scale
-    property color activeBorderColor: Appearance.colors.colSecondary
+    // Mosaic OS: the map follows the theme (accent frame; cream ink in brutal themes)
+    property color activeBorderColor: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colPrimary
 
     property real workspaceImplicitWidth: (monitorData?.transform % 2 === 1) ? 
         ((monitor.height - monitorData?.reserved[0] - monitorData?.reserved[2]) * root.scale / monitor.scale) :
@@ -80,7 +82,13 @@ Item {
         implicitWidth: workspaceColumnLayout.implicitWidth + padding * 2
         implicitHeight: workspaceColumnLayout.implicitHeight + padding * 2
         radius: root.largeWorkspaceRadius + padding
-        color: Appearance.colors.colBackgroundSurfaceContainer
+        // Mosaic OS: a solid slab with a thick outline and a hard shadow in brutal
+        // themes, film grain in retro ones
+        color: MosaicTheme.brutal ? MosaicTheme.slab : Appearance.colors.colBackgroundSurfaceContainer
+        border.width: MosaicTheme.brutal ? MosaicTheme.border + 1 : 0
+        border.color: MosaicTheme.ink
+        HardShadow { size: 8 }
+        Grain { radius: overviewBackground.radius; amount: MosaicTheme.grainPicker }
 
         Column { // Workspaces
             id: workspaceColumnLayout
