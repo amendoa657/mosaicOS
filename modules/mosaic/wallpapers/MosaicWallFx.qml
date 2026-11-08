@@ -3,17 +3,20 @@ import Quickshell
 import Quickshell.Wayland
 import qs.modules.common
 
-// The wallpaper transition: pixel colonies (shaders/colonies.frag) eat the old
-// wallpaper and bring in the new one, then the ii script applies it for real
-// (Matugen colours and all) and the overlay fades away. It replaces the old
-// "pour".
+// The wallpaper transition (shaders/wallfx.frag), smooth, no pixels:
+// - with a character (an outline map from scripts/wallfx, MosaicWalls.mapFor):
+//   a line draws its outline, it fills in, and the rest spreads out of it with
+//   a liquid edge and a glowing rim;
+// - without one: the same liquid spread from a few seeds.
+// Then the ii script applies the wallpaper for real (Matugen colours and all)
+// and the overlay fades away.
 // - It starts when MosaicWalls.pending gets a path (the carousel, the random
 //   shortcut and the IPC all go through MosaicWalls.apply).
 // - The overlay is a window per screen on the Bottom layer: over the wallpaper,
 //   under the windows, and it never takes clicks.
-// - The colonies only start once the image is loaded; if it never loads within
-//   2.5 s, the wallpaper changes anyway, without the effect.
-// - The cells burn in the new wallpaper's average colour, pushed to be vivid.
+// - It only starts once the image (and its map, if any) is loaded; if that never
+//   happens within 2.5 s, the wallpaper changes anyway, without the effect.
+// - The line and the rim are the new wallpaper's average colour, made vivid.
 // Idea from pocket-dots (diegoMalagrida/pocket-dots, GPL-3.0).
 Scope {
     id: root
@@ -23,6 +26,7 @@ Scope {
     property real progress: 0
     property real fade: 1
     property real seed: 0
+    readonly property string mapSource: MosaicWalls.mapFor(root.path)
 
     // the burning colour: the average tone, made vivid
     readonly property color tone: {
@@ -60,8 +64,8 @@ Scope {
         property: "progress"
         from: 0
         to: 1
-        duration: 1600
-        easing.type: Easing.InOutSine
+        duration: root.mapSource !== "" ? 2600 : 1600 // the outline needs time to be drawn
+        easing.type: root.mapSource !== "" ? Easing.Linear : Easing.InOutSine
         onFinished: root.commit()
     }
     function commit() {
@@ -110,13 +114,23 @@ Scope {
                 source: root.path ? "file://" + root.path : ""
                 asynchronous: true
                 sourceSize: Qt.size(fxWin.width, fxWin.height)
-                onStatusChanged: if (status === Image.Ready) root.imageReady()
+                onStatusChanged: if (status === Image.Ready && (root.mapSource === "" || mapImg.status === Image.Ready)) root.imageReady()
+            }
+            Image {
+                id: mapImg
+                visible: false
+                source: root.mapSource
+                asynchronous: true
+                smooth: true
+                onStatusChanged: if (status === Image.Ready && pic.status === Image.Ready) root.imageReady()
             }
             ShaderEffect {
                 anchors.fill: parent
                 visible: pic.status === Image.Ready
-                fragmentShader: Qt.resolvedUrl("shaders/colonies.frag.qsb")
+                fragmentShader: Qt.resolvedUrl("shaders/wallfx.frag.qsb")
                 property var source: pic
+                property var map: root.mapSource !== "" ? mapImg : pic
+                property real hasMap: root.mapSource !== "" && mapImg.status === Image.Ready ? 1 : 0
                 property vector2d size: Qt.vector2d(width, height)
                 property vector2d picSize: Qt.vector2d(Math.max(1, pic.implicitWidth), Math.max(1, pic.implicitHeight))
                 property real progress: root.progress

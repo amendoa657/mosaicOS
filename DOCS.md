@@ -538,7 +538,7 @@ Abre pelo botão "Trocar papel de parede" da lateral direita, pelo atalho de sem
 - **A fileira:** um `ListView` horizontal com `StrictlyEnforceRange`. O item atual fica sempre no meio (`preferredHighlightBegin = largura/2 − vaga/2`), e trocar de item desliza a fileira em 320 ms.
   - **Fluidez:** toda vaga tem a mesma largura fixa (`slotW`), então rolar nunca recalcula layout. Cada cartão só muda `scale` e `opacity`, calculados pela distância até o meio, em vagas: `dist = |x do cartão − contentX + vaga/2 − largura/2| / vaga`. Escala `1 − 0,17·dist` (mínimo 0,5), opacidade `1 − 0,24·dist`, e o `z` cai com a distância, para o do meio ficar na frente.
   - **O paralelogramo:** o cartão leva uma transformação `Matrix4x4` com cisalhamento (shear) `skew = −0,32`: cada linha é empurrada de lado proporcionalmente à altura. O `clip: true` de um item transformado recorta no formato transformado, então o cartão vira um paralelogramo de verdade. A imagem dentro leva o cisalhamento **oposto**, para ficar reta, e é mais larga que o cartão (`+ altura × |skew|`), para cobrir os cantos.
-  - As miniaturas vêm do cache (480×300), nunca do original.
+  - **Nitidez:** cada cartão mostra a miniatura (480×300) na hora. O do meio e os vizinhos (`dist < 1,6`) carregam por cima o **original**, decodificado no tamanho do cartão (`sourceSize`). Só esses: o Qt decodifica as imagens assíncronas numa fila única, e pedir uma dúzia de originais de 6K travava as miniaturas e o fundo atrás deles.
 - **Começa no papel em uso:** sempre que a lista muda e você ainda não mexeu (`touched`), o índice vai para o papel em uso, com `Qt.callLater`. Definido antes de o `ListView` pegar a lista nova, o índice voltava a 0. A pasta é relida ao abrir e chega como uma lista nova, por isso não basta fazer isso uma vez só.
 - **Controles:** setas ou roda do mouse navegam, Enter (ou clique no cartão do meio) aplica, digitar filtra pelo nome, Tab troca o filtro de cor, Esc fecha. Os chips: Todos, Recentes, 8 cores e Aleatório.
 - **Tema:**
@@ -546,21 +546,25 @@ Abre pelo botão "Trocar papel de parede" da lateral direita, pelo atalho de sem
   - brutal: contorno creme de 3 px e uma sombra dura também inclinada;
   - retro: granulado (`grainPicker`) nos cartões e no fundo, e o nome em `fontDisplay`.
 
-### 11.4 A transição por colônias (`MosaicWallFx.qml`, `shaders/colonies.frag`)
-Substitui o antigo "derramar".
-1. `MosaicWalls.pending` recebe um caminho e, para cada monitor, nasce uma `PanelWindow` na camada **Bottom**: acima do papel, abaixo das janelas, sem receber cliques.
-2. Quando a imagem carrega, `progress` vai de 0 a 1 em 1,6 s (`InOutSine`).
-3. **O shader:** a tela é dividida em células de 8 px (proporcional à altura da tela). Para cada célula, ele calcula o **tempo de chegada**:
-   - 5 focos com posição sorteada por `hash(seed, i)`; cada foco começa um pouco depois do anterior (`start = i/5 × 0,3`);
-   - a chegada é o menor `start + distância até o foco / diagonal × 2,4`, mais um ruído de até 0,06, para a frente ficar irregular e não redonda;
-   - enquanto `progress × 1,3` não passa da chegada, a célula fica transparente (aparece o papel antigo, que está embaixo);
-   - quando chega, a célula **acende** na cor do papel novo e esfria para a imagem em 0,08 do tempo;
-   - perto do fim (`progress ≥ 0,995`), tudo aparece de uma vez, para nenhuma célula longe dos focos ficar para trás.
-
-   Diferente das pocket-dots, que pré-calculam esse mapa num script Python, aqui ele é calculado no próprio shader.
-4. A cor que acende é a cor média do papel novo (do `colors.tsv`), com a saturação puxada para no mínimo 0,7.
-5. No fim, `commit()` troca o papel de verdade. Quando o `wallpaperPath` confirma, espera 0,9 s, apaga a camada em 320 ms e limpa `pending`. Proteções: se a imagem não carregar em 2,5 s, troca direto; se o fundo não confirmar em 8 s, apaga a camada assim mesmo.
-- **Como testei sem mexer na tela:** um shell de teste (`qs -p`) com uma `PanelWindow` na camada **Background**, atrás do papel de parede. Ela renderiza o shader em 4 momentos, salva cada um com `grabToImage` e fecha. O modo offscreen do Qt não serve: ele cai num renderizador sem shaders.
+### 11.4 A transição com contorno (`MosaicWallFx.qml`, `shaders/wallfx.frag`, `scripts/wallfx/`)
+Substituiu o "derramar" e depois as colônias de pixels: agora é tudo **liso**, sem pixel. Ideia do wallfx das pocket-dots (GPL-3.0).
+- **Com personagem** (há um mapa de contorno do papel novo):
+  1. uma linha fina desenha o contorno, como uma caneta: cada contorno começa no ponto mais alto, e duas canetas dão a volta em sentidos opostos até se encontrarem do outro lado;
+  2. o personagem se preenche, do contorno para dentro;
+  3. o resto do papel se espalha a partir dele, com uma borda líquida, um aro de luz na frente e um brilho suave fora dela; a linha some.
+- **Sem personagem:** o papel se espalha a partir de 4 focos que caem um depois do outro, com a mesma borda líquida (um ruído fbm deixa a frente ondulada).
+- **O mapa** (`scripts/wallfx/wallfx-map.py`, num ambiente Python próprio em `~/.local/share/mosaic-os/wallfx/venv`, com rembg, onnxruntime e opencv):
+  - o personagem é recortado pelo modelo **BiRefNet general lite** (224 MB, baixado na primeira vez para `~/.rembg/models`);
+  - vira uma imagem RGB pequena (640 px de largura), nas proporções do papel, que o shader lê com o mesmo recorte de tela:
+    - **R**: dentro, 0,5 no contorno até 1 no ponto mais fundo (o preenchimento); fora, 0 até 0,45 colado no contorno (a metade de fora da linha). A metade de dentro o shader tira da própria profundidade (`fwidth`);
+    - **G**: a ordem em que o resto chega, pela distância até o personagem mais um ruído suave, para a frente não copiar a silhueta;
+    - **B**: a posição ao longo do contorno (0 no ponto mais alto, 1 do outro lado).
+  - **Sem canal de transparência de propósito:** o Qt multiplica as cores de uma textura pela transparência, e a linha guardada ali apagava todo o resto do mapa.
+  - É "personagem" quando o recorte ocupa de 0,4% a 60% da imagem e o modelo tem pelo menos 80% de certeza; senão grava `<nome>.none` e o papel entra pelos focos. Pedaços menores que 1% do maior são descartados, e contornos minúsculos ou colados na borda da imagem não ganham linha.
+- **Pré-cálculo** (`scripts/wallfx/wallfx-warm.sh`): o recorte leva uns 20 s por papel, então é feito antes, uma vez só. Depois que o `wallpaper-index.sh` termina, o `MosaicWalls` chama o warm para a pasta: prioridade mínima (`nice 19`, `ionice` ocioso), 2 núcleos, um de cada vez (`flock`), e só se o ambiente estiver instalado. Os mapas ficam em `~/.cache/mosaic-os/wallfx/<arquivo>.png`, e o `MosaicWalls.maps` sabe quais existem.
+- **Tempo:** com contorno, 2,6 s em ritmo constante (linha até 30%, preenchimento de 20% a 45%, mundo de 40% a 100%); sem, 1,6 s.
+- O resto é igual: a camada **Bottom** por monitor, a troca de verdade no fim (`commit`), as proteções de 2,5 s e 8 s.
+- **Como testei sem mexer na tela:** um shell de teste (`qs -p`) com uma `PanelWindow` na camada **Background**, atrás do papel de parede, que renderiza o shader em vários momentos e salva cada um com `grabToImage`. O modo offscreen do Qt não serve: ele cai num renderizador sem shaders.
 
 ---
 
@@ -679,13 +683,15 @@ De cima para baixo:
 
 ## 14. A faixa do topo (`modules/mosaic/topbar/`)
 Arquivo: `MosaicTopBar.qml`. Uma faixa reservada no topo de cada tela, com os workspaces à esquerda e alguns estados à direita. O meio continua sendo da ilha, que em repouso fica dentro da faixa. Ideia da barra das pocket-dots (GPL-3.0).
-- **A janela:** uma `PanelWindow` por tela, ancorada no topo, transparente, com `exclusiveZone: 40` (6 px acima da ilha + os 30 dela + 4). O Hyprland reserva esses 40 px e as janelas começam abaixo (`hyprctl monitors` mostra `reserved=[0,40,0,0]`).
+- **A janela:** uma `PanelWindow` por tela, ancorada no topo, transparente, com `exclusiveZone: 34`. A ilha termina em 36 px (6 acima + os 30 dela) e o Hyprland soma 5 px de borda, então as janelas começam logo abaixo da ilha (`hyprctl monitors` mostra `reserved=[0,34,0,0]`).
+- **Pílulas:** os dois grupos ficam em pílulas escuras de 26 px, com a cor da ilha (escuridão e transparência da aba Ilha), centradas na altura dela. Nos temas brutais viram placas com contorno e sombra dura; nos retrô, granulado.
   - A ilha tem `ExclusionMode.Ignore`, então não é empurrada. As laterais (`exclusiveZone: 0`) passam a começar logo abaixo da faixa.
   - A máscara (`Region`) cobre só os dois grupos; o resto da faixa não pega cliques.
   - Com uma janela em tela cheia de verdade (`fullscreen ≥ 2`) no workspace ativo daquela tela, tudo some (opacidade 0).
-- **Workspaces:** os da tela (`Hyprland.workspaces` filtrados pelo monitor, que só mantém os que têm janela), mais o ativo.
-  - Cada um é uma bolinha de 7 px (quadrada nos temas brutais). Clique vai até lá (`hl.dsp.focus({ workspace = N })`, a sintaxe da config em Lua); a roda passa de um para o outro.
-  - **A minhoca:** o ativo é uma pílula de 20 px cujas pontas são **duas `MosaicSpring`**, uma para a borda esquerda e outra para a direita. A ponta da frente usa `response` 0,2 (rápida) e a de trás 0,42 (lenta), e `goingRight` diz qual é qual. No caminho a ponta da frente sai na hora e a de trás segura e depois solta, então a pílula **estica**; ao chegar, a de trás alcança e ela encolhe com um tremidinho (`damping` 0,78). A espessura afina um pouco com o esticão.
+- **Workspaces, por demanda:** sempre de 1 a 4, mais qualquer outro que tenha janela (de qualquer tela), mais o ativo. Abrir o Firefox no 5 faz aparecer o 5.
+  - Com janela, mostra o **ícone do app usado por último** ali (`focusHistoryID` 0), e um numerozinho no canto se houver mais de uma. Vazio, uma bolinha. Um workspace novo entra crescendo.
+  - Clique vai até lá (`hl.dsp.focus({ workspace = N })`, a sintaxe da config em Lua); a roda passa de um para o outro.
+  - **A minhoca:** o destaque atrás do ativo tem as pontas em **duas `MosaicSpring`**, uma para a borda esquerda e outra para a direita. A ponta da frente usa `response` 0,2 (rápida) e a de trás 0,42 (lenta), e `goingRight` diz qual é qual. No caminho a ponta da frente sai na hora e a de trás segura e depois solta, então a pílula **estica**; ao chegar, a de trás alcança e ela encolhe com um tremidinho (`damping` 0,78). A espessura afina um pouco com o esticão.
 - **Estados** (`StateIcon`): cada ícone só aparece enquanto é verdade, e a largura anima de 0 até o tamanho dele em 200 ms.
   - gravando: um `pgrep` a cada 2 s; pisca uma vez a cada 2 s em vez de pulsar sem parar;
   - café (`Idle.inhibit`), clique desliga;
@@ -695,7 +701,7 @@ Arquivo: `MosaicTopBar.qml`. Uma faixa reservada no topo de cada tela, com os wo
   - sem internet (sem cabo e Wi-Fi diferente de "connected");
   - mudo (`Audio.sink.audio.muted`), clique desmuta.
 
-  Os glifos levam `style: Text.Outline` escuro, para ler sobre qualquer papel. Nos temas brutais viram teclas com contorno.
+  Sem nenhum estado ativo, a pílula da direita some. (Antes os glifos levavam um contorno de texto, `Text.Outline`, que deixava os ícones serrilhados; a pílula escura resolve a leitura sem isso.)
 
 ## 15. O Stage Manager (`modules/mosaic/stage/`)
 Arquivo: `MosaicStage.qml`. Encostar o mouse na borda esquerda faz entrar uma coluna com os **outros workspaces daquela tela**, cada um como uma pilha das janelas reais, como no macOS. Ideia do Stage Manager das pocket-dots (GPL-3.0).

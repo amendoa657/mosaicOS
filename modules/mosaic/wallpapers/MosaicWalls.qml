@@ -28,6 +28,10 @@ Singleton {
     property var tones: ({})  // file name -> "#rrggbb"
     property var history: []  // full paths, newest first
     property string pending: "" // the wallpaper MosaicWallFx is bringing in
+    // outline maps already made (scripts/wallfx): file name -> true
+    readonly property string mapDir: Quickshell.env("HOME") + "/.cache/mosaic-os/wallfx"
+    property var maps: ({})
+    function mapFor(p) { return root.maps[root.baseName(p)] ? "file://" + root.mapDir + "/" + root.baseName(p) + ".png" : ""; }
 
     function baseName(p) { return p.substring(p.lastIndexOf("/") + 1); }
     function niceName(p) {
@@ -105,8 +109,33 @@ Singleton {
     Process {
         id: indexer
         command: [Quickshell.shellPath("scripts/wallpaper-index.sh"), root.folder]
-        onExited: toneFile.reload()
+        onExited: {
+            toneFile.reload();
+            mapLister.running = true;
+            warmer.running = true;
+        }
     }
+    // the outline maps: list the ones there are, and make the missing ones in the
+    // background (lowest priority; only once the cut-out is installed)
+    Process {
+        id: mapLister
+        command: ["sh", "-c", `ls '${root.mapDir}' 2>/dev/null | grep '\\.png$'`]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const m = {};
+                for (const l of this.text.split("\n"))
+                    if (l.endsWith(".png"))
+                        m[l.slice(0, -4)] = true;
+                root.maps = m;
+            }
+        }
+    }
+    Process {
+        id: warmer
+        command: [Quickshell.shellPath("scripts/wallfx/wallfx-warm.sh"), root.folder]
+        onExited: mapLister.running = true
+    }
+    Component.onCompleted: mapLister.running = true
     FileView {
         id: toneFile
         path: root.cacheDir + "/colors.tsv"

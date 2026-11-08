@@ -73,6 +73,7 @@ Shell em Quickshell, nascido de uma cópia do ii (`~/.config/quickshell/ii`, 04/
 | 73 | Faixa do topo (07/11) | **40 px reservados** no topo, onde as janelas não entram: **workspaces** à esquerda (pílula "minhoca") e **estados** à direita (gravando, café, atualizações, não perturbe, Bluetooth, offline, mudo). A ilha fica no meio. |
 | 74 | Áreas (07/11) | **Mapa de workspaces** no Super+Tab (a visão geral do ii, com o tema) e **Stage Manager** na borda esquerda, ligável na aba Áreas e no Super+Shift+Tab. |
 | 75 | Launcher com modos (07/11) | No menu Iniciar: `#` área de transferência, `>` ações, `@` janelas, **timers** (`5m chá`), contas, e apps ordenados **por uso**. |
+| 76 | Contorno e workspaces por demanda (07/11) | A transição virou **contorno do personagem** (BiRefNet) + preenchimento + borda líquida, **sem pixel**; sem personagem, a mesma borda a partir de focos. Workspaces da faixa **por demanda** (1–4 + os que têm janela) com **ícone do app**; cantos em **pílulas escuras** como a ilha; faixa de 34 px. Carrossel nítido. |
 | 37 | Clique e mosaico | **Qualquer lugar da ilha abre**; o mosaico **só brinca com a ilha aberta**; **clicar fora (ou Esc) fecha**. |
 | 35 | Notificações | Aparecem **inteiras** na ilha (o componente de notificação do ii, com ações), não resumidas; o aviso do canto saiu. |
 | 18 | IA (era a lateral esquerda) | **O mascote é a IA:** a ilha vira um chat de vidro para baixo e a marca "pensa" (os blocos giram) enquanto responde. |
