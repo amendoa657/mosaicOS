@@ -54,4 +54,5 @@ end
 
 -- Notas da ilha (Super+N e Super+Shift+N já são usados no ii)
 hl.bind("SUPER + ALT + N", hl.dsp.global("quickshell:mosaicNotesToggle"), { description = "Mosaic OS: notas" })
+hl.bind("SUPER + SHIFT + Tab", hl.dsp.global("quickshell:mosaicStageToggle"), { description = "Mosaic OS: liga e desliga o Stage Manager" })
 hl.bind("SUPER + ALT + T", hl.dsp.global("quickshell:mosaicSettingsToggle"), { description = "Mosaic OS: configurações e temas" })

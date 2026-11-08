@@ -604,6 +604,10 @@ Singleton {
                 property real grainPicker: 1.0 // the wallpaper/theme window
             }
             // Mosaic OS: every app, terminal included (Apps tab): film grain by a Hyprland screen shader
+            // Mosaic OS: the Stage Manager (left edge shows the other workspaces; Áreas tab)
+            property JsonObject mosaicStage: JsonObject {
+                property bool enabled: true
+            }
             property JsonObject mosaicApps: JsonObject {
                 property real grain: 1.0          // times the theme's grain (only retro themes have any): 0 none, 2 double
                 property bool fullscreenOff: true // no grain while a window is in real full screen (games, video)

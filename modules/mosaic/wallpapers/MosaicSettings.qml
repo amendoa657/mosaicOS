@@ -230,7 +230,7 @@ Scope {
                     anchors.topMargin: 18
                     spacing: 8
                     Repeater {
-                        model: [{ id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }]
+                        model: [{ id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }, { id: "areas", label: "Áreas", icon: "view_quilt" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
@@ -546,6 +546,37 @@ Scope {
                     anchors.rightMargin: 18 + MosaicTheme.shadow
                     anchors.top: pageTabs.bottom
                     anchors.topMargin: 20
+                }
+
+                // ----- Áreas: the Stage Manager and the workspace map -----
+                Column {
+                    id: areasPage
+                    visible: win.page === "areas"
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18 + MosaicTheme.shadow
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 20
+                    spacing: 22
+                    RecordGroup {
+                        title: "Stage Manager"
+                        hint: "Encoste o mouse na borda esquerda: os outros workspaces entram como pilhas das janelas. Super+Shift+Tab liga e desliga."
+                        options: [
+                            { value: true, label: "Ligado", sub: "borda esquerda" },
+                            { value: false, label: "Desligado", sub: "sem borda" }
+                        ]
+                        current: Config.options.mosaicStage.enabled
+                        onPicked: value => Config.options.mosaicStage.enabled = value
+                    }
+                    StyledText {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        text: "Mapa de workspaces: Super+Tab mostra todos os workspaces com as janelas onde estão. Arraste uma janela para outro workspace para movê-la."
+                        font.pixelSize: 12
+                        color: Appearance.colors.colOnLayer0
+                        opacity: 0.8
+                    }
                 }
 
                 // ----- Apps: film grain on every app, terminal included -----
