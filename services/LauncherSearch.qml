@@ -207,6 +207,22 @@ Singleton {
                     blurImage: shouldBlurImage
                 });
             }).filter(Boolean);
+        } else if (root.query.startsWith("@")) {
+            // Mosaic OS: "@" lists the open windows; Enter focuses the chosen one
+            // (idea from pocket-dots' launcher, diegoMalagrida/pocket-dots, GPL-3.0)
+            const q = root.query.slice(1).trim().toLowerCase();
+            return HyprlandData.windowList.filter(w => q === "" || `${w.title} ${w.class}`.toLowerCase().includes(q)).map(w => {
+                return resultComp.createObject(null, {
+                    name: w.title || w.class,
+                    type: `${w.class} · workspace ${w.workspace?.id ?? "?"}`,
+                    verb: "Focar",
+                    iconName: AppSearch.guessIcon(w.class),
+                    iconType: LauncherSearchResult.IconType.System,
+                    execute: () => {
+                        Hyprland.dispatch(`hl.dsp.focus({window = "address:${w.address}"})`);
+                    }
+                });
+            });
         } else if (root.query.startsWith(Config.options.search.prefix.emojis)) {
             // Clipboard
             const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.emojis);
@@ -239,7 +255,12 @@ Singleton {
                 Quickshell.clipboardText = root.mathResult;
             }
         });
-        const appResultObjects = AppSearch.fuzzyQuery(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.app)).map(entry => {
+        // Mosaic OS: apps you open more often climb the list (MosaicLauncherUsage):
+        // each one's place is its fuzzy rank minus a bonus that grows with use
+        const fuzzyApps = AppSearch.fuzzyQuery(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.app));
+        const rankedApps = fuzzyApps.map((entry, i) => ({ entry: entry, score: i - Math.log2(1 + MosaicLauncherUsage.countOf(entry.id)) * 2 }))
+            .sort((a, b) => a.score - b.score).map(x => x.entry);
+        const appResultObjects = rankedApps.map(entry => {
             return resultComp.createObject(null, {
                 type: Translation.tr("App"),
                 id: entry.id,
@@ -325,6 +346,18 @@ Singleton {
 
         //////// Prioritized by prefix /////////
         let result = [];
+        // Mosaic OS: "5m chá" / "timer 90s" starts a timer (MosaicTimers)
+        const timer = MosaicTimers.parse(root.query);
+        if (timer) {
+            result.push(resultComp.createObject(null, {
+                name: timer.label ? `${timer.text} — ${timer.label}` : timer.text,
+                verb: "Começar",
+                type: "Timer",
+                iconName: "timer",
+                iconType: LauncherSearchResult.IconType.Material,
+                execute: () => MosaicTimers.start(timer)
+            }));
+        }
         const startsWithNumber = /^\d/.test(root.query);
         const startsWithMathPrefix = root.query.startsWith(Config.options.search.prefix.math);
         const startsWithShellCommandPrefix = root.query.startsWith(Config.options.search.prefix.shellCommand);

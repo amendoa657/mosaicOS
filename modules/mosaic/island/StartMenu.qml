@@ -13,7 +13,8 @@ import qs.modules.common.functions
 // The start menu, inside the card that drops out of the island when Super is
 // tapped. All the searching is the ii's LauncherSearch service, so every ii
 // feature is here: apps, math (=), shell commands ($), web search (?),
-// clipboard (;), emojis (:) and actions (/). Empty, it shows the shortcuts for
+// clipboard (#), emojis (:), actions (>), open windows (@) and timers ("5m chá").
+// Apps you open more often come first. Empty, it shows the shortcuts for
 // those prefixes and the recent apps.
 // Keys: type to search, Up/Down choose, Enter runs, Esc closes.
 Item {
@@ -39,8 +40,10 @@ Item {
     function run(result) {
         if (!result)
             return;
-        if (result.type === Translation.tr("App") && result.id)
+        if (result.type === Translation.tr("App") && result.id) {
             menu.recents?.add(result.id);
+            MosaicLauncherUsage.add(result.id); // the search ranks apps by use
+        }
         result.execute();
         menu.done();
     }
@@ -137,13 +140,14 @@ Item {
             spacing: 6
             Repeater {
                 model: [
-                    { p: menu.prefixes.app, icon: "apps", label: "apps" },
+                    { p: "@", icon: "select_window", label: "janelas" },
                     { p: menu.prefixes.math, icon: "calculate", label: "conta" },
                     { p: menu.prefixes.shellCommand, icon: "terminal", label: "comando" },
                     { p: menu.prefixes.webSearch, icon: "travel_explore", label: "web" },
                     { p: menu.prefixes.clipboard, icon: "content_paste", label: "copiados" },
                     { p: menu.prefixes.emojis, icon: "mood", label: "emoji" },
-                    { p: menu.prefixes.action, icon: "settings_suggest", label: "ações" }
+                    { p: menu.prefixes.action, icon: "settings_suggest", label: "ações" },
+                    { p: "5m ", icon: "timer", label: "timer" }
                 ]
                 delegate: Rectangle {
                     id: chip
