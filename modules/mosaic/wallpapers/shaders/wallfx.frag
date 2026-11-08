@@ -4,8 +4,9 @@
 // With a character (hasMap = 1, a map from scripts/wallfx/wallfx-map.py):
 //   1. a thin line draws the character's outline like a pen: every contour
 //      starts at its top point and two pens go round to meet at the far side
-//      (map B = where a point is along the contour; R outside = how close to it);
-//   2. the character fills in, from the outline inwards (map R = depth);
+//      (map B = where a point is along the contour; R = the signed distance to
+//      the silhouette, so the line is a smooth stroke at any size, not pixels);
+//   2. the character fills in, from the outline inwards (map G inside = depth);
 //   3. the rest of the picture spreads out of it with a liquid edge and a
 //      glowing rim (map G = the order the outside arrives in), and the line
 //      fades away.
@@ -45,6 +46,8 @@ float vnoise(vec2 p) {
     vec2 u = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
 }
+const float SDF_PX = 32.0; // must match wallfx-map.py
+
 float fbm(vec2 p) {
     return vnoise(p) * 0.6 + vnoise(p * 2.1 + 7.3) * 0.3 + vnoise(p * 4.3 + 1.7) * 0.1;
 }
@@ -74,15 +77,19 @@ void main() {
 
     if (hasMap > 0.5) {
         vec4 m = texture(map, uv);
-        float inside = smoothstep(0.47, 0.53, m.r);
-        float depth = clamp((m.r - 0.5) * 2.0, 0.0, 1.0);
+        // R: the signed distance to the silhouette (map px; inside positive).
+        // Its change per screen pixel (fwidth) turns widths into screen pixels,
+        // so the line is the same thin, smooth stroke on any screen
+        float sd = (m.r - 0.5) * 2.0 * SDF_PX;
+        float px = max(fwidth(sd), 1e-4);
+        float inside = smoothstep(-px, px, sd);
         float tLine = clamp(progress / 0.3, 0.0, 1.0);
         float tFill = clamp((progress - 0.2) / 0.25, 0.0, 1.0);
         float tOut = clamp((progress - 0.4) / 0.6, 0.0, 1.0);
 
-        // 2. fill, inwards
-        float fill = inside * arrived(depth, tFill * 1.03);
-        // 3. the world, outwards (the front runs a little past 1 so the far corners arrive)
+        // 2. fill, inwards (G inside = depth)
+        float fill = inside * arrived(m.g, tFill * 1.03);
+        // 3. the world, outwards (G outside = order; the front runs a little past 1)
         float front = tOut * 1.12 - 0.04;
         float world = (1.0 - inside) * arrived(m.g, front) * step(0.0001, tOut);
         alpha = max(fill, world);
@@ -90,18 +97,15 @@ void main() {
         rim = (1.0 - inside) * exp(-pow(dist / 0.018, 2.0)) * step(0.0001, tOut) * (1.0 - smoothstep(0.85, 1.0, tOut));
         glow = (1.0 - inside) * exp(-max(-dist, 0.0) / 0.035) * (1.0 - world) * step(0.0001, tOut) * (1.0 - smoothstep(0.8, 1.0, tOut));
 
-        // 1. the line: drawn up to the pen, fading once the world is out
-        // the line: its outer half from R outside (0..0.45 next to the outline),
-        // its inner half from the depth (the first ~2 px inside)
-        float near = max((1.0 - inside) * clamp(m.r / 0.45, 0.0, 1.0),
-                         inside * (1.0 - smoothstep(0.0, 2.0 * max(fwidth(depth), 1e-4), depth)));
+        // 1. the line: |distance| under ~1.3 screen px, drawn up to the pen, with a
+        // faint halo, fading once the world is out
+        float stroke = 1.0 - smoothstep(0.8 * px, 2.0 * px, abs(sd));
+        float halo = (1.0 - smoothstep(1.5 * px, 7.0 * px, abs(sd))) * 0.35;
         float drawn = smoothstep(0.0, 0.02, tLine - m.b);
-        float line = near * near * drawn * (1.0 - smoothstep(0.1, 0.6, tOut));
+        float line = max(stroke, halo) * drawn * (1.0 - smoothstep(0.1, 0.6, tOut));
         col = mix(col, glowTone, rim * 0.7);
-        col = mix(col, glowTone, line);
-        float lineAlpha = line;
-        // the line glows a touch while it is being drawn, then the fill takes over
-        alpha = max(alpha, lineAlpha);
+        col = mix(col, glowTone, max(line, (1.0 - fill) * stroke * drawn));
+        alpha = max(alpha, line);
         // a soft light just outside the moving front
         vec4 outer = vec4(tone.rgb * 0.5 * glow, 0.4 * glow);
         if (progress >= 0.995) {

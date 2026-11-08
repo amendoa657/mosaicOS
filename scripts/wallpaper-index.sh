@@ -3,6 +3,9 @@
 # Mosaic OS wallpaper picker. Only new images are processed: the rest come
 # from the cache. Runs at the lowest priority, so it never gets in the way.
 #   ~/.cache/mosaic-os/wallpapers/thumbs/<name>.jpg   480x300 crop
+#   ~/.cache/mosaic-os/wallpapers/previews/<name>.jpg 1100 px wide, for the carousel's
+#                                                     sharp middle cards (a 6K original
+#                                                     took too long to decode while scrolling)
 #   ~/.cache/mosaic-os/wallpapers/colors.tsv          <name><TAB>#rrggbb
 # Idea from hyprdots' wallpaper-index.sh (fedyaqq34356/hyprdots, GPL-3.0).
 set -u
@@ -10,8 +13,9 @@ set -u
 DIR="${1:?usage: wallpaper-index.sh <folder>}"
 CACHE="$HOME/.cache/mosaic-os/wallpapers"
 THUMBS="$CACHE/thumbs"
+PREVIEWS="$CACHE/previews"
 INDEX="$CACHE/colors.tsv"
-mkdir -p "$THUMBS"
+mkdir -p "$THUMBS" "$PREVIEWS"
 touch "$INDEX"
 
 tmp=$(mktemp)
@@ -23,6 +27,11 @@ while IFS= read -r wp; do
     if [ ! -f "$thumb" ]; then
         nice -n 19 vipsthumbnail "$wp" --size 480x300 --smartcrop centre -o "$thumb[Q=82]" 2>/dev/null \
             || nice -n 19 magick "$wp" -resize 480x300^ -gravity center -extent 480x300 -quality 82 "$thumb" 2>/dev/null
+    fi
+    preview="$PREVIEWS/$name.jpg"
+    if [ ! -f "$preview" ]; then
+        nice -n 19 vipsthumbnail "$wp" --size 1100x -o "$preview[Q=88]" 2>/dev/null \
+            || nice -n 19 magick "$wp" -resize 1100x -quality 88 "$preview" 2>/dev/null
     fi
     # colour already known: keep it
     if line=$(grep -m1 -F "$(printf '%s\t' "$name")" "$INDEX" 2>/dev/null); then

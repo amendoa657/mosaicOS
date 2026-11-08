@@ -10,7 +10,7 @@ import qs.modules.common
 // (MosaicWallFx): the folder's images, their average colour, the history, and
 // "apply this one". It used to live inside the old wallpaper window.
 // - The folder is the one the current wallpaper is in.
-// - Thumbnails (480x300) and colours come from scripts/wallpaper-index.sh,
+// - Thumbnails (480x300), previews (1100 px) and colours come from scripts/wallpaper-index.sh,
 //   which only processes new images.
 // - apply(path) does not change the wallpaper by itself: it hands the path to
 //   MosaicWallFx (pending), which plays the transition and then commits.
@@ -39,6 +39,7 @@ Singleton {
         return n.substring(0, n.lastIndexOf(".") > 0 ? n.lastIndexOf(".") : n.length).replace(/[_-]+/g, " ");
     }
     function thumbFor(p) { return "file://" + root.cacheDir + "/thumbs/" + root.baseName(p) + ".jpg"; }
+    function previewFor(p) { return "file://" + root.cacheDir + "/previews/" + root.baseName(p) + ".jpg"; }
     function toneOf(p) { return root.tones[root.baseName(p)] ?? ""; }
 
     // a colour's family, for the colour filter

@@ -22,8 +22,9 @@ import qs.modules.mosaic.island
 // - Smoothness: every slot has the same fixed width, so scrolling never lays
 //   anything out again; each card only changes scale and opacity, worked out
 //   from its distance to the middle.
-// - Sharpness: each card shows the 480x300 thumbnail at once; the middle one and
-//   its neighbours then fade in the original, decoded at the card's size.
+// - Sharpness: each card shows the 480x300 thumbnail at once; the cards near the
+//   middle then fade in a 1100 px preview (scripts/wallpaper-index.sh). The 6K
+//   originals made scrolling lag: decoding one took longer than a step.
 // - Slant: a shear (Matrix4x4) on the card, which clips to the slanted shape;
 //   the picture inside gets the opposite shear, so it stands straight.
 // - Theme: thin glass edges (soft), a cream outline on a hard shadow (brutal),
@@ -250,8 +251,8 @@ Scope {
                                 color: Appearance.colors.colLayer1
                             }
                             // the picture, sheared back so it stands straight, wide enough to cover the corners.
-                            // The 480 px thumbnail shows at once; the original, decoded at the card's own
-                            // size (sharp, without decoding a 6K image at full size), fades in over it.
+                            // The 480 px thumbnail shows at once; the 1100 px preview (wallpaper-index.sh)
+                            // fades in over it: sharp on the card, and quick to decode while scrolling.
                             Item {
                                 width: parent.width + win.cardH * Math.abs(win.skew) + 4
                                 height: parent.height
@@ -268,14 +269,14 @@ Scope {
                                 Image {
                                     id: sharp
                                     anchors.fill: parent
-                                    // only the middle card and its neighbours: images are decoded one at a
-                                    // time, and a dozen 6K originals queued the thumbnails behind them
-                                    source: slot.dist < 1.6 ? "file://" + slot.modelData : ""
+                                    // the cards near the middle (images are decoded one at a time, so not
+                                    // all at once); no sourceSize: the preview is decoded as it is, and the
+                                    // GPU scales it (mipmap keeps it clean)
+                                    source: slot.dist < 2.6 ? MosaicWalls.previewFor(slot.modelData) : ""
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     smooth: true
                                     mipmap: true
-                                    sourceSize: Qt.size(Math.ceil(parent.width), Math.ceil(parent.height))
                                     opacity: status === Image.Ready ? 1 : 0
                                     Behavior on opacity { NumberAnimation { duration: 180 } }
                                 }

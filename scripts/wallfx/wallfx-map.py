@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """The outline map of a wallpaper, for the Mosaic OS wallpaper transition.
 
-The character is cut out of the image (BiRefNet "general lite", through rembg)
-and turned into a small RGB picture in the image's own proportions, which the
-shader (modules/mosaic/wallpapers/shaders/wallfx.frag) reads with the same crop
-as the wallpaper:
+The character is cut out of the image (BiRefNet "general lite") and turned into
+a small RGB picture in the image's own proportions, which the shader
+(modules/mosaic/wallpapers/shaders/wallfx.frag) reads with the same crop as the
+wallpaper:
 
-  R  inside, 0.5 at the silhouette up to 1 at its deepest point (the fill grows
-     inwards from the outline); outside, 0 up to 0.45 right next to the outline
-     (the line just outside the silhouette; the shader draws the inner half
-     from the depth itself)
-  G  outside: in what order the rest of the picture arrives, 0 next to the
-     character up to 1 farthest away, roughened by noise so the front is not
-     a perfect copy of the silhouette
+  R  the signed distance to the silhouette: 0.5 on it, above inside, below
+     outside, +-SDF_PX map pixels mapped to 1 and 0. Read with linear filtering,
+     a distance field gives a smooth outline at any size: the shader draws the
+     line where |distance| is small, one screen pixel soft (no stair steps)
+  G  inside: how deep, 0 at the silhouette up to 1 at its deepest point (the
+     fill grows inwards); outside: in what order the rest of the picture
+     arrives, 0 next to the character up to 1 farthest away, roughened by noise
   B  along the outline: where each point is on the contour, 0 at its top point
      up to 1 at the far side (two pens go round in opposite directions)
  There is no alpha channel on purpose: Qt premultiplies a texture's colours by
- its alpha, which would wipe out everything away from the line.
+ its alpha, which would wipe the map out.
 
 A wallpaper without a clear character (the cut-out takes almost nothing, or
 almost everything) gets an empty "<name>.none" instead, and enters with the
@@ -25,8 +25,11 @@ plain liquid spread.
   wallfx-map.py IMAGE OUT.png
   wallfx-map.py --warm FOLDER CACHE   every image of FOLDER without a map yet
 
-Runs in its own venv (~/.local/share/mosaic-os/wallfx/venv: rembg, onnxruntime,
-opencv). Idea from pocket-dots' wallfx (diegoMalagrida/pocket-dots, GPL-3.0).
+Runs in its own venv (~/.local/share/mosaic-os/wallfx/venv: onnxruntime, opencv,
+pillow; the model is ~/.rembg/models/birefnet-general-lite). The model is run
+directly with onnxruntime, without its memory arena and with 2 threads: through
+rembg it grew to 7 GB of RAM.
+Idea from pocket-dots' wallfx (diegoMalagrida/pocket-dots, GPL-3.0).
 """
 import os
 import sys
@@ -35,29 +38,45 @@ import cv2
 import numpy as np
 from PIL import Image
 
-MAP_W = 640          # map width; the height follows the image
-MODEL_SIDE = 1024    # the image is shrunk to this before the cut-out
-LINE_PX = 3.0        # how far (map px) the line fades out
+MAP_W = 1024         # map width; the height follows the image
+MODEL_SIDE = 1024    # the model's input (square)
+SDF_PX = 32.0        # how far (map px) the distance field reaches each way
+MODEL = os.path.expanduser("~/.rembg/models/birefnet-general-lite/birefnet-general-lite.onnx")
 _session = None
 
 
-def cutout(img):
-    """The character's mask, 0..1, at the image's size (shrunk)."""
+def session():
     global _session
-    from rembg import new_session, remove
     if _session is None:
-        _session = new_session("birefnet-general-lite", providers=["CPUExecutionProvider"])
-    small = img.copy()
-    small.thumbnail((MODEL_SIDE, MODEL_SIDE))
-    mask = remove(small, session=_session, only_mask=True)
-    return np.asarray(mask.convert("L"), dtype=np.float32) / 255.0
+        import onnxruntime as ort
+        opts = ort.SessionOptions()
+        opts.enable_cpu_mem_arena = False   # the arena kept every buffer it ever made
+        opts.enable_mem_pattern = False
+        opts.intra_op_num_threads = 2
+        opts.inter_op_num_threads = 1
+        _session = ort.InferenceSession(MODEL, opts, providers=["CPUExecutionProvider"])
+    return _session
+
+
+def cutout(img):
+    """The character's mask, 0..1, at MAP_W wide."""
+    x = np.asarray(img.resize((MODEL_SIDE, MODEL_SIDE), Image.BILINEAR), dtype=np.float32) / 255.0
+    x = (x - (0.485, 0.456, 0.406)) / (0.229, 0.224, 0.225)
+    x = x.transpose(2, 0, 1)[None].astype(np.float32)
+    s = session()
+    pred = s.run(None, {s.get_inputs()[0].name: x})[0][0, 0]
+    pred = 1.0 / (1.0 + np.exp(-pred))
+    pred = (pred - pred.min()) / max(pred.max() - pred.min(), 1e-6)
+    h = round(MAP_W * img.height / img.width)
+    return cv2.resize(pred.astype(np.float32), (MAP_W, h), interpolation=cv2.INTER_LINEAR)
 
 
 def main(src, out):
-    img = Image.open(src).convert("RGB")
+    img = Image.open(src)
+    img.draft("RGB", (MODEL_SIDE * 2, MODEL_SIDE * 2))  # JPEGs decode straight at a smaller size
+    img = img.convert("RGB")
     soft = cutout(img)
-    h = round(MAP_W * img.height / img.width)
-    soft = cv2.resize(soft, (MAP_W, h), interpolation=cv2.INTER_AREA)
+    h, w = soft.shape
     mask = (soft > 0.5).astype(np.uint8)
 
     # specks out: only pieces that take at least 1% of the biggest one
@@ -76,28 +95,32 @@ def main(src, out):
         open(os.path.splitext(out)[0] + ".none", "w").close()
         return 1
 
-    # R: inside depth, 0.5 at the edge up to 1 deep inside
-    inside = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
-    r_inside = 0.5 + 0.5 * inside / max(inside.max(), 1e-3)
+    # the signed distance: inside positive. Right at the edge the model's own soft
+    # value refines it below a pixel, so the outline is smooth, not stepped
+    din = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
+    dout = cv2.distanceTransform(1 - mask, cv2.DIST_L2, 5)
+    sd = np.where(mask > 0, din - 0.5, -(dout - 0.5))
+    edge = (din <= 1.5) & (dout <= 1.5) | (np.abs(sd) <= 1.0)
+    sd = np.where(edge, (soft - 0.5) * 2.0, sd)
+    r = 0.5 + 0.5 * np.clip(sd / SDF_PX, -1, 1)
 
-    # G: outside order, the distance to the character plus soft noise
-    outside = cv2.distanceTransform(1 - mask, cv2.DIST_L2, 5)
+    # G: inside depth, and outside order (distance to the character plus soft noise)
+    depth = din / max(din.max(), 1e-3)
     rng = np.random.default_rng(abs(hash(src)) % (2 ** 32))
-    noise = cv2.GaussianBlur(rng.random((h, MAP_W)).astype(np.float32), (0, 0), 18)
+    noise = cv2.GaussianBlur(rng.random((h, w)).astype(np.float32), (0, 0), 28)
     noise = (noise - noise.min()) / max(noise.max() - noise.min(), 1e-6)
-    g = outside / max(outside.max(), 1e-3) + noise * 0.18
-    g = (g - g.min()) / max(g.max() - g.min(), 1e-6)
-    g[mask > 0] = 0
+    order = dout / max(dout.max(), 1e-3) + noise * 0.18
+    order = (order - order.min()) / max(order.max() - order.min(), 1e-6)
+    g = np.where(mask > 0, depth, order)
 
-    # B and A: the outline. Every contour is drawn from its top point by two pens
-    # going round in opposite directions; contours along the picture's border are
-    # not an outline, and tiny ones (gaps, holes) get no line
-    line = np.zeros((h, MAP_W), np.uint8)
-    param = np.zeros((h, MAP_W), np.float32)
+    # B: along the outline. Every contour is drawn from its top point by two pens
+    # going round in opposite directions; tiny contours (gaps, holes) get none
+    line = np.zeros((h, w), np.uint8)
+    param = np.zeros((h, w), np.float32)
     contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     for c in contours:
         pts = c[:, 0, :]
-        if len(pts) < 40:
+        if len(pts) < 60:
             continue
         top = int(np.argmin(pts[:, 1]))
         pts = np.roll(pts, -top, axis=0)
@@ -105,19 +128,17 @@ def main(src, out):
         s = np.concatenate([[0], np.cumsum(seg)[:-1]])
         total = max(s[-1] + seg[-1], 1)
         t = np.minimum(s, total - s) / (total / 2)
-        for (x, y), tv in zip(pts, t):
-            if x <= 1 or y <= 1 or x >= MAP_W - 2 or y >= h - 2:
-                continue
-            line[y, x] = 1
-            param[y, x] = tv
-    # spread each contour pixel's parameter to the pixels around it (nearest one)
-    dist, lab = cv2.distanceTransformWithLabels(1 - line, cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
-    ys, xs = np.nonzero(line)
-    lut = np.zeros(lab.max() + 1, np.float32)
-    lut[lab[ys, xs]] = param[ys, xs]
-    b = lut[lab]
-    a = np.clip(1 - dist / LINE_PX, 0, 1)
-    r = np.where(mask > 0, r_inside, 0.45 * a)
+        line[pts[:, 1], pts[:, 0]] = 1
+        param[pts[:, 1], pts[:, 0]] = t
+    if line.any():
+        # every pixel takes the parameter of the nearest contour pixel
+        _, lab = cv2.distanceTransformWithLabels(1 - line, cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+        ys, xs = np.nonzero(line)
+        lut = np.zeros(lab.max() + 1, np.float32)
+        lut[lab[ys, xs]] = param[ys, xs]
+        b = lut[lab]
+    else:
+        b = np.zeros((h, w), np.float32)
 
     rgb = np.dstack([r, g, b])
     Image.fromarray((rgb * 255).round().astype(np.uint8), "RGB").save(out)
