@@ -4,7 +4,7 @@
 
 **A Quickshell desktop for Hyprland: a liquid island, a glass dock and themes that change colors *and* shapes.**
 
-My first rice.
+My second rice.
 
 ![Mosaic OS with the Horizonte theme](docs/media/horizonte-desktop.webp)
 
