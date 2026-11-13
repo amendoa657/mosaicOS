@@ -1,0 +1,34 @@
+#!/bin/sh
+# Mosaic OS study mode: the only part that runs as root. It keeps one marked
+# block of /etc/hosts and nothing else:
+#   mosaic-estudo-hosts on    the domains on stdin (one a line) point to 0.0.0.0
+#   mosaic-estudo-hosts off   the block goes away
+# Lines that are not a plain domain name are dropped, so nothing else can be
+# written into the file through it. Installed by instalar-sites.sh into
+# /usr/local/libexec, owned by root; the daemon calls it with `sudo -n`.
+set -eu
+PATH=/usr/bin:/bin
+BEGIN='# >>> mosaic-estudo'
+END='# <<< mosaic-estudo'
+HOSTS=/etc/hosts
+
+case "${1:-}" in on | off) ;; *) echo "uso: $0 on|off" >&2; exit 2 ;; esac
+
+tmp=$(mktemp /run/mosaic-estudo-hosts.XXXXXX)
+trap 'rm -f "$tmp"' EXIT
+# the file without our block
+sed "/^$BEGIN\$/,/^$END\$/d" "$HOSTS" > "$tmp"
+[ -s "$tmp" ] || { echo "$HOSTS vazio?" >&2; exit 1; }
+
+if [ "$1" = on ]; then
+    {
+        echo "$BEGIN"
+        grep -E -x '[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+' | head -n 2000 | while read -r d; do
+            echo "0.0.0.0 $d"
+            echo ":: $d"
+        done
+        echo "$END"
+    } >> "$tmp"
+fi
+# written in place: the file keeps its owner, mode and links
+cat "$tmp" > "$HOSTS"
