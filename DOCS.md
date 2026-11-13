@@ -20,6 +20,10 @@ Guia de cada parte do código, para aprender e mexer com segurança. As decisõe
 15. [O Stage Manager: `modules/mosaic/stage/`](#15-o-stage-manager-modulesmosaicstage)
 16. [O mapa de workspaces (Super+Tab)](#16-o-mapa-de-workspaces-supertab)
 17. [O launcher com modos](#17-o-launcher-com-modos)
+18. [Os widgets do impasto: `desk/`](#18-os-widgets-do-impasto-desk)
+19. [A lock screen: `desk/MosaicLock.qml`](#19-a-lock-screen-deskmosaiclockqml)
+20. [Commit, push e Claude Code na ilha](#20-commit-push-e-claude-code-na-ilha)
+21. [Mosaic com a cara da mosaic-ui, e o tema macOS](#21-mosaic-com-a-cara-da-mosaic-ui-e-o-tema-macos)
 
 ---
 
@@ -735,3 +739,308 @@ O menu Iniciar da ilha usa a busca do ii (`services/LauncherSearch.qml`). Ela ga
 - **Apps por uso** (`services/MosaicLauncherUsage.qml`): cada app aberto pelo menu soma 1 em `~/.local/state/mosaic-os/launcher-usage.json`. Na busca, cada app tem `nota = posição na busca aproximada − log₂(1 + vezes aberto) × 2`, e a lista sai em ordem de nota. Assim, quem você mais abre sobe sem atropelar uma correspondência bem melhor.
 - Os chips do menu vazio ganharam "janelas" (`@`) e "timer" (`5m `).
 
+## 18. Os widgets do impasto (`desk/`)
+O sistema de widgets da área de trabalho veio do [impasto](https://github.com/andreumassanet/impasto) (GPL-3.0, a mesma licença do Mosaic). Diferente das outras peças, aqui o código foi **copiado e adaptado**, não reescrito: são uns 38 mil linhas de faces bem desenhadas, e reescrever perderia o que você gostou.
+
+**Onde fica:** `desk/` repete as pastas do impasto (`theme/`, `services/`, `components/`, `desktop/`, `lock/`, `bar/modules/`), porque os arquivos se importam por caminho relativo (`import "../services"`). Os scripts Python dele ficam em `scripts/desk/`.
+- No QML do Quickshell, um arquivo com `pragma Singleton` numa pasta vira um **singleton** (um objeto único, criado no primeiro uso) para quem importa a pasta. Por isso `DesktopService`, `ClaudeService` etc. funcionam sem `qmldir`.
+- De fora, o Mosaic importa com nome: `import qs.desk.services as Desk` e usa `Desk.DesktopService`. O `as` evita choque de nomes com os serviços do ii.
+
+**Como foi copiado:** um script (`closure.py`, no rascunho) leu cada arquivo, achou os tipos usados e puxou os arquivos deles, até fechar o conjunto (212 arquivos). Os widgets puxam quase todos os serviços do impasto, inclusive os que **não podem rodar aqui**: bloqueio por ociosidade, sessão, servidor de notificações, tema dos apps, monitores. Esses viraram **stubs** gerados por outro script: o stub só tem as propriedades e funções que os widgets leem, com valores vazios. Exemplos: `IdleService`, `NotificationService`, `DockService` (diz que a dock ocupa 76 px embaixo, para os widgets não ficarem atrás dela). O `MonitorService` foi reescrito curto: nomeia as telas e escolhe a principal (a maior deitada).
+
+**A grade:** cada widget é uma linha em `~/.local/state/mosaic-os/desk/settings.json` (`desktopWidgets`): `id` do módulo, `col`/`row` na grade, `family` (`2x2`, `4x2`, `4x4` ou `8x2`) e a tela (`screen`, pela descrição do monitor). A célula tem 86 px com 18 de espaço. `DesktopService.nearestFree()` acha a vaga livre mais perto de uma célula (distância ao quadrado entre todas as vagas onde o tamanho cabe).
+
+**Estilo por tema:** o impasto tem três estilos de face; o Mosaic escolhe pelo tema em `DesktopService.mosaicStyle`:
+- Mosaic (`soft`) → **Modern**: a leitura grande embaixo, a marca no canto, em vidro. O fundo é o "liquid" do impasto e a camada `mosaic-desk` ganhou o liquid glass do hyprglass (`hypr/mosaic.lua`, preset "vivo").
+- Gruvbox (`brutal`) → **Sticker**: cada widget é um adesivo recortado (`Cut`), sem cápsula, com a borda creme do Gruvbox (`stickerPaper` = `MosaicTheme.ink`) e os quatro tons brilhantes do Gruvbox.
+- Horizonte (`retro`) → **Analogue**: instrumentos (mostradores, folhinha, vinil, polaroide) sobre o marrom do tema, com o granulado (`Grain`).
+- Trocou o tema, `mosaicStyle` muda, todas as faces trocam, e `conform()` reduz o tamanho de quem não tem face naquele estilo.
+
+**A ponte de tema** (`desk/theme/Theme.qml`): as cores do impasto passaram a ler `Appearance.m3colors` (fundo, texto, destaque), as fontes viraram `MosaicTheme.fontUi`/`fontDisplay`, e o raio passa por `MosaicTheme.r()`. As datas usam `Theme.fmt(data, formato)`, que formata no idioma do sistema (`Qt.formatDateTime` escrevia em inglês aqui). Os textos foram traduzidos por um script com um dicionário (`pt.py`, no rascunho) que troca só strings exatas que não são chaves nem comparações.
+
+**Faces novas do Mosaic:**
+- `AnniversaryFace.qml` ("Dias juntos"): conta os dias desde `since` (meia-noite a meia-noite, para virar no começo do dia), os meses inteiros e quanto falta para o próximo. Modern: coração + número, e no largo uma barra do mês. Analogue: a folhinha (`Leaf`) com as palavras na fita. Sticker: recorte rosa com o número e um selo com os meses.
+- `PhotoFolders.qml`: porta-retrato de **pasta** (`folder` na linha), como os dois do ii faziam com as pastas do celular: as 20 fotos mais novas, uma nova a cada 70 s, a pasta relida a cada 5 min. `DesktopService.pictureOf()` devolve a foto da vez.
+
+**Migração do ii (uma vez):** `MosaicDesk.qml` vê se existe o arquivo `migrated-from-ii`; se não, transforma os widgets do ii que estavam ligados em linhas do desk perto de onde estavam (posição em px ÷ 104 = célula), põe a frase do relógio num post-it, desliga os do ii e grava o arquivo. A cópia da config antes disso está em `~/.local/state/mosaic-os/desk/backup/`.
+
+**Camadas:** o papel de parede do ii foi para a camada `Background` (era `Bottom`), e o desk fica em `Bottom`: acima do papel, abaixo das janelas. Arrumando, o desk sobe para `Top` e pega o mouse.
+
+**Usar:** clique direito no papel → Arrumar widgets (arrastar move, o canto redimensiona, clique abre o inspetor). Ou Configurações → Widgets: o primeiro cartão arruma, os outros ligam (põe um na tela principal) e desligam (tira todos daquele tipo).
+- IPC: `qs -c mosaic ipc call mosaicDesk edit|done|list|add <módulo>|addOn <módulo> <tela>|remove <chave>|migrateAgain`.
+- Testar sem mexer na sessão: `MOSAIC_DESK_STATE=<pasta>` faz um shell de teste (`qs -p`) usar outra pasta de estado.
+
+## 19. A lock screen (`desk/MosaicLock.qml`)
+A tela é a do impasto (`desk/lock/`): o desktop fotografado e borrado atrás (ou a capa da música), o relógio, o player com a letra, e ao apertar uma tecla sobem a foto da conta, o campo e os botões de energia.
+- **O que continuou do ii:** a IPC `lock` (`activate`, `focus`), os atalhos globais `quickshell:lock` e `quickshell:lockFocus` (o `hypridle.conf` chama esses), o `useHyprlock`, travar ao entrar (`launchOnStartup`) e destravar o chaveiro com a senha (`unlock.sh`).
+- **A ponte:** `GlobalStates.screenLocked` (que partes do ii olham) segue `LockService.locked`. Se algo do ii põe `screenLocked = true` direto, o `MosaicLock` chama `LockService.lock()`.
+- **Como trava:** `LockService.lock()` tira um print de cada tela com `grim` (para o fundo borrado), liga o `WlSessionLock` (o protocolo de tela de bloqueio do Wayland: o compositor só mostra essa superfície) e começa uma conversa PAM (`login`). A senha vai em `pam.respond()`. Errou: "Senha errada" e uma nova conversa. Acertou: a tela sai numa animação e os prints são apagados.
+- Os botões de reiniciar e desligar usam um `SessionService` curto (`systemctl reboot|poweroff`).
+- O desbloqueio por rosto do impasto (howdy) não está instalado; o campo aceita só senha.
+
+## 20. Commit, push e Claude Code na ilha
+**Eventos novos da ilha** (`Island.qml`): `commit`, `push`, `claudeDone`, `claudeAsk`. Todos usam o componente `devEvent`: um quadradinho com a marca (o símbolo de commit, uma nuvem ou a faísca do Claude, que gira enquanto ele espera você), o título em cima, a mensagem embaixo e, no commit, `+linhas −linhas · hash` à direita. IPC: `island commit <repo> <branch> <mensagem> <hash> <+> <−>`, `island push <repo> <remoto/branch> <n>`, `island claude done|ask|usage <projeto> <texto>`.
+
+**O hook do git** (`scripts/git-hooks/mosaic-hook`): `git config --global core.hooksPath ~/.config/mosaic-os/git-hooks` (um link para essa pasta) faz o git rodar esses hooks em **todo** repositório. Cada nome de hook é um link para o mesmo script, que olha o próprio nome (`basename "$0"`).
+1. Primeiro roda o hook do próprio repositório (`.git/hooks/<nome>`), com os mesmos argumentos e entrada; se ele falhar, o script sai com o mesmo código. Assim um repositório com hooks continua igual (um `commit-msg` que barra o commit ainda barra).
+2. `post-commit`: pega repo, branch, assunto, hash curto e `git show --shortstat` (linhas +/−) e chama a ilha **destacado** (`setsid ... &`), sem atrasar o git. Em rebase não avisa.
+3. `pre-push`: esse hook roda **antes** do envio, então não sabe se deu certo. Ele lê da entrada as refs que vão subir, conta os commits e deixa um processo esperando o `git push` terminar (o `$PPID`). Depois confere se a ref remota (`refs/remotes/origin/main`) foi para o commit enviado: só então avisa.
+- Desfazer: `git config --global --unset core.hooksPath`. Um repositório com `core.hooksPath` próprio (husky) usa o dele e não avisa a ilha.
+
+**Os hooks do Claude Code** (`~/.claude/settings.json` → `scripts/claude-hooks/island.py`): `Stop` (o Claude terminou de responder) chama `island.py done`; `Notification` (pede permissão ou espera você) chama `island.py ask`. O script lê o JSON que o Claude Code manda na entrada (`cwd`, `message`, `transcript_path`), usa o nome da pasta como projeto e, no "terminou", a primeira linha da última resposta (lida do fim do transcript). Sempre sai com 0 e chama a ilha destacado, então nunca trava o Claude Code.
+
+**O anel de uso** (faixa do topo, `MosaicTopBar.qml`): o `ClaudeService` do impasto soma os tokens dos transcripts em `~/.claude/projects` no bloco de 5 h (`scripts/desk/claude_usage.py`). O anel mostra o percentual do plano quando a conta responde; senão, o tempo passado no bloco, com os tokens ao lado. Aqui a conta não responde (o app desktop não guarda o login em `~/.claude/.credentials.json`), então aparecem os tokens. Clique: a ilha mostra tokens, mensagens e quanto falta para renovar. O mesmo serviço alimenta o widget "Claude Code" do desk.
+
+## 21. Mosaic com a cara da mosaic-ui, e o tema macOS
+O desk tem agora uma "voz" por tema, em `Theme.look` (`desk/theme/Theme.qml`): `"mosaic"`, `"apple"` ou vazio (Gruvbox e Horizonte desenham as faces Sticker e Analogue).
+
+**Mosaic → mosaic-ui** (os tokens estão em `~/mosaic-gnome/mosaic-design-tokens.md`, tirados da Mosaic Store):
+- **Cartão** (`Widget.qml`): cor chapada `surface_container`, borda de 1 px com o texto a 9 %, raio 14, um fio de luz de 1 px por dentro do topo e a **sombra de objeto**: um retângulo sólido 2 px abaixo, na cor da janela a 70 %, sem desfoque. Com o mouse em cima, o cartão sobe 2 px e a sombra vira 4 px. Sem vidro: o `MosaicGlass` desliga o hyprglass na camada `mosaic-desk` fora do macOS.
+- **Voz** (`WidgetFace.qml`): o rótulo em JetBrains Mono, 10 px, maiúsculo e espaçado; o número grande em Space Grotesk 700 apertado (−0,03 em). O `WidgetFace` sobe na árvore de objetos até achar quem tem `moduleId`, para saber de que módulo é.
+- **Quatro tons:** `Theme.toneOf(nome)` faz um hash do nome e escolhe primária, secundária, terciária ou a mistura das duas últimas, então o mesmo módulo cai sempre na mesma cor (como os ícones de app da loja).
+- **Símbolos de pixel** (`desk/components/PixelSymbol.qml`): as grades 9×9 da mosaic-ui (`simbolos.js` da loja, lidas por um script) mais 10 desenhadas no mesmo estilo (calendário, nuvem, wifi, bluetooth, volume, ampulheta, barras, faísca, git, chip). Um `Canvas` pinta um quadrado por `#`; tamanhos múltiplos de 9 deixam cada pixel inteiro.
+- **Onda de pixels** (`desktop/shaders/pixelwave.frag`): cada cartão nasce coberto de quadradinhos nos quatro tons, que encolhem numa onda a partir do canto (cada célula espera conforme a distância, mais um pouco de acaso). Cada widget começa 45 ms depois do anterior, pela posição na grade.
+- **Pano de pontos vivo** (`desktop/shaders/dotfield.frag`): uma grade de pontos a cada 15 px; três ondas lentas, uma por cor, disputam cada ponto, e a força de quem ganha vira o tamanho do quadradinho. Uma lente de 150 px segue o mouse. Roda a 15 quadros por segundo, só no tema Mosaic e fora do modo de arrumar. Desligar: `pixelField` em `mosaicWidgets` no `config.json`.
+
+**Tema macOS** (`themes/macos.json`, `style: "mac"`, `MosaicTheme.mac`):
+- **Cores:** os cinzas do modo escuro da Apple, azul do sistema (`#0a84ff`) de destaque, roxo e verde. Terminal com as mesmas cores; bordas do Hyprland em branco translúcido e cantos de 12.
+- **Fontes:** o SF Pro não pode ser usado fora dos aparelhos Apple (licença), então o tema usa o **Inter** (feito à imagem do SF) e o **Inter Display** nos números grandes, instalados em `~/.local/share/fonts/inter`. `MosaicTheme.fontUi` agora aceita a fonte do tema.
+- **Vidro:** `MosaicGlass.macLua()` usa o modo **lente** do hyprglass, como o Liquid Glass da Apple: centro limpo e plano (pouco desfoque, sem cúpula: `lens_distortion` quase 0, `refraction_spread = 0`), e a borda dobrando a imagem (`edge_height` + `edge_thickness_px`), com um fio de luz (`bevel`) e quase nada de brilho branco. Todos os valores ficam dentro da faixa do hyprglass (0 a 1): a primeira versão passava disso (brilho de borda 2,6, especular 4,4) e a borda estourava para branco, escondendo a refração. Vale na ilha, na dock, nas laterais, nos widgets e nas configurações. `MosaicTheme.paneAlpha()` deixa as películas com no máximo 14 %.
+- **Contorno:** o desk é uma camada do tamanho da tela e a dock fica dentro de uma janela maior que ela; por padrão o hyprglass põe a borda da lente no retângulo da camada (a borda da tela), e a distorção não aparecia nos widgets. Com `mask_mode = "contour"` (desk, dock, laterais e configurações) cada forma desenhada ganha a própria borda, dobra e brilho. O corte (`mask_threshold`) fica em 0,06, abaixo da película de 14 %.
+- **Barra:** recebe a mesma lente, fina (`edge_thickness_px` 8, `edge_height` 10), sob um véu escuro de 42 %.
+- **Atenção:** o `MosaicGlass` é um singleton e a recarga a quente não troca o código dele; mudou o arquivo, reinicie o shell (`qs -c mosaic kill` e abrir de novo).
+- **Widgets** (`desk/desktop/faces/apple/AppleFaces.qml`): Clima sobre um degradê de céu (dia, noite, nublado, chuva, escolhido pela descrição) com a cidade, a temperatura grande em Inter Display Light e as próximas horas no largo; Calendário com o dia da semana em vermelho e o mês com hoje num círculo vermelho; Relógio analógico com ponteiro de segundos laranja; Música sobre a capa borrada; anéis tipo Baterias para CPU, RAM, temperatura e swap; o anel do Claude; Dias juntos. Os outros módulos usam a face Modern com a voz Apple (rótulo colorido, Inter Display).
+- **Barra de menus** (`MosaicTopBar.qml`): de ponta a ponta, um véu escuro sobre o vidro líquido em lente fina (o desfoque pesado da primeira versão virava borrão), com um fio escuro embaixo e o conteúdo centrado na linha da hora do notch. À esquerda, a marca Mosaic no lugar do menu da Apple (abre o menu Iniciar), o nome do app em foco em negrito e as áreas. À direita, como no Mac: rede, som (clique = mudo), busca (menu Iniciar), central de controle (a lateral direita) e a data. Os ícones são o componente `MacIcon`.
+- **A ilha vira o notch** (`Island.qml`): no macOS ela fica preta, encostada na borda (`topGap` 0, cantos de cima retos, sem contorno) e da altura da barra, como o entalhe do MacBook. A hora fica nela; por isso a barra mostra só a data.
+- **Dock:** ícones de 40 px, a lupa do Mac suave (até 32 % maior, subindo 10 px), um pontinho branco embaixo de app aberto e sem a área de status (que fica na barra de cima).
+- **Lock** (`desk/lock/MacLockSurface.qml`, escolhida em `LockScreen.qml`): o papel levemente borrado, a data sobre a hora enorme, o "Tocando agora" num cartão de vidro, e embaixo a foto, o nome e o campo em pílula, que treme e se esvazia quando a senha está errada.
+
+**Testar sem tela:** `grabToImage` num item do desk de teste salva o render do Qt num PNG, sem depender do que está na tela (o vidro, que é do Hyprland, não aparece nessa captura).
+
+### 21.1 Os ajustes de cada widget (inspetor)
+No modo de arrumar, clicar num widget abre o inspetor (`desk/desktop/Inspector.qml`). Além de formato, foto, face e opacidade, ele ganhou a seção **Ajustes**, feita com dois componentes do próprio arquivo: `AdjustField` (campo de texto que salva ao apertar Enter ou ao sair dele) e `AdjustToggle` (interruptor que salva na hora).
+- Relógio: no macOS, **relógio digital** (`digital` na linha: a data sobre a hora grande em Inter Display Bold, a fonte da tela de bloqueio); 24 horas e segundos (`clockFormat`, `clockShowsSeconds`).
+- Clima: a cidade (`weatherPlace`; vazio = pela conexão), e o clima é pedido de novo na hora.
+- GitHub: o usuário (`githubUser`), com nova leitura na hora.
+- Foto: a pasta (`folder` na linha do widget; `~` vira a pasta pessoal).
+- Dias juntos: a data (`since`, AAAA-MM-DD, só aceita nesse formato) e o texto (`label`).
+- Letra: buscar letras ou não.
+- **Consertos:** a "Face" voltou a funcionar (cada widget pode ter um estilo próprio; sem escolher, segue o tema), a opacidade passou a valer no cartão do tema Mosaic, e "Esquerda"/"A mais nova" estavam traduzidos errado.
+
+
+## 22. Os papéis de parede da casa (`scripts/wallpapers/gerar-mosaic.py`)
+
+Três papéis de 3840×2160 gerados por código, com as cores da mosaic-ui: o fundo
+`#16131b` e os blocos azul `#b5c5f9`, rosa `#e9b9d3`, pêssego `#ffb77c` e verde
+`#86d7ac`. Rodar `gerar-mosaic.py [pasta]` recria os três. A pasta padrão é
+`~/Imagens/Wallpapers`; depois rode `wallpaper-index.sh` para eles entrarem no
+carrossel. A semente fixa (`default_rng(22)`) faz o resultado ser sempre igual.
+
+- **`mosaic-tesselas.png`**
+  - **A faixa:** uma grade de células de 96 px. Cada célula tem uma "presença"
+    que vale 1 no meio de uma curva diagonal (uma reta mais um seno) e cai para
+    0 nas bordas. A peça só aparece se um sorteio passar de `presença^0.6`, por
+    isso a faixa se desfaz em peças soltas.
+  - **A cor:** sai de um degradê de 4 paradas (azul fundo → azul → rosa →
+    pêssego) pela posição horizontal. Cada peça leva ±10% de variação de tom,
+    como tessela de verdade, e 3,5% delas viram verdes.
+  - **As teclas levantadas:** 7% das peças. São desenhadas por último (`sort`
+    pelo `lift`) para a parede escura e a sombra ficarem por cima das vizinhas.
+  - **Atrás de tudo:** o campo de pontos (a cada 48 px), um halo azul bem leve e
+    um brilho diagonal quantizado no próprio grid.
+- **`mosaic-paisagem.png`**
+  - **A escala:** pixel art desenhada em 480×270 e ampliada 8× com
+    `np.repeat`, sem suavizar.
+  - **Céu e sol:** o céu tem 7 cores e passa de uma para a outra com
+    *dithering* Bayer 4×4. Funciona assim: soma-se o valor da matriz ao degradê
+    antes de arredondar para a faixa mais próxima, o que vira o xadrezinho de
+    console antigo. O sol usa o mesmo truque em 4 tons e tem as linhas cortadas
+    embaixo.
+  - **Montanhas e lago:** as montanhas são 4 cristas feitas de senos somados,
+    arredondadas a cada 2 px. A encosta virada para o sol ganha a cor clara,
+    pontilhada. O lago espelha o sol em traços que estreitam.
+  - **De perto:** uma junta 6% mais escura entre os blocos de 8 px lembra que é
+    um mosaico.
+
+- **`mosaic-aurora.png`**, o papel aplicado. Ele saiu de um print da área de
+  trabalho:
+  - **Por que este:** os cartões são quase pretos e ficam nos cantos, e o desk
+    já desenha o campo de pontos. As cores que já estão na tela são o verde do
+    gráfico do GitHub e o magenta do visualizador. O Tesselas brigava com tudo
+    isso.
+  - **Como é feito:** em blocos de 24 px (160×90), três manchas gaussianas:
+    verde embaixo à esquerda, magenta à direita e violeta no meio. As manchas
+    do verde e do magenta ondulam em sentidos opostos, por um seno.
+  - **Contraste e cantos:** a força é quantizada em 6 degraus com Bayer e chega
+    no máximo a 34% da cor, para os widgets continuarem legíveis. Uma vinheta
+    apaga os cantos, onde ficam os cartões. Sem blocos acesos soltos: você
+    achou que pareciam jogados.
+  - **Na tela vertical:** o meio do papel, que é o que aparece recortado ali,
+    continua equilibrado.
+
+No tema Mosaic, o Matugen tira as cores desses papéis como de qualquer outro.
+Gerados uma vez, eles não custam nada em execução.
+
+## 23. A troca de papel pela onda de pixels (`MosaicWallFx.qml` + `shaders/pixelfx.frag`)
+
+**Só no tema Mosaic.** A transição é escolhida pelo tema quando ela começa
+(`root.pixels = MosaicTheme.current === "mosaic"`), para uma troca de tema no meio
+não trocar de efeito:
+- **Mosaic:** a onda de pixels, e os widgets entram nela.
+- **Gruvbox, Horizonte e macOS:** a transição líquida de antes (`wallfx.frag`),
+  com o contorno do personagem quando há mapa. Por isso os mapas continuam
+  sendo gerados. Os widgets não tocam onda, mas também não somem, porque a
+  camada fica no `Background` nos dois casos.
+
+**Por que os widgets sumiam:** a camada da transição ficava no nível `Bottom`,
+o mesmo do desk. Entre camadas do mesmo nível, o Hyprland desenha por cima a
+mais nova, e a da transição é criada na hora da troca. Por isso ela tapava os
+widgets até o fim do fade. Agora ela fica no nível **`Background`**, também
+criada depois do papel: fica acima do papel e abaixo dos widgets.
+
+**A onda (`pixelfx.frag`):** é a "cortina" da mosaic-ui
+(`js/pixels-worker.js`), feita num shader.
+- A tela é dividida em células de 24 px. Cada célula tem um `dist`: a distância
+  até a origem (um canto ou o meio de baixo, sorteado) dividida pela distância
+  até o canto mais longe.
+- A célula começa em `progress·K = dist + jitter` e leva `W` do tempo
+  (`W = 0.22`, `K = 1.30`, para a última célula terminar em `progress = 1`).
+- Nos primeiros 42% desse tempo, cresce um quadradinho de um de quatro tons
+  sobre o papel antigo (que é só o que está embaixo, nada desenhado). Depois a
+  célula passa a mostrar o papel novo e o quadradinho encolhe sobre ele.
+  Ease-out cúbico, com 2 px de espaço entre quadrados, como na mosaic-ui.
+- **Os tons:** a cor média do papel novo (`colors.tsv`) com saturação de pelo
+  menos 0,6, mais três vizinhos dela (±0,07 no matiz, um mais claro e um mais
+  pálido).
+- **A sequência:** a onda leva `MosaicWalls.waveDuration` (1,5 s). Depois vem o
+  `switchwall.sh` (papel + Matugen, cerca de 1,7 s), e a camada some num fade
+  quando o papel de verdade já mostra a imagem nova.
+
+**Os widgets na onda (`desk/desktop/Widget.qml`):**
+- `MosaicWallFx` emite `MosaicWalls.waveStarted()` com `waveOrigin` e
+  `waveTones` preenchidos.
+- Cada widget calcula quando a onda chega no centro dele com a mesma conta do
+  shader, `duração · (dist + 0.04) / 1.30`, usando `mapToItem(null)` para saber
+  onde está na tela.
+- Nessa hora, a onda do próprio cartão (`pixelwave.frag`) cobre o cartão com
+  quadrados de 24 px nos tons da onda, vindos do lado de onde ela vem, em
+  240 ms, e revela de novo em 520 ms. Só no tema Mosaic.
+
+**Outras mudanças:**
+- **IPC nova:** `qs -c mosaic ipc call wallpaperSelector apply <caminho>` troca
+  o papel com a onda.
+
+## 24. Otimização: o que redesenha à toa
+
+**Como medir.** Rode o shell com `WAYLAND_DEBUG=client` e conte os
+`wl_surface#N.commit` por superfície. Para saber quem é cada superfície, use o
+`get_layer_surface(..., wl_surface#N, ..., "namespace")` do mesmo log. Cada
+commit de uma camada faz o Hyprland recompor a tela. Como as janelas são
+translúcidas e borram o fundo (opacidade 0,86/0,78, blur com `xray`), um commit
+de uma camada de fundo (papel, desk) faz o blur da tela inteira ser refeito. O
+uso da GPU sai de `/sys/class/drm/card1/device/gpu_busy_percent`, e a potência
+de `hwmon*/power1_average`.
+
+Medição inicial, com a área de trabalho parada: GPU de 40% a 70% com o shell e
+6% sem ele. O desk fazia 15 commits/s em cada tela, por causa do campo de
+pontos.
+
+**O que mudou:**
+- **Campo de pontos** (`desk/desktop/Desktop.qml`): fica parado, sem quadro
+  nenhum. Cada clique esquerdo no fundo anima o `time` do shader +6 s em 600 ms
+  (`fieldSlide`), e as ondas deslizam para outra posição e param. A lente que
+  seguia o mouse saiu, porque repintava a cada movimento.
+- **Música na ilha** (`Island.qml`): as barrinhas viraram um ícone de nota
+  parado (`playingSlot`), e o mascote não dança mais com a música
+  (`baseMood: "idle"`). **Regra que vale para o shell todo:** uma animação
+  rodando numa janela faz o Qt desenhar essa janela em todo quadro do monitor
+  (até 165/s), mesmo que o item esteja invisível. A dança continuava rodando
+  com a capa do álbum cobrindo o mascote. Loops infinitos só podem rodar
+  quando o resultado é visto e por pouco tempo.
+- **Visualizador do desk:** ligado o `spectrumOnEmpty` do impasto. O cava para
+  quando o workspace da tela tem janela, já que o visualizador fica atrás dela.
+  O próprio serviço já ignorava as linhas de silêncio.
+
+**Medição pelo painel desliga-tudo:** o papel sozinho custa ~10% e a ilha
+sozinha ~10%, mas os dois juntos ficavam entre 30% e 60%. Desligar só o vidro
+da ilha não mudou nada que se medisse. A ilha dançando em todo quadro sobre um
+papel de tela cheia é a explicação mais provável.
+
+**Ainda gera quadros, mas por interação:** passar o mouse sobre os widgets
+(o cartão levanta 2 px), sobre a dock (a ampliação) e sobre a ilha.
+
+### 24.1 O painel "desliga-tudo" (Super+Alt+G)
+
+Um painel feio de propósito para achar o que pesa na GPU: uma caixa por peça do
+shell. Desmarcar uma caixa desliga aquela peça na hora, e o topo mostra o uso da
+GPU (`gpu_busy_percent`, lido uma vez por segundo só com o painel aberto). Para
+uma medição melhor, rode `radeontop -c` num terminal ao lado.
+
+- **Os interruptores** ficam no singleton `modules/common/MosaicDebug.qml`.
+  Cada um é o `extraCondition` de um `PanelLoader` em
+  `panelFamilies/IllogicalImpulseFamily.qml`; desligar descarrega a peça
+  inteira, e religar a recria. A exceção é `pontos`, que o campo de pontos do
+  desk lê direto.
+- **Peças:** papel de parede, pontos de fundo, widgets (o desk inteiro), ilha,
+  dock, barra de cima, laterais esquerda e direita, cantinhos da tela e Stage
+  Manager.
+- **Nada é salvo:** reiniciar o shell religa tudo.
+- **A janela** é um `FloatingWindow`. A regra em `hypr/mosaic.lua` a deixa
+  flutuando, com 260×520 px, no canto de cima à direita.
+- **IPC:** `qs -c mosaic ipc call mosaicDebug toggle` abre e fecha o painel, e
+  `... set ilha false` liga ou desliga uma peça por script.
+
+### 24.2 CPU, RAM e camadas
+
+- **Gravação de tela, uma checagem só** (`modules/common/MosaicRecording.qml`):
+  um `pidof` + `ps` a cada 3 s para o shell inteiro. Antes, a ilha e a barra
+  rodavam cada uma o seu `sh + pgrep`, a cada 1,5 s e 2 s. Os indicadores de
+  gravação (o ponto da ilha e a piscada da barra) eram animações em loop, que
+  faziam o shell desenhar a 165 quadros/s durante a gravação inteira. Agora um
+  `Timer` troca o estado, e um `Behavior` curto faz a transição.
+- **Cantinhos da tela** (`modules/ii/screenCorners/ScreenCorners.qml`): uma
+  faixa fina por borda (em cima e embaixo), cada uma com os dois cantos daquela
+  borda (`CornerItem`). São 4 janelas em vez de 8, e cada janela tem o próprio
+  contexto de render (uns 5 MB). A máscara só pega o clique nas zonas de canto
+  que abrem as laterais.
+- **Fundo do modo de arrumar** (`mosaic-desk-backdrop`, `Desktop.qml`): só fica
+  mapeado durante o arrumar. Antes era uma superfície transparente de tela
+  cheia acima das janelas, composta em todo quadro. Para manter a ordem que o
+  impasto precisa, o fundo mapeia primeiro e o desk sobe para o nível Top 60 ms
+  depois (`deskUp`). Ele também nunca tinha funcionado: o stub
+  `desk/services/WallpaperService.qml` devolvia "". Agora devolve o papel do
+  Mosaic, e no modo de arrumar o papel esconde as janelas, como no impasto.
+- **Cuidado ao medir:** `qs -c mosaic kill` derruba uma instância só. Se outra
+  ficou viva, por exemplo de um relançamento que falhou, ficam dois shells
+  desenhando. Confira com `pgrep -fc "^qs -c mosaic$"`.
+
+Medição final, com um shell só e música tocando: GPU em 21% e 25 W (antes,
+40–70% e 30–41 W), CPU em 9% de um núcleo e RAM em cerca de 845 MB, dos quais
+cerca de 600 MB são a base do QML.
+
+## 25. As laterais no tema Mosaic
+
+No tema Mosaic (`root.mo`), as duas laterais seguem a mosaic-ui:
+- **Fundo:** sólido e escuro (`surfaceContainerLowest`), com o campo de pontos
+  parado (`sidebars/MoDots.qml`, o shader do desk). Ele é desenhado uma vez e
+  muda de lugar a cada abertura (`shuffle()`).
+- **Teclas** (`sidebars/MoTecla.qml`, a `.mo-tecla` da mosaic-ui): uma face
+  chapada sobre um corpo mais escuro. Ao apertar, a face afunda; ligada, fica
+  na cor primária. Viram teclas os atalhos rápidos, os botões do cabeçalho e do
+  celular, as abas da esquerda e as setas e o dia de hoje no calendário.
+- **Sliders:** 20 blocos, acesos até o valor.
+- **Calendário:** próprio (`MoCalendar`), com uma grade 7×6 de tesselas.
+- **Placas:** sólidas, com linha fina e sombra de objeto.
+- **Vidro:** desligado nas laterais (`MosaicGlass`). O preset delas, com
+  valores fora da faixa, gerava os brancos e as franjas de arco-íris nas
+  bordas.
+- **Ícones e texto:** os Material de sempre e a fonte de interface, em caixa
+  normal. Os ícones em pixel e a fonte mono maiúscula cansavam a leitura num
+  menu; ficam para os widgets do desk.
+- **Por dentro, ainda do ii:** as páginas da esquerda (tradutor, tarefas, IA) e
+  a lista de notificações.
+
+**Widget de foto (§18):** no tema Mosaic, os widgets "sobre a imagem"
+(`onPicture`) não ganham mais a camada de sombra (`body.layer`). O
+`MultiEffect` pintava toda a margem extra da camada (`reach`) como uma moldura
+cinza borrada em volta da foto, e uma foto não precisa de sombra para ser lida.
