@@ -12,6 +12,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
+import qs.desk.components as DeskUi
 import qs.modules.ii.bar as Bar
 
 // Mosaic OS island: a notch on the top edge with the living Mosaic mark, dressed
@@ -52,7 +53,7 @@ Scope {
     // (brutal themes keep the theme's own background, solid)
     // the Ilha tab sets how dark (darkness) and how solid (opacity) it is
     readonly property color islandBase: MosaicTheme.brutal ? MosaicTheme.slab : ColorUtils.mix("#000000", Appearance.colors.colLayer0, Config.options.mosaicIsland.darkness)
-    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : Config.options.mosaicIsland.opacity
+    readonly property real islandAlpha: MosaicTheme.brutal ? 1 : MosaicTheme.paneAlpha(Config.options.mosaicIsland.opacity)
     Component.onCompleted: MosaicGlass.load()
     // the outline: a hairline, or the thick cream line of brutal themes
     readonly property color outlineColor: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
@@ -87,6 +88,23 @@ Scope {
         }
         // pretend a phone event, to see the animations without the phone:
         // charging | low | ringing | talking | missed | connected | disconnected
+        // Mosaic OS dev events. The git hooks (scripts/git-hooks) and the Claude Code
+        // hooks (scripts/claude-hooks) call these:
+        //   commit <repo> <branch> <subject> <hash> <added> <removed>
+        //   push <repo> <remote/branch> <commits>
+        //   claude done|ask <project> <text>
+        function commit(repo: string, branch: string, subject: string, hash: string, added: int, removed: int): void {
+            root.showEvent("commit", "commit", `${repo} · ${branch}`, 0, subject);
+            root.eventBadge = `+${added} −${removed} · ${hash}`;
+        }
+        function push(repo: string, target: string, commits: int): void {
+            root.showEvent("push", "cloud_upload", `${repo} → ${target}`, 0,
+                commits > 0 ? (commits === 1 ? "1 commit enviado" : `${commits} commits enviados`) : "enviado");
+        }
+        function claude(kind: string, project: string, text: string): void {
+            root.showEvent(kind === "ask" ? "claudeAsk" : "claudeDone", "",
+                kind === "ask" ? `Claude precisa de você · ${project}` : kind === "usage" ? "Claude Code · este bloco de 5 h" : `Claude terminou · ${project}`, 0, text);
+        }
         function phoneTest(kind: string): void {
             if (kind === "charging") {
                 if (phone.charge < 0)
@@ -147,6 +165,7 @@ Scope {
     property string eventIcon: ""
     property string eventText: ""
     property string eventSub: "" // a second line (the number of a call...)
+    property string eventBadge: "" // dev events: the text on the right (+12 −3, the hash...)
     property real eventValue: 0
     property int eventSerial: 0 // goes up on every event, so the island can do its little bump
     function showEvent(kind, icon, text, value, sub) {
@@ -154,10 +173,12 @@ Scope {
         root.eventIcon = icon;
         root.eventText = text;
         root.eventSub = sub ?? "";
+        root.eventBadge = "";
         root.eventValue = value ?? 0;
         root.eventSerial++;
         // how long each kind stays: a ringing call stays until it is answered or missed
-        eventTimer.interval = ({ music: 3200, charging: 3600, call: 45000, callTalking: 5000, callMissed: 6000, phone: 2600 })[kind] ?? 1800;
+        eventTimer.interval = ({ music: 3200, charging: 3600, call: 45000, callTalking: 5000, callMissed: 6000, phone: 2600,
+            commit: 5200, push: 3400, claudeDone: 5200, claudeAsk: 9000 })[kind] ?? 1800;
         eventTimer.restart();
     }
     Timer {
@@ -217,33 +238,12 @@ Scope {
         }
     }
     // ---------- screen recording (the ii's record.sh, i.e. wf-recorder) ----------
-    // Recording is "wf-recorder is running", however it was started (the tools
-    // button, the ii keybinds...). Checked every 1.5 s with pgrep, which is cheap.
-    property bool recording: false
-    property real recordStart: 0
+    // Recording is "the recorder is running", however it was started; the one
+    // check for the whole shell is MosaicRecording (every 3 s).
+    readonly property bool recording: MosaicRecording.recording
+    readonly property real recordStart: MosaicRecording.startedAt
     property int recordSeconds: 0
     readonly property string recordScript: Quickshell.shellPath("scripts/videos/record.sh")
-    // pgrep finds it; ps tells how long it has been running (etimes, in seconds),
-    // so the clock is right even when the recording started before we noticed
-    Process {
-        id: recCheck
-        command: ["sh", "-c", "pid=$(pgrep -x wf-recorder | head -1) && ps -o etimes= -p \"$pid\""]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const secs = parseInt(this.text);
-                const now = !isNaN(secs);
-                if (now && !root.recording)
-                    root.recordStart = Date.now() - secs * 1000;
-                root.recording = now;
-            }
-        }
-    }
-    Timer {
-        running: true
-        repeat: true
-        interval: 1500
-        onTriggered: recCheck.running = true
-    }
     Timer { // the elapsed time, only while recording
         running: root.recording
         repeat: true
@@ -254,15 +254,10 @@ Scope {
     // the whole screen (the focused monitor) with sound; while recording, stops it
     function toggleRecording() {
         if (root.recording)
-            Quickshell.execDetached(["pkill", "-INT", "-x", "wf-recorder"]);
+        Quickshell.execDetached(["pkill", "-INT", "-x", "gpu-screen-reco"]);
         else
             Quickshell.execDetached(["bash", "-c", `sleep 0.3; '${root.recordScript}' --sound --fullscreen`]);
-        recheckSoon.restart(); // show the change right away, not at the next 1.5 s check
-    }
-    Timer {
-        id: recheckSoon
-        interval: 700
-        onTriggered: recCheck.running = true
+        MosaicRecording.recheckSoon(); // show the change right away, not at the next check
     }
 
     // ---------- the phone, through KDE Connect (PhoneLink.qml) ----------
@@ -403,10 +398,13 @@ Scope {
                 readonly property real restHeight: 30
                 // floating like a pill: fully round while small, a 26 px curve when it grows
                 readonly property real cornerRadius: MosaicTheme.r(Math.min(height / 2, 26)) // a pill in Mosaic, a box in Gruvbox
-                readonly property real topGap: 6 // the space above it, under the screen edge
+                // macOS theme: the island is the MacBook's notch: black, against the top
+                // edge (no gap, square top corners), as tall as the menu bar
+                readonly property real topGap: MosaicTheme.mac ? 0 : 2.5 // the space above it, under the screen edge
                 readonly property real compassHeight: 112 // as a compass it is a small dome (half oval), with the mark on top
                 readonly property real bandHeight: mode !== "event" ? restHeight
                     : root.eventKind.startsWith("call") ? 58
+                    : root.eventKind === "commit" || root.eventKind === "push" || root.eventKind.startsWith("claude") ? 54
                     : root.eventKind === "music" || root.eventKind === "charging" || root.eventKind === "battery" ? 48 : 38
 
                 // ----- the springs (MosaicSpring: real physics, with speed) -----
@@ -492,16 +490,16 @@ Scope {
                     fragmentShader: Qt.resolvedUrl("shaders/island.frag.qsb")
                     property vector2d size: Qt.vector2d(width, height)
                     property vector2d shapeSize: Qt.vector2d(notch.width, notch.height)
-                    property real rTop: notch.cornerRadius
+                    property real rTop: MosaicTheme.mac ? 0 : notch.cornerRadius
                     property real rBot: notch.cornerRadius + (notch.width / 2 - notch.cornerRadius) * m * Math.pow(MosaicTheme.roundness, 2) // boxy themes: (almost) no dome
                     // built taller than drawn while it is a compass: that is the squash
                     property real hu: notch.height + (notch.width / 2 + notch.cornerRadius - notch.height) * m * Math.pow(MosaicTheme.roundness, 2)
-                    property color stop0: root.opaque(root.washStop(0, notch.morph))
-                    property color stop1: root.opaque(root.washStop(1, notch.morph))
-                    property color stop2: root.opaque(root.washStop(2, notch.morph))
-                    property real fillAlpha: root.islandAlpha
+                    property color stop0: MosaicTheme.mac ? "#000000" : root.opaque(root.washStop(0, notch.morph))
+                    property color stop1: MosaicTheme.mac ? "#000000" : root.opaque(root.washStop(1, notch.morph))
+                    property color stop2: MosaicTheme.mac ? "#000000" : root.opaque(root.washStop(2, notch.morph))
+                    property real fillAlpha: MosaicTheme.mac ? 1 : root.islandAlpha
                     property color strokeColor: root.opaque(root.outlineColor)
-                    property real strokeAlpha: root.outlineColor.a
+                    property real strokeAlpha: MosaicTheme.mac ? 0 : root.outlineColor.a
                     property real strokeWidth: MosaicTheme.brutal ? MosaicTheme.border : 1
                     property vector2d shadowOffset: Qt.vector2d(MosaicTheme.shadow, MosaicTheme.shadow)
                     property color shadowColor: root.opaque(MosaicTheme.shadowColor)
@@ -531,7 +529,10 @@ Scope {
                     y: Math.round((Math.min(notch.height, notch.bandHeight) - size) / 2 * (1 - c) + ((notch.restHeight - 18) / 2 + 1 * notch.morph) * c)
                     rotation: notch.mode === "compass" ? compassContent.offset * 90 : 0
                     Behavior on rotation { enabled: notch.mode !== "compass"; NumberAnimation { duration: 300 } }
-                    baseMood: root.playing ? "dance" : "idle"
+                    // no dance with the music: a running animation makes the island draw on
+                    // every frame of the screen (up to 165 a second), even while the cover
+                    // hides the mascot (DOCS §24)
+                    baseMood: "idle"
                     // resting with music on: the album cover sits where the mark is
                     opacity: notch.showCover ? 0 : 1
                     scale: notch.showCover ? 0.6 : 1
@@ -638,12 +639,13 @@ Scope {
                             height: 9
                             radius: MosaicTheme.r(4.5)
                             color: Appearance.colors.colError
-                            SequentialAnimation on opacity {
-                                running: true
-                                loops: Animation.Infinite
-                                NumberAnimation { to: 0.25; duration: 700; easing.type: Easing.InOutSine }
-                                NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
-                            }
+                            // a slow blink: a timer flips it and a short fade runs, then
+                            // nothing; a looping animation drew the island on every frame
+                            id: recDot
+                            property bool dim: false
+                            opacity: dim ? 0.25 : 1
+                            Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.InOutSine } }
+                            Timer { running: true; repeat: true; interval: 900; onTriggered: recDot.dim = !recDot.dim }
                         }
                         StyledText {
                             anchors.verticalCenter: parent.verticalCenter
@@ -658,31 +660,16 @@ Scope {
                         }
                     }
                 }
-                // music playing: four little bars bouncing, each at its own pace
+                // music playing: a still music note. The bars that bounced to the
+                // music repainted the island many times a second for as long as
+                // it played; a still icon costs nothing (DOCS §24).
                 Component {
                     id: playingSlot
-                    Row {
-                        spacing: 2
-                        height: 14
-                        Repeater {
-                            model: 4
-                            delegate: Rectangle {
-                                id: bar
-                                required property int index
-                                anchors.bottom: parent.bottom
-                                width: 3
-                                radius: MosaicTheme.r(1.5)
-                                color: Appearance.colors.colPrimary
-                                height: 4
-                                SequentialAnimation on height {
-                                    running: true
-                                    loops: Animation.Infinite
-                                    NumberAnimation { to: 6 + (bar.index * 5 % 8); duration: 260 + bar.index * 70; easing.type: Easing.OutQuad }
-                                    NumberAnimation { to: 13 - bar.index * 2; duration: 220 + bar.index * 50; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { to: 3; duration: 300 + bar.index * 40; easing.type: Easing.InQuad }
-                                }
-                            }
-                        }
+                    MaterialSymbol {
+                        text: "music_note"
+                        iconSize: 16
+                        fill: 1
+                        color: Appearance.colors.colPrimary
                     }
                 }
 
@@ -700,7 +687,9 @@ Scope {
                         : root.eventKind === "music" ? musicEvent
                         : root.eventKind === "charging" || root.eventKind === "battery" ? batteryEvent
                         : root.eventKind.startsWith("call") ? callEvent
-                        : root.eventKind === "phone" ? phoneEvent : textEvent
+                        : root.eventKind === "phone" ? phoneEvent
+                        : root.eventKind === "commit" || root.eventKind === "push" || root.eventKind.startsWith("claude") ? devEvent
+                        : textEvent
                 }
 
                 Compass {
@@ -1013,6 +1002,77 @@ Scope {
                     }
                 }
             }
+            // ---------- dev events: a commit, a push, Claude Code ----------
+            // A chip with the mark (git's commit glyph, a cloud, Claude's spark), the
+            // title over the message, and a badge on the right (+added −removed · hash).
+            Component {
+                id: devEvent
+                Row {
+                    spacing: 10
+                    readonly property bool claudeKind: root.eventKind.startsWith("claude")
+                    readonly property color tone: claudeKind ? "#d97757" // Claude's orange
+                        : root.eventKind === "push" ? Appearance.colors.colTertiary : Appearance.colors.colPrimary
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 32
+                        height: 32
+                        radius: MosaicTheme.r(10)
+                        color: ColorUtils.transparentize(parent.tone, 0.78)
+                        border.width: MosaicTheme.brutal ? 1.5 : 0
+                        border.color: MosaicTheme.ink
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            visible: !parent.parent.claudeKind
+                            text: root.eventIcon
+                            iconSize: 19
+                            fill: 1
+                            color: parent.parent.tone
+                        }
+                        DeskUi.ClaudeMark {
+                            anchors.centerIn: parent
+                            visible: parent.parent.claudeKind
+                            width: 18
+                            height: 18
+                            color: parent.parent.tone
+                            // a little turn while Claude is waiting on you
+                            RotationAnimation on rotation { running: root.eventKind === "claudeAsk"; from: 0; to: 360; duration: 2600; loops: Animation.Infinite }
+                        }
+                    }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 1
+                        StyledText {
+                            text: root.eventText
+                            width: Math.min(implicitWidth, 300)
+                            elide: Text.ElideRight
+                            font.family: MosaicTheme.fontUi
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                            color: Appearance.colors.colOnLayer0
+                            opacity: 0.75
+                        }
+                        StyledText {
+                            text: root.eventSub
+                            width: Math.min(implicitWidth, 300)
+                            elide: Text.ElideRight
+                            font.family: MosaicTheme.fontUi
+                            font.pixelSize: 13
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colOnLayer0
+                        }
+                    }
+                    StyledText {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.eventBadge !== ""
+                        text: root.eventBadge
+                        font.family: "JetBrainsMono Nerd Font"
+                        font.pixelSize: 11
+                        color: Appearance.colors.colOnLayer0
+                        opacity: 0.7
+                    }
+                }
+            }
+
             Component {
                 id: textEvent
                 Row {

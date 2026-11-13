@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Mosaic OS: every git hook, for every repository (git config --global
+# core.hooksPath points here). Each name here is a link to this file.
+#  1. the repository's own hook in .git/hooks runs first, with the same
+#     arguments and input, and its exit code is kept, so nothing changes for
+#     repositories that have hooks;
+#  2. post-commit: the island shows the commit (repo · branch, the message,
+#     +added −removed and the short hash);
+#  3. pre-push: once the push has really gone through (the remote-tracking ref
+#     moved to the pushed commit), the island shows it.
+# The island part never blocks git or fails it: it runs detached, and only if
+# the Mosaic shell is up. To undo: git config --global --unset core.hooksPath
+name="$(basename "$0")"
+input=""
+case "$name" in
+    pre-push|post-rewrite|reference-transaction|pre-receive|post-receive) input="$(cat)" ;;
+esac
+
+# 1. the repository's own hook
+common="$(git rev-parse --git-common-dir 2>/dev/null)"
+own="$common/hooks/$name"
+status=0
+if [ -n "$common" ] && [ -x "$own" ] && [ "$(cd "$(dirname "$own")" && pwd -P)" != "$(cd "$(dirname "$0")" && pwd -P)" ]; then
+    if [ -n "$input" ]; then
+        printf '%s\n' "$input" | "$own" "$@"
+    else
+        "$own" "$@"
+    fi
+    status=$?
+fi
+[ "$status" -ne 0 ] && exit "$status"
+
+island() {
+    command -v qs >/dev/null 2>&1 || return 0
+    pgrep -f "qs -c mosaic|quickshell.*mosaic" >/dev/null 2>&1 || pgrep -x qs >/dev/null 2>&1 || return 0
+    setsid qs -c mosaic ipc call island "$@" >/dev/null 2>&1 &
+}
+
+repo="$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")"
+
+case "$name" in
+post-commit)
+    # not for every commit a rebase or cherry-pick replays
+    [ -d "$common/rebase-merge" ] || [ -d "$common/rebase-apply" ] && exit 0
+    branch="$(git symbolic-ref --short -q HEAD || echo "HEAD")"
+    subject="$(git log -1 --format=%s)"
+    hash="$(git rev-parse --short HEAD)"
+    stat="$(git show --shortstat --format= HEAD 2>/dev/null)"
+    added="$(printf '%s' "$stat" | grep -o '[0-9]* insertion' | grep -o '[0-9]*')"
+    removed="$(printf '%s' "$stat" | grep -o '[0-9]* deletion' | grep -o '[0-9]*')"
+    island commit "$repo" "$branch" "$subject" "$hash" "${added:-0}" "${removed:-0}"
+    ;;
+pre-push)
+    remote="$1"
+    zero="0000000000000000000000000000000000000000"
+    printf '%s\n' "$input" | while read -r lref loid rref roid; do
+        [ -z "$loid" ] && continue
+        case "$loid" in 0000000*) continue ;; esac   # a deleted branch
+        branch="${rref#refs/heads/}"
+        case "$roid" in
+            0000000*) count="$(git rev-list --count "$loid" --not --remotes="$remote" 2>/dev/null)" ;;
+            *) count="$(git rev-list --count "$roid..$loid" 2>/dev/null)" ;;
+        esac
+        # wait (detached) for the push to end, then look at the remote-tracking ref
+        (
+            parent="$PPID"
+            for _ in $(seq 1 600); do kill -0 "$parent" 2>/dev/null || break; sleep 0.2; done
+            sleep 0.3
+            if [ "$(git rev-parse -q --verify "refs/remotes/$remote/$branch" 2>/dev/null)" = "$loid" ]; then
+                island push "$repo" "$remote/$branch" "${count:-0}"
+            fi
+        ) >/dev/null 2>&1 &
+        disown 2>/dev/null
+    done
+    ;;
+esac
+exit 0

@@ -10,6 +10,8 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 import qs.modules.mosaic.island
+import qs.desk.services as Desk
+import qs.desk.components as DeskUi
 
 // The top band: a strip reserved at the top of every screen (windows start
 // under it), with the workspaces on the left and a few states on the right.
@@ -32,17 +34,11 @@ import qs.modules.mosaic.island
 // Idea from pocket-dots' top bar (diegoMalagrida/pocket-dots, GPL-3.0).
 Scope {
     id: root
-    readonly property int band: 34
+    readonly property int band: 30
     readonly property int pillH: 26
 
-    // recording: the recorder is running (gpu-screen-recorder or wf-recorder)
-    property bool recording: false
-    Process {
-        id: recCheck
-        command: ["sh", "-c", "pgrep -x 'gpu-screen-reco|wf-recorder' >/dev/null && echo 1 || echo 0"]
-        stdout: StdioCollector { onStreamFinished: root.recording = this.text.trim() === "1" }
-    }
-    Timer { interval: 2000; running: true; repeat: true; triggeredOnStart: true; onTriggered: recCheck.running = true }
+    // recording: the recorder is running (the one check is MosaicRecording)
+    readonly property bool recording: MosaicRecording.recording
 
     readonly property bool offline: !Network.ethernet && Network.wifiStatus !== "connected"
     readonly property bool muted: Audio.sink?.audio?.muted ?? false
@@ -74,6 +70,7 @@ Scope {
             required property var modelData
             screen: modelData
             anchors { top: true; left: true; right: true }
+            margins.top: 0
             implicitHeight: root.band
             exclusiveZone: root.band
             color: "transparent"
@@ -82,6 +79,8 @@ Scope {
             mask: Region {
                 Region { item: leftPill }
                 Region { item: rightPill }
+                Region { item: MosaicTheme.mac ? appTitle : null }
+                Region { item: MosaicTheme.mac ? macMark : null }
             }
 
             readonly property var hlMonitor: Hyprland.monitors.values.find(m => m.name === bar.screen.name) ?? null
@@ -103,10 +102,54 @@ Scope {
                 opacity: bar.fullscreenHere ? 0 : 1
                 Behavior on opacity { NumberAnimation { duration: 180 } }
 
+                // ---------- macOS theme: the menu bar ----------
+                // one translucent bar across the screen (the theme's liquid glass is
+                // on this layer), the focused app's name in bold on the left, the date
+                // and time on the right; the island in the middle is the notch
+                // from edge to edge, a near-solid dark grey (macOS's dark menu bar), a
+                // dark hairline under it. The
+                // island in the middle is the notch: black, flush with the edge, as
+                // tall as the bar, and it shows the time, so the bar shows the date
+                Rectangle {
+                    visible: MosaicTheme.mac
+                    anchors.fill: parent
+                    // a dark veil over the liquid glass (a thin lens, little blur: the
+                    // heavy frost read as a smudge), light enough for the bend to show
+                    color: Qt.rgba(0.10, 0.10, 0.11, 0.42)
+                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(0, 0, 0, 0.45) }
+                }
+                // the Mosaic mark where the Apple menu goes: it opens the start menu
+                Grid {
+                    id: macMark
+                    visible: MosaicTheme.mac
+                    x: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    columns: 2
+                    spacing: 1.5
+                    Repeater {
+                        model: [Appearance.m3colors.m3primary, Appearance.m3colors.m3secondary, Appearance.m3colors.m3tertiary, "#f5f5f7"]
+                        Rectangle { required property var modelData; width: 6; height: 6; radius: 1.5; color: modelData }
+                    }
+                    TapHandler { onTapped: GlobalStates.searchOpen = !GlobalStates.searchOpen }
+                }
+                Text {
+                    id: appTitle
+                    visible: MosaicTheme.mac
+                    x: macMark.x + macMark.width + 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    readonly property string appId: ToplevelManager.activeToplevel?.appId ?? ""
+                    readonly property var entry: appId !== "" ? DesktopEntries.heuristicLookup(appId) : null
+                    text: entry?.name ?? (appId !== "" ? appId.split(".").pop().replace(/^./, c => c.toUpperCase()) : "Mesa")
+                    font.family: MosaicTheme.fontUi
+                    font.pixelSize: 13
+                    font.weight: Font.Bold
+                    color: "white"
+                }
+
                 // ---------- left: the workspaces ----------
                 Pill {
                     id: leftPill
-                    x: 8
+                    x: MosaicTheme.mac ? appTitle.x + appTitle.implicitWidth + 10 : 6
                     width: wsRow.width + 8
                     readonly property real slot: 22
                     readonly property real gap: 2
@@ -220,7 +263,7 @@ Scope {
                 Pill {
                     id: rightPill
                     anchors.right: parent.right
-                    anchors.rightMargin: 8
+                    anchors.rightMargin: 5
                     width: stateRow.width > 0 ? stateRow.width + 8 : 0
                     visible: width > 1
                     Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -229,6 +272,26 @@ Scope {
                         anchors.centerIn: parent
                         spacing: 0
                         layoutDirection: Qt.RightToLeft
+
+                        // macOS theme, right to left as on the Mac: the date (the time is
+                        // in the notch), the control centre (the right sidebar), search
+                        // (the start menu), the sound and the network
+                        Text {
+                            visible: MosaicTheme.mac
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftPadding: 10
+                            rightPadding: 8
+                            text: barClock.date.toLocaleString(Qt.locale(), "ddd d 'de' MMM").replace(".", "")
+                            font.family: MosaicTheme.fontUi
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                            color: "white"
+                            SystemClock { id: barClock; precision: SystemClock.Minutes }
+                        }
+                        MacIcon { icon: "toggle_on"; onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen }
+                        MacIcon { icon: "search"; onClicked: GlobalStates.searchOpen = !GlobalStates.searchOpen }
+                        MacIcon { icon: root.muted ? "volume_off" : "volume_up"; onClicked: Audio.toggleMute() }
+                        MacIcon { icon: Network.materialSymbol; onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen }
 
                         StateIcon {
                             shown: root.muted
@@ -255,24 +318,93 @@ Scope {
                             icon: "deployed_code_update"
                             tint: Updates.updateStronglyAdvised ? Appearance.m3colors.m3error : root.fg
                         }
+                        // Claude Code: a ring for the 5-hour block (the plan's use when the
+                        // account answers, else the time gone), Claude's mark inside and the
+                        // block's tokens; a click shows the details on the island
+                        Item {
+                            id: claudeRing
+                            readonly property bool shown: Desk.ClaudeService.available && Desk.ClaudeService.remaining > 0
+                            visible: width > 0.5
+                            width: shown ? claudeRow.implicitWidth + 12 : 0
+                            height: root.pillH
+                            clip: true
+                            Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                            Component.onCompleted: Desk.ClaudeService.subscribe()
+                            Component.onDestruction: Desk.ClaudeService.release()
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: parent.width - 2
+                                height: parent.height - 6
+                                radius: height / 2
+                                color: ColorUtils.transparentize(root.fg, claudeArea.containsMouse ? 0.85 : 1)
+                            }
+                            Row {
+                                id: claudeRow
+                                anchors.centerIn: parent
+                                spacing: 4
+                                DeskUi.RingIndicator {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 18
+                                    height: 18
+                                    thickness: 2
+                                    progress: Desk.ClaudeService.gauge
+                                    trackColor: ColorUtils.transparentize(root.fg, 0.75)
+                                    fillColor: Desk.ClaudeService.gauge >= 0.85 ? Appearance.m3colors.m3error : "#d97757"
+                                    DeskUi.ClaudeMark {
+                                        anchors.centerIn: parent
+                                        width: 9
+                                        height: 9
+                                        color: root.fg
+                                    }
+                                }
+                                StyledText {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: Desk.ClaudeService.measured ? Desk.ClaudeService.percent(Desk.ClaudeService.gauge) : Desk.ClaudeService.compact(Desk.ClaudeService.blockTokens)
+                                    font.family: MosaicTheme.fontUi
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                    color: root.fg
+                                }
+                            }
+                            MouseArea {
+                                id: claudeArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    const c = Desk.ClaudeService;
+                                    const left = Math.ceil(c.remaining / 60000);
+                                    Quickshell.execDetached(["qs", "-c", "mosaic", "ipc", "call", "island", "claude", "usage", "uso",
+                                        `${c.compact(c.blockTokens)} tokens · ${c.messages(c.blockMessages)} · renova em ${Math.floor(left / 60)} h ${left % 60} min`]);
+                                }
+                            }
+                        }
                         StateIcon {
                             shown: Idle.inhibit
                             icon: "coffee"
                             onClicked: Idle.inhibit = false
                         }
-                        // recording: it winks once every 2 s instead of pulsing all the time
+                        // the study mode: until when (a click opens its tab)
                         StateIcon {
+                            shown: MosaicEstudo.active
+                            icon: MosaicEstudo.release ? "lock_open" : "school"
+                            label: MosaicEstudo.clock(MosaicEstudo.until)
+                            fill: 1
+                            onClicked: Quickshell.execDetached(["qs", "-c", "mosaic", "ipc", "call", "mosaicSettings", "estudo"])
+                        }
+                        // recording: it winks once every 2 s instead of pulsing all the time
+                        // (a timer dims it for a moment; a looping animation, pause included,
+                        // drew the band on every frame for the whole recording)
+                        StateIcon {
+                            id: recIcon
                             shown: root.recording
                             icon: "radio_button_checked"
                             tint: "#ff5a5f"
                             fill: 1
-                            SequentialAnimation on opacity {
-                                running: root.recording
-                                loops: Animation.Infinite
-                                PauseAnimation { duration: 1700 }
-                                NumberAnimation { to: 0.25; duration: 150 }
-                                NumberAnimation { to: 1; duration: 150 }
-                            }
+                            property bool wink: false
+                            opacity: wink ? 0.25 : 1
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                            Timer { running: root.recording; repeat: true; interval: 2000; onTriggered: { recIcon.wink = true; unwink.restart(); } }
+                            Timer { id: unwink; interval: 160; onTriggered: recIcon.wink = false }
                         }
                     }
                 }
@@ -283,17 +415,44 @@ Scope {
     // a dark pill in the island's look (brutal: a slab with an outline and a hard shadow)
     component Pill: Rectangle {
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: 4 // centred on the island (6 below the edge, 30 tall: centre at 21)
+        // centred on the island (6 below the edge, 30 tall: centre at 21); macOS: on the bar's own middle
+        anchors.verticalCenterOffset: MosaicTheme.mac ? 0 : 2
         height: root.pillH
         radius: MosaicTheme.brutal ? MosaicTheme.r(8) : height / 2
-        color: root.pillAlphaColor
-        border.width: MosaicTheme.brutal ? MosaicTheme.border : 1
+        // macOS: no pill, it is all one menu bar
+        color: MosaicTheme.mac ? "transparent" : root.pillAlphaColor
+        border.width: MosaicTheme.mac ? 0 : MosaicTheme.brutal ? MosaicTheme.border : 1
         border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
         HardShadow {}
         Grain { radius: parent.radius; amount: MosaicTheme.grainIsland }
     }
 
     // a state on the right: an icon (and maybe a number), present only while `shown`
+    // macOS theme: a menu-bar icon, white, a soft round pad under the pointer
+    component MacIcon: Item {
+        id: mi
+        property string icon: ""
+        signal clicked()
+        visible: MosaicTheme.mac
+        width: 30
+        height: root.pillH
+        Rectangle {
+            anchors.centerIn: parent
+            width: 28
+            height: 22
+            radius: 6
+            color: Qt.rgba(1, 1, 1, miArea.containsMouse ? 0.16 : 0)
+        }
+        MaterialSymbol {
+            anchors.centerIn: parent
+            text: mi.icon
+            iconSize: 17
+            fill: 1
+            color: "white"
+        }
+        MouseArea { id: miArea; anchors.fill: parent; hoverEnabled: true; onClicked: mi.clicked() }
+    }
+
     component StateIcon: Item {
         id: st
         property bool shown: false

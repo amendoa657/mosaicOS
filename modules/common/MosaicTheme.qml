@@ -120,7 +120,55 @@ color240 #16110d
 color243 #e8673a
 color244 #ef6f5e
 color245 #3f372e`,
-          hypr: { active: "rgba(e8673aaa)", inactive: "rgba(332c2566)", background: "rgba(0e0c0aff)", rounding: 8 } }
+          hypr: { active: "rgba(e8673aaa)", inactive: "rgba(332c2566)", background: "rgba(0e0c0aff)", rounding: 8 } },
+        { id: "macos", name: "macOS", hint: "vidro líquido no talo", file: Quickshell.shellPath("themes/macos.json"),
+          swatches: ["#0a84ff", "#bf5af2", "#30d158", "#f5f5f7"], base: "#1e1e1e", roundness: 1.1, style: "mac",
+          ink: "#f5f5f7", fontUi: "Inter Variable", fontDisplay: "Inter Display",
+          // the terminal (kitty): macOS Terminal's dark profile, with the system colours
+          terminal: `background #1e1e1e
+foreground #f5f5f7
+cursor #0a84ff
+cursor_text_color #1e1e1e
+selection_background #3a3a3c
+selection_foreground #f5f5f7
+url_color #64d2ff
+color0 #1e1e1e
+color8 #636366
+color1 #ff453a
+color9 #ff6961
+color2 #30d158
+color10 #66e283
+color3 #ffd60a
+color11 #ffe55c
+color4 #0a84ff
+color12 #64aaff
+color5 #bf5af2
+color13 #da8fff
+color6 #64d2ff
+color14 #99e3ff
+color7 #c7c7cc
+color15 #f5f5f7
+color255 #0a84ff
+color254 #0a3d75
+color253 #bf5af2
+color252 #4b2463
+color251 #30d158
+color250 #0f5224
+color249 #ff453a
+color248 #7a1a14
+color232 #1c1c1e
+color233 #d6e8ff
+color234 #1c1c1e
+color235 #f3dcff
+color236 #1c1c1e
+color237 #c9f5d3
+color238 #1c1c1e
+color239 #ffdad6
+color240 #1c1c1e
+color243 #0a84ff
+color244 #ff453a
+color245 #48484a`,
+          hypr: { active: "rgba(ffffff33)", inactive: "rgba(ffffff14)", background: "rgba(1e1e1eff)", rounding: 12 } }
     ]
     property string current: "mosaic"
     readonly property var theme: root.themes.find(t => t.id === root.current) ?? root.themes[0]
@@ -135,6 +183,8 @@ color245 #3f372e`,
     // - "retro" (Horizonte): the soft shapes, plus film grain on the island and
     //   the dock (`grain`: how strong), and serif titles
     readonly property bool retro: root.theme.style === "retro"
+    // macOS: everything as glass, Apple's shapes and type
+    readonly property bool mac: root.theme.style === "mac"
     readonly property real grain: root.retro ? 0.07 : 0
     // The shell's own grain: none while the apps' grain (a Hyprland screen shader,
     // MosaicScreenGrain) is on, since that one already covers the shell too
@@ -150,12 +200,15 @@ color245 #3f372e`,
     // (the island does the same with its own Ilha tab): `base` pulled toward black by `darkness`, as solid as `opacity`.
     function widgetFill(base) {
         const d = root.widgets?.darkness ?? 0.55;
-        return Qt.rgba(base.r * (1 - d), base.g * (1 - d), base.b * (1 - d), root.widgets?.opacity ?? 0.9);
+        return Qt.rgba(base.r * (1 - d), base.g * (1 - d), base.b * (1 - d), root.paneAlpha(root.widgets?.opacity ?? 0.9));
     }
+    // macOS: the panes stay thin so the liquid glass under them shows (at most 30%)
+    function paneAlpha(a) { return root.mac ? Math.min(a, 0.14) : a; }
     // Fonts: `fontUi` for text, `fontDisplay` for titles (the clock, headers).
     // A theme's display font is used only if it is installed (Fraunces comes from
     // the AUR: ttf-fraunces-variable); until then, a serif that is.
-    readonly property string fontUi: "Space Grotesk"
+    // a theme may ask for its own text font (macOS: Inter, the free cousin of SF Pro), if installed
+    readonly property string fontUi: root.theme.fontUi && Qt.fontFamilies().includes(root.theme.fontUi) ? root.theme.fontUi : "Space Grotesk"
     readonly property string fontDisplay: {
         const want = root.theme.fontDisplay;
         if (!want)

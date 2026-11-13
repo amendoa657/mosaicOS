@@ -128,21 +128,18 @@ LazyLoader {
     component: PanelWindow {
         id: popupWindow
         color: "transparent"
-        anchors.left: true
-        anchors.top: root.atTop
-        anchors.bottom: !root.atTop
+        anchors.right: true
+        anchors.top: true
+        anchors.bottom: !false
         implicitWidth: background.implicitWidth + Appearance.sizes.elevationMargin * 2
         implicitHeight: background.implicitHeight + Appearance.sizes.elevationMargin * 2
         exclusionMode: ExclusionMode.Ignore
         exclusiveZone: 0
         margins {
-            left: {
-                if (!root.anchorItem) return 0;
-                const x = root.QsWindow?.mapFromItem(root.anchorItem, (root.anchorItem.width - popupWindow.implicitWidth) / 2, 0).x ?? 0;
-                return Math.max(0, Math.min(x, (popupWindow.screen?.width ?? 1920) - popupWindow.implicitWidth));
-            }
-            top: root.edgeMargin
-            bottom: root.edgeMargin
+          left: 0
+          right: 0
+          top: 0
+          bottom: 292
         }
         mask: Region { item: background }
         WlrLayershell.namespace: "quickshell:popup"

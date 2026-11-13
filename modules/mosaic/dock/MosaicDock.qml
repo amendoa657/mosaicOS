@@ -25,11 +25,16 @@ import qs.modules.mosaic.island
 //   up when the mouse reaches the bottom edge.
 Scope {
     id: root
-    readonly property real dockHeight: 58
-    readonly property real gap: 8 // from the screen edge
-    readonly property real lift: 46 // room above the dock for the wave and the tooltips
-    readonly property real cell: 46 // one app's width
-    readonly property real iconSize: 34
+    // macOS theme: Apple's dock: bigger icons, the real magnification, a white dot
+    // under open apps, and no status area (that is in the menu bar)
+    readonly property bool mac: MosaicTheme.mac
+    readonly property real dockHeight: mac ? 60 : 58
+    readonly property real gap: mac ? 6 : 4 // from the screen edge
+    readonly property real lift: mac ? 54 : 46 // room above the dock for the wave and the tooltips
+    readonly property real cell: mac ? 50 : 46 // one app's width
+    readonly property real iconSize: mac ? 40 : 34
+    readonly property real magnify: mac ? 0.32 : 0.2 // how much bigger the icon under the mouse gets
+    readonly property real rise: mac ? 10 : 7
 
     // the glass: a light, see-through pane (alpha above 0.3, so hyprglass bends it)
     // a thin tint: the strong liquid glass behind it (hypr/mosaic.lua, preset "dock")
@@ -39,7 +44,7 @@ Scope {
         // retro themes (Horizonte): a warm dark film instead of a light one
         const film = MosaicTheme.retro ? Appearance.m3colors.m3surfaceContainer : ColorUtils.mix("#ffffff", Appearance.colors.colLayer0, 0.08);
         const tint = ColorUtils.mix("#000000", film, Config.options.mosaicDock.darkness);
-        return Qt.rgba(tint.r, tint.g, tint.b, Config.options.mosaicDock.opacity);
+        return Qt.rgba(tint.r, tint.g, tint.b, MosaicTheme.paneAlpha(Config.options.mosaicDock.opacity));
     }
     readonly property color glassEdge: Qt.rgba(1, 1, 1, 0.16)
 
@@ -210,7 +215,7 @@ Scope {
                                     if (isSeparator || wave.value <= 0.001)
                                         return 0;
                                     const d = (x + width / 2 - pointer.value) / root.cell;
-                                    return Math.exp(-d * d / 1.4) * wave.value;
+                                    return Math.exp(-d * d / (root.mac ? 1.8 : 1.4)) * wave.value;
                                 }
 
                                 width: isSeparator ? 14 : root.cell
@@ -234,7 +239,7 @@ Scope {
                                     visible: !app.isSeparator
                                     anchors.fill: parent
                                     property real bounce: 0
-                                    transform: Translate { y: lifted.bounce - 7 * app.near }
+                                    transform: Translate { y: lifted.bounce - root.rise * app.near }
 
                                     IconImage {
                                         id: icon
@@ -243,7 +248,7 @@ Scope {
                                         implicitSize: root.iconSize
                                         source: root.iconSource(AppSearch.guessIcon(app.modelData.appId))
                                         transformOrigin: Item.Bottom
-                                        scale: 1 + 0.2 * app.near // subtle: at most 20% bigger
+                                        scale: 1 + root.magnify * app.near // subtle (20%); macOS: 32%
                                     }
                                     // one dot per window (up to three); the focused app's are longer
                                     Row {
@@ -252,12 +257,12 @@ Scope {
                                         anchors.bottomMargin: 4
                                         spacing: 3
                                         Repeater {
-                                            model: Math.min(app.toplevels.length, 3)
+                                            model: root.mac ? Math.min(app.toplevels.length, 1) : Math.min(app.toplevels.length, 3)
                                             delegate: Rectangle {
-                                                width: app.isActive ? 8 : 4
+                                                width: root.mac ? 4 : app.isActive ? 8 : 4
                                                 height: 4
                                                 radius: MosaicTheme.r(2)
-                                                color: app.isActive ? Appearance.colors.colPrimary : Qt.rgba(1, 1, 1, 0.55)
+                                                color: root.mac ? Qt.rgba(1, 1, 1, 0.8) : app.isActive ? Appearance.colors.colPrimary : Qt.rgba(1, 1, 1, 0.55)
                                                 Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
                                             }
                                         }
@@ -297,11 +302,12 @@ Scope {
                         }
                     }
 
-                    Divider {}
+                    Divider { visible: !root.mac }
 
                     // ---------- status ----------
                     MouseArea {
                         id: statusArea
+                        visible: !root.mac
                         Layout.fillHeight: true
                         implicitWidth: statusRow.implicitWidth + 24
                         hoverEnabled: true

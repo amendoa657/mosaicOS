@@ -19,8 +19,13 @@ import qs.modules.ii.sidebarRight.todo
 // Tradutor, Tarefas (the to-do list, moved from the right) and IA (the ii chat).
 // The pages are the ii's own; the column, header and tabs are new. Pages are
 // only created when first opened, and kept while the sidebar lives.
+// In the Mosaic theme (`mo`): a dark column over the still dot field (MoDots),
+// the tabs are mosaic-ui keys (MoTecla) with the usual icons and labels, and
+// the page sits on a solid tile; no glass.
 Scope {
     id: root
+    readonly property bool mo: MosaicTheme.current === "mosaic"
+    onOpenChanged: if (open) leftDots.shuffle()
     readonly property real sidebarWidth: 460
     readonly property bool open: GlobalStates.sidebarLeftOpen
     property int tab: 0
@@ -99,11 +104,14 @@ Scope {
             anchors.bottom: parent.bottom
             width: root.sidebarWidth
             transform: Translate { x: column.offset }
-            radius: Appearance.rounding.large
-            // the Aparência tab's surface (darkness and opacity), shared with the island
-            color: MosaicTheme.brutal ? MosaicTheme.slab : MosaicTheme.widgetFill(Appearance.colors.colLayer0)
+            radius: root.mo ? 18 : Appearance.rounding.large
+            // the Aparência tab's surface (darkness and opacity), shared with the island;
+            // Mosaic: solid and dark, the dots show on it
+            color: root.mo ? Appearance.m3colors.m3surfaceContainerLowest
+                : MosaicTheme.brutal ? MosaicTheme.slab : MosaicTheme.widgetFill(Appearance.colors.colLayer0)
             border.width: MosaicTheme.brutal ? MosaicTheme.border + 1 : 1
-            border.color: MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
+            border.color: root.mo ? Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.6)
+                : MosaicTheme.brutal ? MosaicTheme.ink : Appearance.colors.colLayer0Border
             focus: root.open
             Keys.onEscapePressed: GlobalStates.sidebarLeftOpen = false
             // square corners on the screen edge, round ones inside
@@ -126,6 +134,15 @@ Scope {
                 radius: column.radius
                 amount: MosaicTheme.grainSidebars
             }
+            // Mosaic: the still dot field, clear of the rounded inner corners
+            MoDots {
+                id: leftDots
+                visible: root.mo
+                anchors.fill: parent
+                anchors.topMargin: 12
+                anchors.bottomMargin: 12
+                anchors.rightMargin: 6
+            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -145,9 +162,9 @@ Scope {
                     }
                     Repeater {
                         model: [
-                            { icon: "translate", label: "Tradutor" },
-                            { icon: "checklist", label: "Tarefas" },
-                            { icon: "neurology", label: "IA" }
+                            { icon: "translate", pixel: "voz", label: "Tradutor" },
+                            { icon: "checklist", pixel: "check", label: "Tarefas" },
+                            { icon: "neurology", pixel: "faisca", label: "IA" }
                         ]
                         delegate: Rectangle {
                             id: tabKey
@@ -155,16 +172,45 @@ Scope {
                             required property int index
                             readonly property bool on: root.tab === index
                             Layout.fillWidth: true
-                            implicitHeight: 40
+                            implicitHeight: root.mo ? 44 : 40
                             radius: Appearance.rounding.small
-                            color: on ? (MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer1, 0.32))
+                            color: root.mo ? "transparent" : on ? (MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : ColorUtils.mix(Appearance.colors.colPrimary, Appearance.colors.colLayer1, 0.32))
                                 : (MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer1)
                             border.width: MosaicTheme.brutal ? (on ? MosaicTheme.border : 1) : 0
                             border.color: MosaicTheme.ink
                             Behavior on color { ColorAnimation { duration: 180 } }
                             transform: Translate { x: tabShadow.sinkShift; y: tabShadow.sinkShift }
-                            HardShadow { id: tabShadow; sink: tabArea.pressed || tabKey.on }
+                            HardShadow { id: tabShadow; visible: !root.mo; sink: tabArea.pressed || tabKey.on }
+                            // Mosaic: a key; the chosen tab is lit and stays sunk
+                            MoTecla {
+                                id: tabFace
+                                visible: root.mo
+                                anchors.fill: parent
+                                on: tabKey.on
+                                down: tabArea.pressed || tabKey.on
+                                hovered: tabArea.containsMouse
+                                Row {
+                                    anchors.centerIn: parent
+                                    spacing: 8
+                                    MaterialSymbol {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: tabKey.modelData.icon
+                                        iconSize: 18
+                                        fill: tabKey.on ? 1 : 0
+                                        color: tabFace.ink
+                                    }
+                                    StyledText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: tabKey.modelData.label
+                                        font.family: MosaicTheme.fontUi
+                                        font.pixelSize: 11
+                                        font.weight: Font.Bold
+                                                                                color: tabFace.ink
+                                    }
+                                }
+                            }
                             RowLayout {
+                                visible: !root.mo
                                 anchors.centerIn: parent
                                 spacing: 6
                                 MaterialSymbol {
@@ -184,6 +230,7 @@ Scope {
                             MouseArea {
                                 id: tabArea
                                 anchors.fill: parent
+                                hoverEnabled: root.mo
                                 onClicked: root.tab = tabKey.index
                             }
                         }
@@ -194,10 +241,11 @@ Scope {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Appearance.rounding.normal
-                    color: MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer1
-                    border.width: MosaicTheme.border
-                    border.color: MosaicTheme.ink
+                    radius: root.mo ? 14 : Appearance.rounding.normal
+                    color: root.mo ? Appearance.m3colors.m3surfaceContainer
+                        : MosaicTheme.brutal ? MosaicTheme.slabRaised : Appearance.colors.colLayer1
+                    border.width: root.mo ? 1 : MosaicTheme.border
+                    border.color: root.mo ? Qt.alpha(Appearance.m3colors.m3outlineVariant, 0.5) : MosaicTheme.ink
                     clip: true
                     HardShadow {}
 

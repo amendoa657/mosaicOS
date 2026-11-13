@@ -52,6 +52,7 @@ Scope {
         function toggle(): void { root.toggle(); }
         function open(): void { GlobalStates.wallpaperSelectorOpen = true; }
         function random(): void { MosaicWalls.random(); }
+        function apply(path: string): void { MosaicWalls.apply(path); } // with the pixel wave
     }
     GlobalShortcut {
         name: "wallpaperSelectorToggle"
@@ -334,6 +335,7 @@ Scope {
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: 10
+                    /*
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 14
@@ -342,7 +344,8 @@ Scope {
                         color: MosaicWalls.toneOf(win.selected) || Appearance.colors.colLayer2
                         border.width: MosaicTheme.brutal ? 1.5 : 0
                         border.color: MosaicTheme.ink
-                    }
+                      }
+                      
                     StyledText {
                         text: win.selected ? MosaicWalls.niceName(win.selected) : (win.shown.length === 0 ? "nenhum papel" : "")
                         font.family: MosaicTheme.fontDisplay
@@ -351,15 +354,31 @@ Scope {
                         color: "white"
                         style: Text.Raised
                         styleColor: "#55000000"
-                    }
-                    StyledText {
+                      }
+                      */
+
+                    Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: `${row.currentIndex + 1} / ${win.shown.length}`
-                        font.family: "JetBrains Mono"
-                        font.pixelSize: 12
-                        color: Qt.rgba(1, 1, 1, 0.65)
+                        width: 100
+                        height: 25
+                        radius: MosaicTheme.r(20)
+                        color: MosaicWalls.toneOf(win.selected) || Appearance.colors.colLayer2
+                        border.width: MosaicTheme.brutal ? 1.5 : 0
+                        border.color: MosaicTheme.ink
+
+                        StyledText {
+                          anchors.verticalCenter: parent.verticalCenter
+                          anchors.horizontalCenter: parent.horizontalCenter
+                          text: `${row.currentIndex + 1} / ${win.shown.length}`
+                          font.family: "JetBrains Mono"
+                          font.pixelSize: 15
+                          font.weight: Font.ExtraBold 
+                          color: Qt.rgba(1, 1, 1, 0.65)
+
+                        }
                     }
-                }
+                  }
+
 
                 // search
                 Rectangle {

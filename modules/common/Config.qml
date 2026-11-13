@@ -602,6 +602,7 @@ Singleton {
                 property real grainSidebars: 1.0
                 property real grainDesktop: 1.0
                 property real grainPicker: 1.0 // the wallpaper/theme window
+                property bool pixelField: true // Mosaic theme: mosaic-ui's living dot field on the desktop
             }
             // Mosaic OS: every app, terminal included (Apps tab): film grain by a Hyprland screen shader
             // Mosaic OS: the Stage Manager (left edge shows the other workspaces; Áreas tab)

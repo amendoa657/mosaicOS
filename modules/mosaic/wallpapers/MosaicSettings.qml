@@ -12,12 +12,14 @@ import qs.modules.common
 import qs.modules.common.widgets
 import qs.modules.common.functions
 import qs.modules.mosaic.island
+import qs.modules.mosaic.estudo
+import qs.desk.services as Desk
 
 // The Mosaic OS settings window: the themes on the left, and a tab per part
-// (Widgets, Gravação, Ilha, Aparência, Dock, Apps, Áreas). The wallpapers left it
+// (Widgets, Gravação, Ilha, Aparência, Dock, Apps, Áreas, Estudo). The wallpapers left it
 // for their own carousel (MosaicCarousel), opened from the right sidebar.
 // Opens with the palette button on the right sidebar, Super+Alt+T or the IPC:
-//   qs -c mosaic ipc call mosaicSettings toggle|widgets|recording|island|look|dock|apps|areas
+//   qs -c mosaic ipc call mosaicSettings toggle|widgets|recording|island|look|dock|apps|areas|estudo
 // Layout idea from hyprdots (fedyaqq34356/hyprdots, GPL-3.0), in the Mosaic style.
 Scope {
     id: root
@@ -46,6 +48,7 @@ Scope {
         function dock(): void { root.openOn("dock"); }
         function apps(): void { root.openOn("apps"); }
         function areas(): void { root.openOn("areas"); }
+        function estudo(): void { root.openOn("estudo"); }
     }
     GlobalShortcut {
         name: "mosaicSettingsToggle"
@@ -228,14 +231,26 @@ Scope {
                     anchors.leftMargin: 24
                     anchors.top: parent.top
                     anchors.topMargin: 18
-                    spacing: 8
+                    spacing: 6
+                    // when the tabs don't fit with their names (a narrow screen, the
+                    // brutal capitals), only the open one keeps its name
+                    readonly property real room: parent.width - x - 18
+                    readonly property real need: {
+                        let total = -spacing;
+                        for (let i = 0; i < tabRepeater.count; i++)
+                            total += (tabRepeater.itemAt(i)?.fullWidth ?? 0) + spacing;
+                        return total;
+                    }
+                    readonly property bool compact: need > room
                     Repeater {
-                        model: [{ id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }, { id: "areas", label: "Áreas", icon: "view_quilt" }]
+                        id: tabRepeater
+                        model: [{ id: "widgets", label: "Widgets", icon: "widgets" }, { id: "record", label: "Gravação", icon: "videocam" }, { id: "island", label: "Ilha", icon: "pill" }, { id: "look", label: "Aparência", icon: "palette" }, { id: "dock", label: "Dock", icon: "dock_to_bottom" }, { id: "apps", label: "Apps", icon: "apps" }, { id: "areas", label: "Áreas", icon: "view_quilt" }, { id: "estudo", label: "Estudo", icon: "school" }]
                         delegate: Rectangle {
                             id: pageTab
                             required property var modelData
                             readonly property bool on: win.page === modelData.id
-                            implicitWidth: pageTabRow.implicitWidth + 28
+                            readonly property real fullWidth: pageTabIcon.implicitWidth + pageTabRow.spacing + pageTabLabel.implicitWidth + 22
+                            implicitWidth: pageTabRow.implicitWidth + 22
                             implicitHeight: 36
                             radius: Appearance.rounding.small
                             color: on ? (MosaicTheme.brutal ? Appearance.colors.colPrimaryContainer : root.softBlockOf(Appearance.colors.colPrimary))
@@ -248,13 +263,16 @@ Scope {
                             RowLayout {
                                 id: pageTabRow
                                 anchors.centerIn: parent
-                                spacing: 8
+                                spacing: 6
                                 MaterialSymbol {
+                                    id: pageTabIcon
                                     text: pageTab.modelData.icon
                                     iconSize: 18
                                     color: Appearance.colors.colOnLayer0
                                 }
                                 StyledText {
+                                    id: pageTabLabel
+                                    visible: !pageTabs.compact || pageTab.on
                                     text: MosaicTheme.brutal ? pageTab.modelData.label.toUpperCase() : pageTab.modelData.label
                                     font.family: MosaicTheme.fontUi
                                     font.pixelSize: 14
@@ -271,9 +289,11 @@ Scope {
                     }
                 }
 
-                // ----- Widgets: the desktop widgets, each with its own switch -----
-                // Each one is Config.options.background.widgets.<key>.enable: the ii
-                // background shows or hides it as soon as the value changes.
+                // ----- Widgets: the desk of widgets (desk/, from impasto) -----
+                // The first cell arranges the desk (drag, resize, the inspector for
+                // each widget); the others are the modules: on = there is one on the
+                // desk. Turning one on adds it to the main screen, off takes all of
+                // them away. Their look follows the theme (Modern, Sticker, Analogue).
                 GridView {
                     id: widgetGrid
                     visible: win.page === "widgets"
@@ -287,23 +307,37 @@ Scope {
                     anchors.bottomMargin: 18
                     clip: true
                     cellWidth: Math.floor(width / 2)
-                    cellHeight: 92
-                    interactive: false
+                    cellHeight: 84
+                    interactive: true // the catalogue is longer than the card
                     model: [
-                        { key: "clock", icon: "schedule", name: "Relógio", hint: "a hora grande no fundo" },
-                        { key: "calendar", icon: "calendar_month", name: "Calendário", hint: "o mês com o dia de hoje" },
+                        { key: "arrange", icon: "dashboard_customize", name: "Arrumar widgets", hint: "arrastar, redimensionar e editar (ou clique direito no papel)" },
+                        { key: "clock", icon: "schedule", name: "Relógio", hint: "a hora e a data" },
+                        { key: "calendar", icon: "calendar_month", name: "Calendário", hint: "o mês, com as tarefas" },
                         { key: "weather", icon: "partly_cloudy_day", name: "Clima", hint: "temperatura e previsão" },
                         { key: "media", icon: "music_note", name: "Música", hint: "o que está tocando" },
-                        { key: "photos", icon: "photo", name: "Fotos", hint: "um porta-retratos" },
-                        { key: "photos2", icon: "photo_library", name: "Fotos 2", hint: "o segundo porta-retratos" },
-                        { key: "anniversary", icon: "favorite", name: "Dias juntos", hint: "o contador de dias" }
+                        { key: "lyrics", icon: "lyrics", name: "Letra", hint: "a letra da música, na hora certa" },
+                        { key: "spectrum", icon: "graphic_eq", name: "Espectro", hint: "as barras do áudio" },
+                        { key: "photo", icon: "photo", name: "Foto", hint: "um porta-retratos (foto ou pasta)" },
+                        { key: "anniversary", icon: "favorite", name: "Dias juntos", hint: "o contador de dias" },
+                        { key: "notes", icon: "sticky_note_2", name: "Notas", hint: "um post-it" },
+                        { key: "tasks", icon: "checklist", name: "Tarefas", hint: "o que falta fazer" },
+                        { key: "timer", icon: "timer", name: "Timer", hint: "uma contagem regressiva" },
+                        { key: "screentime", icon: "hourglass_top", name: "Tempo de tela", hint: "quanto tempo em cada app" },
+                        { key: "stats", icon: "memory", name: "Sistema", hint: "CPU, memória e temperatura" },
+                        { key: "volume", icon: "volume_up", name: "Volume", hint: "o som e a saída" },
+                        { key: "network", icon: "wifi", name: "Rede", hint: "a conexão e a velocidade" },
+                        { key: "bluetooth", icon: "bluetooth", name: "Bluetooth", hint: "os aparelhos conectados" },
+                        { key: "updates", icon: "system_update", name: "Atualizações", hint: "pacotes para atualizar" },
+                        { key: "claude", icon: "smart_toy", name: "Claude Code", hint: "o uso do plano (sessão e semana)" },
+                        { key: "github", icon: "commit", name: "GitHub", hint: "a parede de contribuições" }
                     ]
                     delegate: Item {
                         id: wcell
                         required property var modelData
                         required property int index
-                        readonly property var conf: Config.options.background.widgets[modelData.key]
-                        readonly property bool on: conf?.enable ?? false
+                        readonly property bool arrange: modelData.key === "arrange"
+                        readonly property int count: Desk.DesktopService.widgets.filter(w => w.id === modelData.key).length
+                        readonly property bool on: arrange ? Desk.DesktopService.editing : count > 0
                         width: widgetGrid.cellWidth
                         height: widgetGrid.cellHeight
                         // cascade, like the wallpapers
@@ -374,6 +408,7 @@ Scope {
                             // the switch: the knob slides on a spring (square knob in brutal themes)
                             Rectangle {
                                 id: wSwitch
+                                visible: !wcell.arrange
                                 anchors.right: parent.right
                                 anchors.rightMargin: 14
                                 anchors.verticalCenter: parent.verticalCenter
@@ -397,7 +432,20 @@ Scope {
                             MouseArea {
                                 id: wArea
                                 anchors.fill: parent
-                                onClicked: if (wcell.conf) wcell.conf.enable = !wcell.on
+                                onClicked: {
+                                    const main = Desk.MonitorService.effectivePrimaryName;
+                                    if (wcell.arrange) {
+                                        root.open = false;
+                                        Desk.DesktopService.edit(true, main);
+                                    } else if (wcell.on) {
+                                        for (const w of Desk.DesktopService.widgets.filter(w => w.id === wcell.modelData.key))
+                                            Desk.DesktopService.remove(w.key);
+                                    } else if (wcell.modelData.key === "notes") {
+                                        Desk.DesktopService.noteToGrid(Desk.NotesService.add("", "", "yellow"), main, 0, 0);
+                                    } else {
+                                        Desk.DesktopService.add(wcell.modelData.key, main);
+                                    }
+                                }
                             }
                         }
                     }
@@ -577,6 +625,19 @@ Scope {
                         color: Appearance.colors.colOnLayer0
                         opacity: 0.8
                     }
+                }
+
+                // ----- Estudo: the study mode's schedule and block lists -----
+                MosaicEstudoPage {
+                    visible: win.page === "estudo"
+                    anchors.left: side.right
+                    anchors.leftMargin: 24
+                    anchors.right: parent.right
+                    anchors.rightMargin: 18
+                    anchors.top: pageTabs.bottom
+                    anchors.topMargin: 20
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 18
                 }
 
                 // ----- Apps: film grain on every app, terminal included -----

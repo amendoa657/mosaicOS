@@ -19,41 +19,23 @@ Scope {
         [RoundCorner.CornerEnum.BottomRight]: () => GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
     })
 
-    component CornerPanelWindow: PanelWindow {
-        id: cornerPanelWindow
-        property var brightnessMonitor: Brightness.getMonitorForScreen(screen)
-        property bool fullscreen
-        visible: (Config.options.appearance.fakeScreenRounding === 1 || (Config.options.appearance.fakeScreenRounding === 2 && !fullscreen))
+    // Mosaic OS: one thin strip per screen edge (top and bottom) holding that
+    // edge's two corners, instead of a window per corner: 4 windows instead of
+    // 8, and every window costs its own render context (~5 MB each). The strip
+    // takes input only where a corner's sidebar zone is (mask), so the rest of
+    // the edge stays the windows'.
+    component CornerItem: Item {
+        id: cornerItem
         property var corner
-
-        exclusionMode: ExclusionMode.Ignore
-        mask: Region {
-            item: sidebarCornerOpenInteractionLoader.active ? sidebarCornerOpenInteractionLoader : null
-        }
-        WlrLayershell.namespace: "quickshell:screenCorners"
-        WlrLayershell.layer: WlrLayer.Overlay
-        color: "transparent"
-
-        anchors {
-            top: cornerWidget.isTopLeft || cornerWidget.isTopRight
-            left: cornerWidget.isBottomLeft || cornerWidget.isTopLeft
-            bottom: cornerWidget.isBottomLeft || cornerWidget.isBottomRight
-            right: cornerWidget.isTopRight || cornerWidget.isBottomRight
-        }
-        margins {
-            right: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.right) * -1
-            bottom: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.bottom) * -1
-        }
-
+        property bool fullscreen
+        readonly property alias hotZone: sidebarCornerOpenInteractionLoader
         implicitWidth: cornerWidget.implicitWidth
         implicitHeight: cornerWidget.implicitHeight
-
         RoundCorner {
             id: cornerWidget
-            anchors.fill: parent
-            corner: cornerPanelWindow.corner
-            rightVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.right) * 1
-            bottomVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerPanelWindow.anchors.bottom) * 1
+            corner: cornerItem.corner
+            rightVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerWidget.isRight) * 1
+            bottomVisualMargin: (Config.options.interactions.deadPixelWorkaround.enable && cornerWidget.isBottom) * 1
 
             implicitSize: Appearance.rounding.screenRounding
             implicitHeight: Math.max(implicitSize, sidebarCornerOpenInteractionLoader.implicitHeight)
@@ -63,7 +45,7 @@ Scope {
                 id: sidebarCornerOpenInteractionLoader
                 active: {
                     if (!Config.options.sidebar.cornerOpen.enable) return false;
-                    if (cornerPanelWindow.fullscreen) return false;
+                    if (cornerItem.fullscreen) return false;
                     return (Config.options.sidebar.cornerOpen.bottom == cornerWidget.isBottom);
                 }
                 anchors {
@@ -84,14 +66,14 @@ Scope {
                         const correctX = (cornerWidget.isRight && mouseArea.mouseX >= mouseArea.width - 2) || (cornerWidget.isLeft && mouseArea.mouseX <= 2);
                         const correctY = (cornerWidget.isTop && mouseArea.mouseY > verticalOffset || cornerWidget.isBottom && mouseArea.mouseY < mouseArea.height - verticalOffset);
                         if (correctX && correctY)
-                            screenCorners.actionForCorner[cornerPanelWindow.corner]();
+                            screenCorners.actionForCorner[cornerItem.corner]();
                     }
                     onEntered: {
                         if (Config.options.sidebar.cornerOpen.clickless)
-                            screenCorners.actionForCorner[cornerPanelWindow.corner]();
+                            screenCorners.actionForCorner[cornerItem.corner]();
                     }
                     onPressed: {
-                        screenCorners.actionForCorner[cornerPanelWindow.corner]();
+                        screenCorners.actionForCorner[cornerItem.corner]();
                     }
                     onScrollDown: {
                         if (!Config.options.sidebar.cornerOpen.valueScroll)
@@ -136,6 +118,55 @@ Scope {
         }
     }
 
+    component EdgePanelWindow: PanelWindow {
+        id: edgeWindow
+        property bool bottomEdge: false
+        property bool fullscreen
+        visible: (Config.options.appearance.fakeScreenRounding === 1 || (Config.options.appearance.fakeScreenRounding === 2 && !fullscreen))
+
+        exclusionMode: ExclusionMode.Ignore
+        mask: Region {
+            Region { item: leftCorner.hotZone.active ? leftCorner.hotZone : null }
+            Region { item: rightCorner.hotZone.active ? rightCorner.hotZone : null }
+        }
+        WlrLayershell.namespace: "quickshell:screenCorners"
+        WlrLayershell.layer: WlrLayer.Overlay
+        color: "transparent"
+
+        anchors {
+            top: !edgeWindow.bottomEdge
+            bottom: edgeWindow.bottomEdge
+            left: true
+            right: true
+        }
+        margins {
+            right: Config.options.interactions.deadPixelWorkaround.enable ? -1 : 0
+            bottom: (Config.options.interactions.deadPixelWorkaround.enable && edgeWindow.bottomEdge) ? -1 : 0
+        }
+        implicitHeight: Math.max(leftCorner.implicitHeight, rightCorner.implicitHeight)
+
+        CornerItem {
+            id: leftCorner
+            anchors.left: parent.left
+            anchors.top: edgeWindow.bottomEdge ? undefined : parent.top
+            anchors.bottom: edgeWindow.bottomEdge ? parent.bottom : undefined
+            width: implicitWidth
+            height: implicitHeight
+            corner: edgeWindow.bottomEdge ? RoundCorner.CornerEnum.BottomLeft : RoundCorner.CornerEnum.TopLeft
+            fullscreen: edgeWindow.fullscreen
+        }
+        CornerItem {
+            id: rightCorner
+            anchors.right: parent.right
+            anchors.top: edgeWindow.bottomEdge ? undefined : parent.top
+            anchors.bottom: edgeWindow.bottomEdge ? parent.bottom : undefined
+            width: implicitWidth
+            height: implicitHeight
+            corner: edgeWindow.bottomEdge ? RoundCorner.CornerEnum.BottomRight : RoundCorner.CornerEnum.TopRight
+            fullscreen: edgeWindow.fullscreen
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 
@@ -149,24 +180,13 @@ Scope {
             property var activeWorkspaceWithFullscreen: workspacesForMonitor.filter(workspace => ((workspace.toplevels.values.filter(window => window.wayland?.fullscreen)[0] != undefined) && workspace.active))[0]
             property bool fullscreen: activeWorkspaceWithFullscreen != undefined
 
-            CornerPanelWindow {
+            EdgePanelWindow {
                 screen: modelData
-                corner: RoundCorner.CornerEnum.TopLeft
                 fullscreen: monitorScope.fullscreen
             }
-            CornerPanelWindow {
+            EdgePanelWindow {
                 screen: modelData
-                corner: RoundCorner.CornerEnum.TopRight
-                fullscreen: monitorScope.fullscreen
-            }
-            CornerPanelWindow {
-                screen: modelData
-                corner: RoundCorner.CornerEnum.BottomLeft
-                fullscreen: monitorScope.fullscreen
-            }
-            CornerPanelWindow {
-                screen: modelData
-                corner: RoundCorner.CornerEnum.BottomRight
+                bottomEdge: true
                 fullscreen: monitorScope.fullscreen
             }
         }

@@ -56,3 +56,9 @@ end
 hl.bind("SUPER + ALT + N", hl.dsp.global("quickshell:mosaicNotesToggle"), { description = "Mosaic OS: notas" })
 hl.bind("SUPER + SHIFT + Tab", hl.dsp.global("quickshell:mosaicStageToggle"), { description = "Mosaic OS: liga e desliga o Stage Manager" })
 hl.bind("SUPER + ALT + T", hl.dsp.global("quickshell:mosaicSettingsToggle"), { description = "Mosaic OS: configurações e temas" })
+hl.bind("SUPER + ALT + G", hl.dsp.global("quickshell:mosaicDebugToggle"), { description = "Mosaic OS: desliga-tudo (achar o que pesa na GPU)" })
+
+-- O painel desliga-tudo (Super+Alt+G): flutuando, pequeno, no canto de cima à direita
+hl.window_rule({ match = { title = "^(Mosaic: desliga-tudo)$" }, float = true })
+hl.window_rule({ match = { title = "^(Mosaic: desliga-tudo)$" }, size = { 260, 520 } })
+hl.window_rule({ match = { title = "^(Mosaic: desliga-tudo)$" }, move = { "(monitor_w-280)", 60 } })

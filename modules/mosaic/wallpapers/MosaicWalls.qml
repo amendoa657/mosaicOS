@@ -28,6 +28,13 @@ Singleton {
     property var tones: ({})  // file name -> "#rrggbb"
     property var history: []  // full paths, newest first
     property string pending: "" // the wallpaper MosaicWallFx is bringing in
+    // the pixel wave in flight, Mosaic theme only (MosaicWallFx sets these; the desk's widgets join in,
+    // desk/desktop/Widget.qml): where it starts (0..1 on each screen), its four
+    // tones and how long it takes to cross the screen
+    property vector2d waveOrigin: Qt.vector2d(0.5, 1)
+    property var waveTones: []
+    readonly property int waveDuration: 1500
+    signal waveStarted()
     // outline maps already made (scripts/wallfx): file name -> true
     readonly property string mapDir: Quickshell.env("HOME") + "/.cache/mosaic-os/wallfx"
     property var maps: ({})
@@ -113,7 +120,7 @@ Singleton {
         onExited: {
             toneFile.reload();
             mapLister.running = true;
-            warmer.running = true;
+            warmer.running = true; // the outline maps, for the other themes' transition
         }
     }
     // the outline maps: list the ones there are, and make the missing ones in the
