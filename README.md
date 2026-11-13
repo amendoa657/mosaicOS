@@ -45,6 +45,14 @@ Git commits and pushes show up in the island (a global git hook), and so does Cl
 
 ![Commit, push and Claude Code in the island](docs/media/island-dev.webp)
 
+### Lock screens
+
+The macOS theme locks like a Mac: the date over a big clock and your picture with the password pill, which shakes on a wrong password. The other themes use impasto's lock, with a huge two-line clock, what is playing and its lyrics.
+
+| macOS | Mosaic (impasto) |
+|---|---|
+| ![](docs/media/lock-macos.webp) | ![](docs/media/lock-mosaic.webp) |
+
 ### Sidebars
 
 In the Mosaic theme the sidebars are mosaic-ui: keys that sink when pressed, block sliders, a tile calendar and a still dot field behind them. In macOS they turn into liquid glass.
@@ -56,7 +64,7 @@ In the Mosaic theme the sidebars are mosaic-ui: keys that sink when pressed, blo
 ### Also new
 
 - **macOS theme:** Inter fonts, a menu bar fused to the island's notch, a compact dock, glass with bent edges and its own lock screen.
-- **Lock screen** from impasto for the other themes (when `lock.useHyprlock` is off).
+- The lock screens replace hyprlock when `lock.useHyprlock` is off in the config.
 - **Lighter on the GPU:** nothing animates on its own when you are not looking; the dot field moves only when you click the desktop.
 - <kbd>Super</kbd> <kbd>Alt</kbd> <kbd>G</kbd> opens a rough panel that switches parts of the shell off, to see what weighs on your GPU.
 
